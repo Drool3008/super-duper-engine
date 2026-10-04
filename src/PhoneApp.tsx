@@ -202,7 +202,8 @@ function Home({ s, me, meds, tests, isRP, waitingOnMe, who, t, onGoChat, onProfi
         <SectionTitle icon={Pill}>{t('medicines')}</SectionTitle>
         {meds.length === 0 && <p className="mt-2 text-body text-muted">{t('nothing_on_file')}</p>}
         {meds.map((m: any, i: number) => {
-          const days = m.daily_dose ? Math.floor(m.pills_left / m.daily_dose) : null
+          const stock = m.doses_left ?? m.pills_left
+          const days = m.daily_dose ? Math.floor(stock / m.daily_dose) : null
           const low = days !== null && days <= 5
           // The RP sees other people's medicines; say whose, once per person.
           const owner = m.member !== who && m.member !== meds[i - 1]?.member
@@ -222,7 +223,7 @@ function Home({ s, me, meds, tests, isRP, waitingOnMe, who, t, onGoChat, onProfi
                     <div className="text-meta text-muted">{m.strength}{m.daily_dose ? ` · ${t('per_day', { n: m.daily_dose })}` : ''}</div>
                   </div>
                   <span className={cn('shrink-0 rounded-full px-2.5 py-1 text-meta font-bold', low ? 'bg-decision-bg text-decision' : 'bg-ok-bg text-ok')}>
-                    {days !== null ? t('days_left', { n: days }) : t('pills_left', { n: m.pills_left })}
+                    {days !== null ? t('days_left', { n: days }) : t('pills_left', { n: stock })}
                   </span>
                 </div>
                 <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-secondary" aria-hidden>

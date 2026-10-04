@@ -233,8 +233,9 @@ export function setRefillCycle({ medicine_id, quantity_dispensed, source, receip
   const days = Math.floor(qty / dose)
   const runsOut = new Date(start.getTime() + days * 86400000)
 
-  const before = { pills_left: med.pills_left, next_refill_date: med.next_refill_date || null }
-  med.pills_left = qty
+  const stockField = med.doses_left !== undefined ? 'doses_left' : 'pills_left'
+  const before = { [stockField]: med[stockField], next_refill_date: med.next_refill_date || null }
+  med[stockField] = qty
   med.next_refill_date = runsOut.toISOString()
   med.refill_source = { source, receipt_ref: receipt_ref || null, quantity_dispensed: qty, set_at: session.clock.toISOString() }
 

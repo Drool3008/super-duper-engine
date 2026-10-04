@@ -1,20 +1,30 @@
 {
   "_source": "https://delhivery-express-api-doc.readme.io/reference/order-tracking-api",
   "_confirmed": "todo",
-  "_note": "TODO: confirm with docs. The public page documents only the endpoint, the pull/push options and a 750-request / 5-minute rate limit. It publishes no response example. The ShipmentData / Shipment / Status nesting below is the widely used shape but is UNVERIFIED against the official docs. Do not present these field names as documented.",
-  "success_in_transit": {
+  "_note": "TODO: confirm with docs. The ShipmentData / Shipment / Status nesting is the widely used shape but is UNVERIFIED against the official docs.",
+  "success_in_transit_warangal": {
     "ShipmentData": [
-      { "Shipment": { "AWB": "TODO-CONFIRM-1234567890", "Status": { "Status": "In Transit", "StatusType": "UD", "StatusLocation": "Bengaluru_Hub", "StatusDateTime": "2026-10-04T12:40:00", "Instructions": "" } } }
+      { "Shipment": { "AWB": "WB-DEMO-0001", "Status": { "Status": "In Transit", "StatusType": "UD", "StatusLocation": "Warangal_Hub", "StatusDateTime": "2026-10-06T12:00:00", "Instructions": "" } } }
     ]
   },
-  "success_delivered": {
+  "success_delivered_warangal": {
     "ShipmentData": [
-      { "Shipment": { "AWB": "TODO-CONFIRM-1234567890", "Status": { "Status": "Delivered", "StatusType": "DL", "StatusLocation": "Bengaluru", "StatusDateTime": "2026-10-04T16:05:00", "Instructions": "Delivered to consignee" } } }
+      { "Shipment": { "AWB": "WB-DEMO-0001", "Status": { "Status": "Delivered", "StatusType": "DL", "StatusLocation": "Warangal", "StatusDateTime": "2026-10-07T11:20:00", "Instructions": "Delivered to consignee" } } }
+    ]
+  },
+  "success_in_transit_hyderabad": {
+    "ShipmentData": [
+      { "Shipment": { "AWB": "WB-DEMO-0002", "Status": { "Status": "In Transit", "StatusType": "UD", "StatusLocation": "Hyderabad_Hub", "StatusDateTime": "2026-10-06T12:30:00", "Instructions": "" } } }
+    ]
+  },
+  "success_delivered_hyderabad": {
+    "ShipmentData": [
+      { "Shipment": { "AWB": "WB-DEMO-0002", "Status": { "Status": "Delivered", "StatusType": "DL", "StatusLocation": "Gachibowli, Hyderabad", "StatusDateTime": "2026-10-06T15:45:00", "Instructions": "Delivered to consignee" } } }
     ]
   },
   "failure_late": {
     "ShipmentData": [
-      { "Shipment": { "AWB": "TODO-CONFIRM-1234567890", "Status": { "Status": "Pending", "StatusType": "PP", "StatusLocation": "Bengaluru_Hub", "StatusDateTime": "2026-10-04T18:00:00", "Instructions": "Delayed in transit" } } }
+      { "Shipment": { "AWB": "WB-DEMO-0001", "Status": { "Status": "Pending", "StatusType": "PP", "StatusLocation": "Warangal_Hub", "StatusDateTime": "2026-10-07T18:00:00", "Instructions": "Delayed in transit" } } }
     ]
   }
 }

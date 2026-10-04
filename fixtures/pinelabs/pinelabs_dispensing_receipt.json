@@ -4,5 +4,7 @@
   "_note": "Imagined capability 2 of 3. Pine Labs holds the merchant relationship with the pharmacy and the authorisation record for every transaction at that counter. The line-item data passes through them; it is simply not returned. Without it the refill clock is computed from the prescription, which is wrong whenever somebody buys only what their cash covers.",
   "success_partial_fill": { "transaction_id": "TX-DEMO-0001", "amount_inr": 80, "line_items": [ { "drug": "Metoprolol", "strength": "25mg", "quantity_dispensed": 20, "quantity_on_prescription": 60, "unit_price_inr": 4 } ] },
   "success_full_fill": { "transaction_id": "TX-DEMO-0002", "amount_inr": 240, "line_items": [ { "drug": "Metoprolol", "strength": "25mg", "quantity_dispensed": 60, "quantity_on_prescription": 60, "unit_price_inr": 4 } ] },
+  "success_full_fill_metoprolol_kazipet": { "transaction_id": "TX-DEMO-0005", "amount_inr": 320, "line_items": [ { "drug": "Metoprolol", "strength": "25mg", "quantity_dispensed": 60, "quantity_on_prescription": 60, "unit_price_inr": 5.33 } ] },
+  "success_full_fill_inhaler": { "transaction_id": "TX-DEMO-0006", "amount_inr": 480, "line_items": [ { "drug": "Budesonide + Formoterol", "strength": "200/6 mcg", "quantity_dispensed": 1, "quantity_on_prescription": 2, "unit_price_inr": 480, "unit": "inhaler", "doses_per_unit": 120 } ] },
   "failure_no_itemisation": { "transaction_id": "TX-DEMO-0003", "amount_inr": 80, "line_items": [], "message": "this merchant terminal did not send line items" }
 }

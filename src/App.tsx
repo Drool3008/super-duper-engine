@@ -4,6 +4,7 @@ import { TopBar } from './components/TopBar'
 import { Curtain } from './components/Curtain'
 import { Timeline } from './components/Timeline'
 import { Phones } from './components/Phones'
+import { ChemistScreen } from './components/ChemistScreen'
 import { DecisionLog } from './components/DecisionLog'
 
 export default function App({ embedded = false }: { embedded?: boolean } = {}) {
@@ -28,9 +29,12 @@ export default function App({ embedded = false }: { embedded?: boolean } = {}) {
       <div className="flex min-h-0 flex-1">
         <Curtain pending={s.pending} awaiting={s.awaiting} onboarding={s.onboarding} present={present} />
         <Timeline items={s.timeline} thinking={s.thinking} present={present} />
-        {/* On the stage the real phone simulators sit beside the console, so the
-            built-in frames would be a duplicate. Give the timeline the room. */}
-        {!embedded && <Phones messages={s.messages} wallet={s.wallet} settings={s.onboarding?.wallet} names={names} awaiting={s.awaiting} />}
+        {!embedded && (
+          <>
+            <ChemistScreen pending={s.pending} onboarding={s.onboarding} />
+            <Phones messages={s.messages} wallet={s.wallet} settings={s.onboarding?.wallet} names={names} awaiting={s.awaiting} />
+          </>
+        )}
       </div>
       <DecisionLog decisions={s.decisions} />
     </div>

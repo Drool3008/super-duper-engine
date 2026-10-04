@@ -91,8 +91,15 @@ function Inputs({ onboarding }: { onboarding: any }) {
   // O2: no alert(), and one upload at a time.
   const [upload, setUpload] = useState<{ busy: boolean; err: string }>({ busy: false, err: '' })
 
-  const med = onboarding?.current_medicines?.[0]
-  const refillHint = med ? `refill date for ${med.name} (${med.pills_left} pills left, ${med.daily_dose}/day) from ${med.prescription_id}` : ''
+  const allMeds: any[] = onboarding?.current_medicines || []
+  const med = allMeds.reduce((urgent: any, m: any) => {
+    const stock = m.doses_left ?? m.pills_left ?? 0
+    const days = m.daily_dose ? stock / m.daily_dose : Infinity
+    const uDays = urgent ? (urgent.doses_left ?? urgent.pills_left ?? 0) / (urgent.daily_dose || 1) : Infinity
+    return days < uDays ? m : urgent
+  }, null as any)
+  const medStock = med ? (med.doses_left ?? med.pills_left) : 0
+  const refillHint = med ? `refill date for ${med.name} (${medStock} left, ${med.daily_dose}/day) from ${med.prescription_id}` : ''
 
   return (
     <section className="border-b border-line p-4">
