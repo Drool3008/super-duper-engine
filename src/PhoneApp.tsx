@@ -51,9 +51,11 @@ export default function PhoneApp({ memberId }: { memberId: string }) {
   // bottom nav too -- a call is the whole screen or it is not a call.
   const [onCall, setOnCall] = useState(false)
 
-  // "Top up" on the agent's low-wallet card goes straight to topping up.
   const onAnswer = (answer: string, card: any) => {
-    if (isRP && card?.kind === 'low_wallet' && answer.toLowerCase() === 'top up') { setTab('wallet'); setWalletSheet('topup') }
+    if (!isRP) return
+    const a = answer.toLowerCase()
+    if (card?.kind === 'low_wallet' && a === 'top up') { setTab('wallet'); setWalletSheet('topup') }
+    if (card?.kind === 'spend_above_threshold' && a === 'approve') setTab('wallet')
   }
   const callKey = call ? `${call.id}:${call.phase}` : null
   const callLive = call && ['connected', 'handover', 'holding', 'ringing'].includes(call.phase)
