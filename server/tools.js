@@ -4,13 +4,24 @@
  * required only. No $schema, no oneOf, no additionalProperties.
  */
 
+import { readFileSync } from 'node:fs'
+
 const str = (description) => ({ type: 'STRING', description })
 const num = (description) => ({ type: 'NUMBER', description })
 const bool = (description) => ({ type: 'BOOLEAN', description })
 const arr = (description, items) => ({ type: 'ARRAY', description, items })
 const obj = (description, properties, required = []) => ({ type: 'OBJECT', description, properties, required })
 
-export const RULE_IDS = Array.from({ length: 23 }, (_, i) => `R${i + 1}`)
+/**
+ * The rule ids log_decision will accept. Counted off the rulebook rather than
+ * hard-coded, because the two drifted the moment a rule was added: R24 was
+ * written into config/system-prompt.md and scripted in a scenario while this
+ * still said 23, and every log_decision citing it was refused as an invented
+ * rule. The prompt is the source of truth for what the rules are.
+ */
+const RULE_COUNT = (readFileSync('config/system-prompt.md', 'utf8').match(/^\*\*R(\d+)\*\*/gm) || [])
+  .reduce((highest, hit) => Math.max(highest, Number(hit.replace(/\D/g, ''))), 0)
+export const RULE_IDS = Array.from({ length: RULE_COUNT }, (_, i) => `R${i + 1}`)
 
 export const TOOLS = [
   // ---------------------------------------------------------------- bookkeeping
@@ -75,7 +86,7 @@ export const TOOLS = [
         'Optional. JSON string for an interactive card the person taps to answer. ' +
         'kind is one of: spend_above_threshold, new_doctor, new_medicine, disagreement, ' +
         'cant_tell, low_wallet, dead_end, substitute_offered, incident_summary, payment, booking, ' +
-        'test_due, slot_unavailable. ' +
+        'test_due, slot_unavailable, care_quote, order_receipt. ' +
         'Optional fields: title, detail, amount_inr, payee, wallet_left_inr, ' +
         'medicine, strength, quantity, test, doctor, clinic, when, ' +
         'for (who it is for; name these on any spend card), why (one line in plain ' +
@@ -85,7 +96,12 @@ export const TOOLS = [
         'incident_summary takes no buttons. ' +
         'slot_unavailable is for a booking you could not make: give the person their real choices as ' +
         'options and buttons -- another named doctor from the onboarding data with where they are, the ' +
-        'same doctor on a later date, or not booking at all -- and never pick for them.'
+        'same doctor on a later date, or not booking at all -- and never pick for them. ' +
+        'care_quote carries items (array of {label, amount_inr}), total_inr and receipt_no, and is the ' +
+        'costed plan plus receipt for an arranged visit. You do not build it here: quote_care sends it, ' +
+        'to the RP and to nobody else. Writing one yourself with send_message is how the figures end up ' +
+        'in the wrong thread. order_receipt is the same shape for something already bought and is sent by ' +
+        'order_medicines and book_test; you do not build that one either.'
       ),
     }, ['to', 'text', 'language']),
   },
@@ -275,6 +291,79 @@ export const TOOLS = [
     }, ['why']),
   },
 
+  {
+    name: 'quote_care',
+    mode: 'LIVE', rail: 'whatsapp',
+    description:
+      'Put an arranged clinic visit to the responsible person: the account in the third person, what the ' +
+      'visit and the cab will cost, and an itemised receipt he approves or declines. Call it after ' +
+      'summarise_account, never before -- it sends the write-up that tool produced. There is no recipient ' +
+      'parameter and that is deliberate: the figures and the receipt are his alone. Do not also send the ' +
+      'amounts yourself with send_message. Nothing is debited and nothing is booked here; this only asks.',
+    parameters: obj('An arranged visit, costed', {
+      about: { type: 'STRING', description: 'Who the visit is for', enum: ['patient', 'rp', 'member_3'] },
+      clinic: str('Which clinic, named from the onboarding data'),
+      when: str('The appointment time in plain words, e.g. today 4:30 pm'),
+      why: str('One line on why this visit and this clinic, in plain language'),
+    }, ['about', 'clinic', 'when']),
+  },
+  {
+    name: 'settle_care',
+    mode: 'LIVE', rail: 'pinelabs',
+    description:
+      'Act on what the responsible person actually answered on the receipt. Approved: the wallet is debited, ' +
+      'the affected person is told in her own language that the visit and the cab are arranged, and the ' +
+      'family group gets a status-only narration of what happened. Declined: nothing is debited and she is ' +
+      'told it is on hold. Refused if he has not answered yet, or if approved disagrees with what he tapped ' +
+      '-- nobody answering is not a yes, and this spends real money and promises her a cab.',
+    parameters: obj('Settle the quote', {
+      approved: bool('What the responsible person actually tapped. Never your guess'),
+      why: str('One line on what he chose and what follows from it'),
+    }, ['approved', 'why']),
+  },
+  {
+    name: 'order_medicines',
+    mode: 'LIVE', rail: 'whatsapp',
+    description:
+      'Order a refill of a medicine already on file, after the chemist has confirmed stock and the payment ' +
+      'rails have gone through. Debits the wallet by amount_inr, sends the responsible person the money ' +
+      'status and an itemised receipt, posts the family group that the medicines have been ordered and ' +
+      'nothing else, and tops the stock up on the record so the home screen is right. No recipient ' +
+      'parameter: the figures are the RP\'s and the group never sees them. Never for a medicine that is ' +
+      'not the prescribed one -- that is a substitution and R1 forbids it.',
+    parameters: obj('A refill, ordered and paid', {
+      medicine_id: str('The record id on file, e.g. med_chronic_1'),
+      medicine: str('Medicine name as prescribed'),
+      strength: str('Strength as prescribed'),
+      quantity: str('What the chemist is supplying, in words, e.g. 60 tablets'),
+      doses_added: num('How many doses this pack adds to what is left'),
+      chemist: str('Which chemist, named from the onboarding data'),
+      amount_inr: num('What it cost, in rupees'),
+      for_member: { type: 'STRING', description: 'Whose medicine', enum: ['patient', 'rp', 'member_3'] },
+      why: str('One line, in plain language'),
+    }, ['medicine_id', 'medicine', 'quantity', 'chemist', 'amount_inr', 'for_member']),
+  },
+  {
+    name: 'book_test',
+    mode: 'LIVE', rail: 'whatsapp',
+    description:
+      'Confirm a test slot the clinic has already offered, with a cab to get there. Debits the wallet by ' +
+      'test_inr plus cab_inr, tells the person whose test it is -- in her own language -- that the slot and ' +
+      'the cab are booked, sends the responsible person the money status and an itemised receipt, posts the ' +
+      'family group the status and no figure, and records the booking so the home screen shows it. No ' +
+      'recipient parameter. Only call it once the clinic has actually offered the slot: she is about to be ' +
+      'told to turn up.',
+    parameters: obj('A test slot, booked', {
+      test_id: str('The record id on file, e.g. test_bp_1'),
+      test_name: str('What the test is'),
+      clinic: str('Which clinic, named from the onboarding data'),
+      when: str('The slot in plain words, e.g. tomorrow 9:30 am'),
+      for_member: { type: 'STRING', description: 'Whose test', enum: ['patient', 'rp', 'member_3'] },
+      test_inr: num('What the test costs, in rupees'),
+      cab_inr: num('What the cab costs, in rupees'),
+      why: str('One line, in plain language'),
+    }, ['test_id', 'test_name', 'clinic', 'when', 'for_member', 'test_inr']),
+  },
   {
     name: 'gnani_call_session',
     mode: 'IMAGINED', rail: 'gnani',

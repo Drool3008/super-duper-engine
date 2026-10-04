@@ -1,17 +1,188 @@
-import { useRef, useState } from 'react'
-import type { PendingCall } from '../lib/types'
-import { RunBadge, Json, PaneHeader } from './ui'
+import { useState } from 'react'
+import { RunBadge, PaneHeader } from './ui'
 import { RAIL_COLOUR } from '../lib/types'
-import { advanceClock, resetSession, sendCurtain, sendInput, sendNoAnswer, uploadAudio } from '../lib/api'
-import { SOS_ENABLED } from '../lib/config'
+import { resetSession, sendNoAnswer } from '../lib/api'
 import { useSession } from '../lib/session'
 import { cn } from '../lib/utils'
-import { Clock, Inbox, Mic, MessageSquareText, RotateCcw, Send, Theater, UserRoundSearch } from 'lucide-react'
+import { Car, FolderOpen, Mic, MessageSquareText, Phone, Pill, ReceiptText, RotateCcw, Siren, Theater, UserRoundSearch } from 'lucide-react'
 
-export function Curtain({ pending, awaiting, onboarding, present }: {
-  pending: PendingCall[]
+/**
+ * What the audience does not see.
+ *
+ * This pane used to be an operator's desk: a queue of held rail calls to answer,
+ * a box to type inputs into, and a row of canned trigger sentences to fire. All
+ * three were the crew's hands reaching on stage -- useful while building, and
+ * the wrong thing to have in shot, because they make the work look typed rather
+ * than done.
+ *
+ * It now shows the work itself: the phone calls the agent places, the WhatsApp
+ * threads it reads and writes, the family's own records it reads, the cab it
+ * books, the prescription it sends the pharmacist, the money it moves. Each card
+ * is bound to the tools that actually implement it, so what lights up here is
+ * the agent having really done it, not a label.
+ *
+ * Inputs now come from where they would really come from: the phones on the
+ * right and the handset screens at /phone/<member>. Held calls are answered
+ * where the person answering them would be -- the chemist's counter at
+ * /phone/chemist and the clinic's desk at /clinic -- or, with CURTAIN_AUTO set,
+ * from the documented fixtures without anybody touching them.
+ */
+
+type Capability = {
+  id: string
+  title: string
+  icon: typeof Phone
+  rail: string | null
+  /** What the agent is actually doing when this lights up. */
+  what: string
+  /** The concrete moves inside it, so the pane says more than the rail's name. */
+  does: string[]
+  /** The tools that implement it. Membership is what drives the live state. */
+  tools: string[]
+}
+
+const CAPABILITIES: Capability[] = [
+  {
+    id: 'calls',
+    title: 'Ringing people up',
+    icon: Phone,
+    rail: 'phone',
+    what:
+      'The agent places the call itself and holds the conversation: the chemist’s counter, the clinic’s front desk, the doctor, the ambulance line. ' +
+      'It says who it is calling for, asks the one thing it needs, and takes the answer as given rather than deciding what it hoped to hear.',
+    does: [
+      'Asks the chemist whether the exact prescribed medicine is on the shelf, and what it comes to',
+      'Asks the clinic’s receptionist for the earliest slot, and has it held in her name',
+      'Redials once before writing a number off as a dead end (R11)',
+      'Reads back what the person said, word for word, into the decision log',
+    ],
+    tools: ['place_call', 'gnani_call_session', 'next_contact'],
+  },
+  {
+    id: 'whatsapp',
+    title: 'WhatsApp, read and written',
+    icon: MessageSquareText,
+    rail: 'whatsapp',
+    what:
+      'The agent is in the family group and in each person’s own thread. It reads what arrives there and writes back in the language set for that person. ' +
+      'Who may see what is not left to its judgement: the group gets status only, and a rupee figure sent there is refused in code.',
+    does: [
+      'Writes to the patient in her own language, and to the responsible person in his',
+      'Posts the family group that something happened — never a symptom, a medicine, or a cost',
+      'Sends the responsible person the figures, the itemised receipt and the card he taps',
+      'Reads the replies and the taps back off those threads',
+    ],
+    // order_medicines and book_test appear here as well as under what they are
+    // for. That is not a mistake: they write to these threads themselves rather
+    // than through send_message, and a pane claiming WhatsApp was idle while a
+    // receipt was landing in the RP's thread would be lying about the one thing
+    // this card is for.
+    tools: ['send_message', 'summarise_account', 'quote_care', 'settle_care', 'order_medicines', 'book_test'],
+  },
+  {
+    id: 'records',
+    title: 'The family’s own records',
+    icon: FolderOpen,
+    rail: null,
+    what:
+      'Everything it knows about this family, held locally: the clinics, chemists and labs near them in the order they are preferred, each with a doctor and a distance; ' +
+      'the prescriptions on file; what each medicine is, how much is left and what it is for; when each recurring test was last done and when it falls due.',
+    does: [
+      'Takes the next clinic, chemist or lab off the ranked list rather than choosing one itself',
+      'Reads the prescription behind a refill, so it asks for what was actually written',
+      'Writes back what was dispensed, what was booked and when the next refill is due',
+      'Keeps the stock and the due dates current, so the home screen is not stale',
+    ],
+    tools: ['next_provider', 'record_provider_outcome', 'report_dead_end', 'record_update', 'set_refill_cycle', 'record_account'],
+  },
+  {
+    id: 'pharmacy',
+    title: 'Asking the pharmacist for the medicine',
+    icon: Pill,
+    rail: 'delhivery',
+    what:
+      'The refill, end to end. The agent sends the pharmacist the prescription it is ordering against, names the medicine and the strength, and will not take something of the same class in its place. ' +
+      'Then it arranges for the strip to reach her door rather than leaving her to fetch it.',
+    does: [
+      'Sends the prescription across and asks for that medicine, that strength, that quantity',
+      'Declines a substitute and hands the offer to a human instead (R1, R13)',
+      'Takes the itemised dispensing receipt and counts what was actually handed over',
+      'Checks the pincode is served, books the pickup, and tracks it to the door',
+    ],
+    tools: [
+      'order_medicines', 'record_fulfilment', 'pinelabs_dispensing_receipt', 'delhivery_pincode',
+      'delhivery_create_shipment', 'delhivery_pickup_request', 'delhivery_track', 'delhivery_named_recipient',
+    ],
+  },
+  {
+    id: 'cab',
+    title: 'Booking the cab',
+    icon: Car,
+    rail: 'beckn',
+    what:
+      'A booked appointment she cannot get to is not a booking. The agent searches the open mobility network — the one behind Namma Yatri and ONDC — for an auto or a cab to the clinic and back, confirms one, and follows it.',
+    does: [
+      'Searches for a ride from her address to the clinic that was booked',
+      'Confirms one and says why that one, at that fare',
+      'Tracks it, so "a cab is coming" is something it can still answer for',
+    ],
+    tools: ['beckn_search', 'beckn_confirm', 'beckn_status', 'book_test'],
+  },
+  {
+    id: 'money',
+    title: 'Paying, and the receipt',
+    icon: ReceiptText,
+    rail: 'pinelabs',
+    what:
+      'The money never leaves the responsible person’s own mandate without a trail. The agent blocks a limit against it, presents one purchase at a time, and keeps the itemised receipt. ' +
+      'Above the amount he set as ask-first, it stops and asks him instead of deciding.',
+    does: [
+      'Blocks a limit on his mandate, then presents a single purchase against it',
+      'Stops below nothing and asks first once a spend crosses his threshold (R15)',
+      'Writes every movement into the wallet ledger with a balance after it',
+      'Sends him the receipt — and only him',
+    ],
+    tools: [
+      'pinelabs_reserve_block', 'pinelabs_reserve_debit', 'pinelabs_reserve_status',
+      'pinelabs_payment_link_create', 'pinelabs_payment_link_status', 'pinelabs_payment_link_resend',
+      'wallet_ledger_append',
+    ],
+  },
+  {
+    id: 'voice',
+    title: 'Her own voice',
+    icon: Mic,
+    rail: 'gnani',
+    what:
+      'She does not type. The agent asks its questions out loud in Telugu and turns what she says back into words, verbatim, so the write-up quotes her rather than a paraphrase of her.',
+    does: [
+      'Speaks each question aloud in the language set for her',
+      'Transcribes her answer word for word, keeping the audio and the request id',
+      'Reads the write-up back to her out loud before anything is sent on',
+    ],
+    tools: ['gnani_tts', 'gnani_stt'],
+  },
+  {
+    id: 'emergency',
+    title: 'When it cannot wait',
+    icon: Siren,
+    rail: 'phone',
+    what:
+      'The emergency path, for when something is critical and nobody in the family can be reached. The agent is not allowed to do half of this: ' +
+      'all four parts happen or it is not a dispatch, and it keeps ringing the family while the ambulance is already moving.',
+    does: [
+      'Books the transport, rather than waiting for permission it cannot get',
+      'Tells the clinic, so she is expected when she arrives',
+      'Alerts the family group that it is happening and who is handling it',
+      'Keeps working down the contact list, because somebody still has to be told (R9)',
+      'Acts first and settles the money afterwards — the one case where it does not ask first',
+    ],
+    tools: ['record_dispatch', 'record_assessment', 'open_reversal_window'],
+  },
+]
+
+export function Curtain({ awaiting, present }: {
   awaiting: { from: string; what_for: string } | null
-  onboarding: any
   present: boolean
 }) {
   return (
@@ -19,16 +190,131 @@ export function Curtain({ pending, awaiting, onboarding, present }: {
       <PaneHeader
         title="Curtain"
         icon={<span className="flex h-8 w-8 items-center justify-center rounded-lg bg-human-bg text-human"><Theater className="h-4 w-4" aria-hidden /></span>}
-        right={<span className="rounded-full border-2 border-dashed border-muted/40 px-2 py-0.5 text-[12px] font-bold text-muted">played by people</span>}
+        right={<span className="rounded-full border-2 border-dashed border-muted/40 px-2 py-0.5 text-[12px] font-bold text-muted">behind the scenes</span>}
       />
       <div className="scroll flex-1 overflow-y-auto">
         {awaiting && <Awaiting awaiting={awaiting} />}
-        <PendingQueue pending={pending} present={present} />
-        <Inputs onboarding={onboarding} />
-        <SampleTriggers onboarding={onboarding} present={present} />
+        <Backstage present={present} />
         {!present && <ResetTake />}
       </div>
     </aside>
+  )
+}
+
+/**
+ * The capability list, with whatever the agent has actually done through each
+ * one so far. Driven off the timeline rather than a separate feed, because the
+ * timeline is already the record of every tool call and its result.
+ */
+function Backstage({ present }: { present: boolean }) {
+  const s = useSession()
+  const calls = (s.timeline || []).filter((t: any) => t.kind === 'tool')
+
+  return (
+    <section className="p-4">
+      <h3 className="text-card">What the agent is doing</h3>
+      <p className="mt-0.5 text-meta text-muted">
+        The work off camera. Each one lights up when the agent really reaches for it.
+      </p>
+      <div className="mt-3 space-y-2.5">
+        {CAPABILITIES.map((c) => (
+          <CapabilityCard key={c.id} cap={c} calls={calls.filter((t: any) => c.tools.includes(t.name))} present={present} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+/** The interesting half of a tool's arguments, as one line. */
+function gist(args: any): string {
+  if (!args || typeof args !== 'object') return ''
+  const skip = new Set(['why', 'source', 'rule_id', 'language', 'language_code'])
+  return Object.entries(args)
+    .filter(([k, v]) => !skip.has(k) && (typeof v === 'string' || typeof v === 'number') && String(v).length <= 60)
+    .slice(0, 2)
+    .map(([, v]) => String(v))
+    .join(' · ')
+}
+
+function CapabilityCard({ cap, calls, present }: { cap: Capability; calls: any[]; present: boolean }) {
+  const [open, setOpen] = useState(false)
+  const colour = (cap.rail && RAIL_COLOUR[cap.rail]) || '#5A6B75'
+  const last = calls[calls.length - 1]
+  // No result yet and not refused: the call is out and the agent is waiting on it.
+  const inFlight = Boolean(last && last.result === undefined && !last.rejected)
+  const Icon = cap.icon
+
+  return (
+    <div
+      className={cn('fadein rounded border bg-white p-3', inFlight && 'shadow-card')}
+      style={{ borderColor: colour + '55', borderLeftWidth: 4, borderLeftColor: colour }}
+    >
+      <button onClick={() => setOpen(!open)} className="w-full text-left" aria-expanded={open}>
+        <div className="flex items-start gap-2">
+          <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded" style={{ background: colour + '1A', color: colour }}>
+            <Icon className="h-3.5 w-3.5" aria-hidden />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <span className="text-card">{cap.title}</span>
+              {inFlight ? (
+                <span className="shrink-0 rounded-full bg-ai-bg px-1.5 py-0.5 text-badge font-bold text-ai">live</span>
+              ) : calls.length > 0 ? (
+                <span className="shrink-0 rounded-full bg-ok-bg px-1.5 py-0.5 text-badge font-bold text-ok">{calls.length}</span>
+              ) : null}
+            </div>
+            <p className={cn('mt-0.5 text-meta leading-[17px] text-muted', !open && 'line-clamp-2')}>{cap.what}</p>
+          </div>
+        </div>
+      </button>
+
+      {open && (
+        <ul className="mt-2 space-y-1 border-t border-line pt-2">
+          {cap.does.map((d) => (
+            <li key={d} className="flex gap-1.5 text-meta leading-[17px] text-ink">
+              <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full" style={{ background: colour }} aria-hidden />
+              <span>{d}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {last && (
+        <div className="mt-2 rounded border border-line bg-surface p-2">
+          <div className="flex items-center gap-1.5">
+            {last.mode && <RunBadge mode={last.mode} rail={last.rail} />}
+            <span className="truncate font-mono text-[12px]">{last.name}</span>
+          </div>
+          {gist(last.args) && <div className="mt-0.5 break-words text-meta text-ink">{gist(last.args)}</div>}
+          {last.rejected
+            ? <div className="mt-0.5 text-meta font-semibold text-decision">refused — {last.rejected}</div>
+            : inFlight
+              ? <div className="mt-0.5 text-meta text-muted">waiting on the answer…</div>
+              : last.result?.ok === false
+                ? <div className="mt-0.5 text-meta font-semibold text-decision">came back no</div>
+                : <div className="mt-0.5 text-meta text-ok">came back</div>}
+          {last.endpoint && !present && <div className="mt-0.5 break-all font-mono text-[12px] text-muted">{last.endpoint}</div>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Awaiting({ awaiting }: { awaiting: { from: string; what_for: string } }) {
+  return (
+    <section className="border-b border-line bg-human-bg p-4">
+      <div className="flex items-center gap-1.5 text-meta font-bold uppercase tracking-wide text-human"><UserRoundSearch className="h-4 w-4" aria-hidden /> Agent is waiting on a person</div>
+      <div className="mt-1 text-body">
+        <b>{awaiting.from}</b> — {awaiting.what_for}
+      </div>
+      <p className="mt-1 text-meta text-muted">Answer in their phone on the right, or say nobody picked up.</p>
+      <button
+        className="mt-2 rounded border border-human px-3 py-1.5 text-meta font-semibold text-human hover:bg-human/10"
+        onClick={() => sendNoAnswer(awaiting.from)}
+      >
+        Nobody answered
+      </button>
+    </section>
   )
 }
 
@@ -41,7 +327,7 @@ function ResetTake() {
   const [busy, setBusy] = useState(false)
 
   return (
-    <section className="border-b border-line p-4">
+    <section className="border-t border-line p-4">
       <h3 className="flex items-center gap-2 text-card"><RotateCcw className="h-4 w-4 text-decision" aria-hidden /> Reset</h3>
       <p className="mt-0.5 text-meta text-muted">
         Clears the decision log, messages, chats and everything the stages recorded, and re-reads the family profile from disk.
@@ -66,334 +352,5 @@ function ResetTake() {
         </button>
       )}
     </section>
-  )
-}
-
-/** Every input carries a source label, and the label is required, not optional. */
-function Inputs({ onboarding }: { onboarding: any }) {
-  const [text, setText] = useState('')
-  const [who, setWho] = useState('rp')
-  // The voice note is the patient's, so default to the language set for them
-  // at onboarding; Telugu for the filmed scenario.
-  const patientLang = onboarding?.family?.members?.find((m: any) => m.role === 'patient')?.language || 'te-IN'
-  const [langPicked, setLang] = useState<string | null>(null)
-  const lang = langPicked ?? patientLang
-  const fileRef = useRef<HTMLInputElement>(null)
-  const [clockTo, setClockTo] = useState('')
-  const [clockSrc, setClockSrc] = useState('')
-
-  const members: any[] = onboarding?.family?.members || []
-  const role = (r: string) => ({ patient: 'patient', responsible_person: 'RP', family: 'family' } as Record<string, string>)[r] || r
-  const people = [
-    ...members.map((m) => ({ id: m.id, name: m.name, label: `${m.name} (${role(m.role)})` })),
-    { id: 'family_group', name: `${onboarding?.family?.name || 'Family'} group`, label: 'Family group' },
-  ]
-  // O2: no alert(), and one upload at a time.
-  const [upload, setUpload] = useState<{ busy: boolean; err: string }>({ busy: false, err: '' })
-
-  const allMeds: any[] = onboarding?.current_medicines || []
-  const med = allMeds.reduce((urgent: any, m: any) => {
-    const stock = m.doses_left ?? m.pills_left ?? 0
-    const days = m.daily_dose ? stock / m.daily_dose : Infinity
-    const uDays = urgent ? (urgent.doses_left ?? urgent.pills_left ?? 0) / (urgent.daily_dose || 1) : Infinity
-    return days < uDays ? m : urgent
-  }, null as any)
-  const medStock = med ? (med.doses_left ?? med.pills_left) : 0
-  const refillHint = med ? `refill date for ${med.name} (${medStock} left, ${med.daily_dose}/day) from ${med.prescription_id}` : ''
-
-  return (
-    <section className="border-b border-line p-4">
-      <h3 className="flex items-center gap-2 text-card"><Inbox className="h-4 w-4 text-input" aria-hidden /> Inputs</h3>
-      <p className="mt-0.5 text-meta text-muted">Only real sources. Each one states where it came from.</p>
-
-      {SOS_ENABLED && (
-        <button
-          className="mt-3 w-full rounded border border-input/40 bg-input-bg px-3 py-2 text-left text-body text-input hover:brightness-95"
-          onClick={() => sendInput({ kind: 'sos', source: 'Patient, SOS button via the app', from: 'patient' })}
-        >
-          Patient SOS
-        </button>
-      )}
-
-      <div className="mt-2 rounded border border-input/40 bg-input-bg p-2">
-        <div className="flex items-center gap-1.5 text-meta font-semibold text-input"><Mic className="h-4 w-4" aria-hidden /> Patient voice note → Gnani STT</div>
-        <div className="mt-1 flex items-center gap-2">
-          <select value={lang} onChange={(e) => setLang(e.target.value)} className="rounded border border-line bg-white px-1 py-1 text-meta">
-            {['hi-IN', 'kn-IN', 'ta-IN', 'te-IN', 'bn-IN', 'mr-IN', 'gu-IN', 'ml-IN', 'pa-IN', 'or-IN', 'en-IN'].map((l) => <option key={l}>{l}</option>)}
-          </select>
-          <input ref={fileRef} type="file" accept="audio/*" aria-label="Voice note file" className="w-full text-meta" onChange={() => setUpload({ busy: false, err: '' })} />
-        </div>
-        {upload.err && <div className="mt-1 text-meta text-decision" aria-live="polite">{upload.err}</div>}
-        <button
-          disabled={upload.busy}
-          className="mt-2 w-full rounded bg-input px-3 py-1.5 text-meta font-semibold text-white hover:brightness-110 disabled:opacity-50"
-          onClick={async () => {
-            const f = fileRef.current?.files?.[0]
-            if (!f) return setUpload({ busy: false, err: 'Pick an audio file first. It must be a real recording.' })
-            setUpload({ busy: true, err: '' })
-            try {
-              const { audio_ref } = await uploadAudio(f, 'Patient, voice note via WhatsApp')
-              await sendInput({ kind: 'voice_note', source: 'Patient, voice note via WhatsApp', from: 'patient', audio_ref, language_code: lang, filename: f.name })
-              if (fileRef.current) fileRef.current.value = ''
-              setUpload({ busy: false, err: '' })
-            } catch {
-              setUpload({ busy: false, err: 'Upload failed. Is the server running? Nothing was sent.' })
-            }
-          }}
-        >
-          {upload.busy ? 'Sending…' : 'Send voice note to agent'}
-        </button>
-      </div>
-
-      <div className="mt-2 rounded border border-input/40 bg-input-bg p-2">
-        <div className="flex items-center gap-1.5 text-meta font-semibold text-input"><MessageSquareText className="h-4 w-4" aria-hidden /> Message from a person</div>
-        <select value={who} onChange={(e) => setWho(e.target.value)} aria-label="Who sent it" className="mt-1 w-full rounded border border-line bg-white px-1 py-1 text-meta">
-          {people.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-        </select>
-        <textarea
-          value={text} onChange={(e) => setText(e.target.value)} rows={2}
-          placeholder="what they actually wrote"
-          className="mt-1 w-full rounded border border-line px-2 py-1 text-body"
-        />
-        <button
-          className="mt-1 w-full rounded bg-input px-3 py-1.5 text-meta font-semibold text-white hover:brightness-110"
-          onClick={() => { if (!text.trim()) return; sendInput({ kind: 'message', source: `${people.find((p) => p.id === who)?.name || who}, WhatsApp message`, from: who, text }); setText('') }}
-        >
-          Send message to agent
-        </button>
-      </div>
-
-      <div className="mt-2 rounded border border-input/40 bg-input-bg p-2">
-        <div className="flex items-center gap-1.5 text-meta font-semibold text-input"><Clock className="h-4 w-4" aria-hidden /> Advance the clock</div>
-        <input type="datetime-local" value={clockTo} onChange={(e) => setClockTo(e.target.value)} className="mt-1 w-full rounded border border-line px-2 py-1 text-meta" />
-        <input
-          value={clockSrc} onChange={(e) => setClockSrc(e.target.value)}
-          placeholder={refillHint || 'which of the agent\'s own dates is this?'}
-          className="mt-1 w-full rounded border border-line px-2 py-1 text-meta"
-        />
-        {refillHint && <button className="mt-1 text-meta text-muted underline" onClick={() => setClockSrc(`Clock, ${refillHint}`)}>use the refill date</button>}
-        <button
-          className="mt-1 w-full rounded bg-input px-3 py-1.5 text-meta font-semibold text-white hover:brightness-110 disabled:opacity-40"
-          disabled={!clockTo || !clockSrc}
-          onClick={() => advanceClock(new Date(clockTo).toISOString(), clockSrc)}
-        >
-          Advance clock
-        </button>
-      </div>
-    </section>
-  )
-}
-
-/**
- * The sample trigger sentences, grouped by the tier each one is meant to land
- * on. Unlike the copies on the handsets, this list shows the tier and the path
- * expected of it: the Director needs to know what they are firing, and whether
- * what came back was the right answer or a lucky one.
- *
- * The expectation is never sent. Only the sentence goes, as an ordinary message
- * from the named person, exactly as if they had typed it on their phone — the
- * sample id rides alongside for the stub's benefit and is stripped before the
- * agent sees anything (see /api/input).
- */
-const TIER_STYLE: Record<string, { label: string; cls: string }> = {
-  critical: { label: 'CRITICAL', cls: 'border-decision/40 bg-decision-bg text-decision' },
-  urgent: { label: 'URGENT', cls: 'border-human/40 bg-human-bg text-human' },
-  routine: { label: 'ROUTINE', cls: 'border-ok/40 bg-ok-bg text-ok' },
-}
-
-function SampleTriggers({ onboarding, present }: { onboarding: any; present: boolean }) {
-  const s = useSession()
-  const samples: any[] = s.triggerSamples?.samples || []
-  const [sent, setSent] = useState<string | null>(null)
-  if (samples.length === 0) return null
-
-  const members: any[] = onboarding?.family?.members || []
-  const nameOf = (id: string) => members.find((m) => m.id === id)?.name || id
-  const order = ['critical', 'urgent', 'routine']
-
-  const fire = (x: any) => {
-    sendInput({
-      kind: 'message',
-      source: `${nameOf(x.from)}, message in the app`,
-      from: x.from,
-      text: x.text,
-      sample_id: x.id,
-    })
-    setSent(x.id)
-  }
-
-  return (
-    <section className="border-b border-line p-4">
-      <h3 className="flex items-center gap-2 text-card">
-        <MessageSquareText className="h-4 w-4 text-ai" aria-hidden /> Sample triggers
-      </h3>
-      <p className="mt-0.5 text-meta text-muted">
-        Anyone raises one of these by chatting. There is no emergency button: the sentence is the trigger.
-      </p>
-
-      {order.map((tier) => {
-        const group = samples.filter((x) => x.expect?.tier === tier)
-        if (group.length === 0) return null
-        const style = TIER_STYLE[tier]
-        return (
-          <div key={tier} className="mt-3">
-            <div className="flex items-center gap-2">
-              <span className={cn('rounded-full border px-1.5 py-0.5 text-badge', style.cls)}>{style.label}</span>
-              <span className="text-meta text-muted">
-                {tier === 'critical' ? 'acts, then tells the RP' : 'asks the RP first'}
-              </span>
-            </div>
-            <ul className="mt-1.5 space-y-1.5">
-              {group.map((x) => (
-                <li key={x.id} className="rounded border border-line bg-white p-2">
-                  <div className="text-[12px] font-semibold text-muted">{nameOf(x.from)}</div>
-                  <div className="mt-0.5 text-body text-ink">{x.text}</div>
-                  {!present && x.expect?.path && (
-                    <div className="mt-1 text-[12px] leading-[16px] text-muted">{x.expect.path}</div>
-                  )}
-                  <button
-                    onClick={() => fire(x)}
-                    className="mt-1.5 w-full rounded bg-ai px-3 py-1.5 text-meta font-semibold text-white hover:brightness-110"
-                  >
-                    {sent === x.id ? 'Sent — send again' : 'Send as this person'}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )
-      })}
-    </section>
-  )
-}
-
-function Awaiting({ awaiting }: { awaiting: { from: string; what_for: string } }) {
-  return (
-    <section className="border-b border-line bg-human-bg p-4">
-      <div className="flex items-center gap-1.5 text-meta font-bold uppercase tracking-wide text-human"><UserRoundSearch className="h-4 w-4" aria-hidden /> Agent is waiting on a person</div>
-      <div className="mt-1 text-body">
-        <b>{awaiting.from}</b> — {awaiting.what_for}
-      </div>
-      <p className="mt-1 text-meta text-muted">Answer in their phone on the right, or say nobody picked up.</p>
-      <button
-        className="mt-2 rounded border border-human px-3 py-1.5 text-meta font-semibold text-human hover:bg-human/10"
-        onClick={() => sendNoAnswer(awaiting.from)}
-      >
-        Nobody answered
-      </button>
-    </section>
-  )
-}
-
-function PendingQueue({ pending, present }: { pending: PendingCall[]; present: boolean }) {
-  return (
-    <section className="border-b border-line p-4">
-      <h3 className="text-card">
-        Pending calls <span className="ml-1 rounded bg-decision-bg px-1.5 text-meta text-decision">{pending.length}</span>
-      </h3>
-      {pending.length === 0 && <p className="mt-2 text-meta text-muted">Nothing waiting. The agent has not asked for a rail yet.</p>}
-      {pending.map((c) => <PendingCard key={c.id} call={c} present={present} />)}
-    </section>
-  )
-}
-
-/**
- * A held call. The response is never free-typed JSON: DOCS and IMAGINED calls
- * send the documented fixture exactly as written, so nothing is invented live.
- * A PERSON call is a teammate playing someone, so only that person's words
- * (`who`, `said`) can be typed, and the variant sent to the log says so.
- */
-function PendingCard({ call, present }: { call: PendingCall; present: boolean }) {
-  const variants = Object.entries(call.fixtures || {}).filter(([k]) => !k.startsWith('_'))
-  const [variant, setVariant] = useState(variants[0]?.[0] || '')
-  const fixture: any = (call.fixtures as any)?.[variant] ?? {}
-  const [who, setWho] = useState<string>(fixture.who ?? '')
-  const [said, setSaid] = useState<string>(fixture.said ?? '')
-  const colour = (call.rail && RAIL_COLOUR[call.rail]) || '#5A6B75'
-  const note = (call.fixtures as any)?._note
-
-  // CURTAIN-RUN has no editor at all: the real Gnani response goes through untouched.
-  const readOnly = call.runMode === 'CURTAIN_RUN'
-  const person = call.runMode === 'CURTAIN_PERSON'
-  const speaks = person && typeof fixture.said === 'string'
-  const typed = speaks && (said !== (fixture.said ?? '') || who !== (fixture.who ?? ''))
-  const response = speaks ? { ...fixture, who, said } : fixture
-  const missingWords = speaks && !said.trim()
-
-  const pick = (k: string) => {
-    const f: any = (call.fixtures as any)?.[k] ?? {}
-    setVariant(k); setWho(f.who ?? ''); setSaid(f.said ?? '')
-  }
-
-  return (
-    <div className="fadein mt-3 rounded border bg-white p-3" style={{ borderColor: colour + '55', borderLeftWidth: 4, borderLeftColor: colour }}>
-      <div className="flex items-center gap-2">
-        <RunBadge mode={call.runMode} rail={call.rail} />
-        <span className="font-mono text-meta">{call.tool}</span>
-      </div>
-      {call.endpoint && !present && <div className="mt-1 break-all font-mono text-[12px] text-muted">{call.endpoint}</div>}
-
-      <Json label="request" value={call.request} />
-
-      {readOnly ? (
-        <>
-          <div className="mt-2 rounded border border-rail-gnani/40 bg-rail-gnani/5 p-2">
-            <div className="text-meta font-semibold text-rail-gnani">Real Gnani response. Not editable.</div>
-            <pre className="scroll mt-1 max-h-56 overflow-auto font-mono text-[12px] leading-[17px]">{JSON.stringify(call.prefilled, null, 2)}</pre>
-          </div>
-          <button
-            className="mt-2 w-full rounded bg-rail-gnani px-3 py-2 text-body font-semibold text-white hover:brightness-110"
-            onClick={() => sendCurtain(call.id, call.prefilled, 'gnani_live')}
-          >
-            <span className="inline-flex items-center gap-1.5"><Send className="h-4 w-4" aria-hidden /> Send to agent</span>
-          </button>
-        </>
-      ) : (
-        <>
-          {note && !present && <p className="mt-2 text-[12px] leading-[16px] text-muted">{note}</p>}
-          <label className="mt-2 block text-meta text-muted" htmlFor={`v-${call.id}`}>
-            {person ? 'What happened on the call' : 'Response from the docs'}
-          </label>
-          <select
-            id={`v-${call.id}`}
-            value={variant}
-            onChange={(e) => pick(e.target.value)}
-            className="w-full rounded border border-line bg-white px-2 py-1 text-meta"
-          >
-            {variants.map(([k]) => <option key={k} value={k}>{k}</option>)}
-            {variants.length === 0 && <option value="">no fixture file</option>}
-          </select>
-
-          {speaks && (
-            <div className="mt-2 space-y-1.5 rounded border border-line bg-surface p-2">
-              <div className="text-meta text-muted">Play the person, in character. Their words only, never a hint to the agent.</div>
-              <input
-                value={who} onChange={(e) => setWho(e.target.value)}
-                placeholder="Who picked up, e.g. clinic receptionist…" aria-label="Who picked up"
-                className="w-full rounded border border-line bg-white px-2 py-1 text-meta"
-              />
-              <textarea
-                value={said} onChange={(e) => setSaid(e.target.value)} rows={2}
-                placeholder="What they said, word for word…" aria-label="What they said"
-                className="w-full rounded border border-line bg-white px-2 py-1 text-body"
-              />
-            </div>
-          )}
-
-          <pre className="scroll mt-1 max-h-48 overflow-auto rounded border border-line bg-artifact-bg p-2 font-mono text-[12px] leading-[17px]" aria-label="Response that will be sent">
-            {JSON.stringify(response, null, 2)}
-          </pre>
-          <div className="text-[12px] text-muted">{speaks ? 'Sent as shown. Only the words above are typed.' : 'Sent exactly as documented. Not editable.'}</div>
-          <button
-            disabled={missingWords}
-            className="mt-1 w-full rounded px-3 py-2 text-body font-semibold text-white hover:brightness-110 disabled:opacity-40"
-            style={{ background: colour }}
-            onClick={() => sendCurtain(call.id, response, typed ? `${variant} · words typed by teammate` : variant)}
-          >
-            {missingWords ? 'Type what they said first' : 'Send to agent'}
-          </button>
-        </>
-      )}
-    </div>
   )
 }

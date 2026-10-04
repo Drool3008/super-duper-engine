@@ -26,7 +26,7 @@ export default function App({ embedded = false }: { embedded?: boolean } = {}) {
         rails={s.rails} present={present} onPresent={setPresent} embedded={embedded}
       />
       <div className="flex min-h-0 flex-1">
-        <Curtain pending={s.pending} awaiting={s.awaiting} onboarding={s.onboarding} present={present} />
+        <Curtain awaiting={s.awaiting} present={present} />
         <Timeline items={s.timeline} thinking={s.thinking} present={present} />
         {!embedded && (
           <Phones messages={s.messages} wallet={s.wallet} settings={s.onboarding?.wallet} names={names} awaiting={s.awaiting} pending={s.pending} onboarding={s.onboarding} />

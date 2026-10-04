@@ -11,6 +11,11 @@ process.env.MODEL_PROVIDER = 'stub'
 // The stub's deliberate thinking pause is for people watching a take, not for
 // a test suite. Thirty-odd checks at two seconds a step is a coffee break.
 process.env.STUB_THINK_MS = '0'
+// Pinned off, not inherited. npm run check loads .env, where this is usually on
+// so a demo tap does not stall -- and with it on the very first check here, that
+// the curtain holds a call, can never pass. The one test that wants it turns it
+// on for itself and puts it back.
+delete process.env.CURTAIN_AUTO
 
 const stub = await import('./providers/stub.js')
 stub.reset([
@@ -515,6 +520,265 @@ assert.equal(summaries.length, 1, 'the call was attempted')
 assert.equal(summaries[0].result.ok, false, 'there is no account to summarise')
 assert.match(summaries[0].result.error, /no account open|Nothing has been recorded/i)
 console.log('ok  refused to summarise an account that does not exist')
+
+// ------------------------------------------------------------- arranged visit
+
+// The costed clinic visit, end to end. What is being checked is not the happy
+// path -- it is that the money and the receipt only ever reach the RP, that his
+// answer cannot be assumed, and that the group hears about it without a figure.
+const { openListening: openL, setSummary: setS, resetListening: resetL } = await import('./listening.js')
+const { resetCare } = await import('./care.js')
+
+const careFixture = () => {
+  resetL(); resetCare()
+  session.messages = { patient: [], rp: [], family_group: [], doctor: [] }
+  session.wallet = { limit: 5000, spent: 0, ledger: [] }
+  openL({ about: 'patient', speaker: 'patient', transcript: 'my chest feels tight', audio_ref: 'a1', request_id: 'g1', language: 'te-IN' })
+  setS({ ok: true, for_patient: 'x', for_rp: 'She reports chest tightness since this morning.', problems: ['Chest tightness since morning'], next_steps: ['Arrange a clinic visit'] })
+}
+const careLog = (rule, what) => ({ name: 'log_decision', args: { received: 'her account', source: 'selfcheck', decided: what, rule_id: rule, why: what, action: what, recipient: 'rp', connector: 'WhatsApp' } })
+const quoteArgs = { about: 'patient', clinic: "Dr. S. Rao's clinic, Hanamkonda", when: 'today 4:30 pm', why: 'Above the ask-first amount.' }
+const resultsOf = (from, tool) => session.events.slice(from).filter((e) => e.type === 'tool_result' && e.name === tool).map((e) => e.result)
+
+// Settling before anything was quoted has nothing to settle.
+careFixture()
+stub.reset([
+  { text: '', toolCalls: [careLog('R24', 'settle with no quote open'), { name: 'settle_care', args: { approved: true, why: 'nothing is open' } }] },
+  { text: 'done', toolCalls: [] },
+])
+let at = session.events.length
+await feed({ kind: 'test', source: 'selfcheck settle with no quote' })
+assert.equal(resultsOf(at, 'settle_care')[0].ok, false, 'settling without a quote is refused')
+console.log('ok  refused to settle a visit that was never quoted')
+
+// The quote goes to the RP and to nobody else, with the receipt and the figures.
+careFixture()
+stub.reset([
+  { text: '', toolCalls: [careLog('R15', 'put the costed visit to the RP'), { name: 'quote_care', args: quoteArgs }] },
+  { text: 'done', toolCalls: [] },
+])
+at = session.events.length
+await feed({ kind: 'test', source: 'selfcheck quote_care' })
+const quoted = resultsOf(at, 'quote_care')[0]
+assert.equal(quoted.ok, true, 'the quote was sent')
+assert.deepEqual(quoted.sent_to, ['rp'], 'the quote goes to the RP alone')
+assert.equal(quoted.total_inr, quoted.clinic_visit_inr + quoted.cab_inr, 'the total is the sum of the lines')
+assert.equal(session.messages.rp.length, 1, 'exactly one message reached the RP')
+assert.equal(session.messages.patient.length, 0, 'she is not shown the figures')
+assert.equal(session.messages.family_group.length, 0, 'the group hears nothing yet')
+assert.equal(session.messages.doctor.length, 0, 'the doctor is not in this conversation')
+const quoteCard = session.messages.rp[0].card
+assert.equal(quoteCard.kind, 'care_quote')
+assert.equal(quoteCard.items.length, 2, 'the receipt itemises the visit and the cab')
+assert.equal(quoteCard.total_inr, quoted.total_inr)
+assert.equal(quoteCard.wallet_left_inr, 5000 - quoted.total_inr, 'the card says what the wallet would have left')
+assert.match(session.messages.rp[0].text, /₹/, 'the money status is in his message')
+assert.equal(session.wallet.spent, 0, 'quoting spends nothing')
+console.log('ok  the costed visit and its receipt reached only the RP, and nothing was debited')
+
+// Nobody answering is not a yes. This is the one that matters: the wallet is
+// real and she is about to be told a cab is on its way.
+stub.reset([
+  { text: '', toolCalls: [careLog('R24', 'settle before he answered'), { name: 'settle_care', args: { approved: true, why: 'assuming he agrees' } }] },
+  { text: 'done', toolCalls: [] },
+])
+at = session.events.length
+await feed({ kind: 'test', source: 'selfcheck settle unanswered' })
+const unanswered = resultsOf(at, 'settle_care')[0]
+assert.equal(unanswered.ok, false, 'an unanswered receipt cannot be settled')
+assert.match(unanswered.error, /not a yes|has not answered/i)
+assert.equal(session.wallet.spent, 0, 'nothing was debited')
+assert.equal(session.messages.family_group.length, 0, 'and nobody was told anything')
+console.log('ok  an unanswered receipt is not an approval, and settling one is refused')
+
+// He tapped Go ahead, so claiming he declined is refused too -- the tool passes
+// through what he chose rather than what the model expected.
+session.messages.rp[0].answer = 'Go ahead'
+stub.reset([
+  { text: '', toolCalls: [careLog('R24', 'settle against his answer'), { name: 'settle_care', args: { approved: false, why: 'disagreeing with him' } }] },
+  { text: 'done', toolCalls: [] },
+])
+at = session.events.length
+await feed({ kind: 'test', source: 'selfcheck settle mismatch' })
+assert.equal(resultsOf(at, 'settle_care')[0].ok, false, 'approved must match what he tapped')
+assert.equal(session.wallet.spent, 0, 'still nothing debited')
+console.log('ok  settling against what the RP actually tapped is refused')
+
+// Approved: the wallet moves once, she is told in her own language, and the
+// group gets the narration with no figure in it.
+stub.reset([
+  { text: '', toolCalls: [careLog('R24', 'settle what he approved'), { name: 'settle_care', args: { approved: true, why: 'he tapped Go ahead' } }] },
+  { text: 'done', toolCalls: [] },
+])
+at = session.events.length
+await feed({ kind: 'test', source: 'selfcheck settle approved' })
+const settled = resultsOf(at, 'settle_care')[0]
+assert.equal(settled.ok, true, 'the approved visit settled')
+assert.equal(settled.debited_inr, quoted.total_inr, 'exactly the quoted amount moved')
+assert.equal(session.wallet.spent, quoted.total_inr, 'and it moved once')
+assert.equal(session.wallet.left ?? 5000 - session.wallet.spent, 5000 - quoted.total_inr)
+assert.equal(session.wallet.ledger.length, 1, 'one ledger row, so the console and the sheet agree')
+
+const toHer = session.messages.patient.filter((m) => m.from === 'agent')
+assert.equal(toHer.length, 1, 'she was told once')
+assert.equal(toHer[0].language, 'te-IN', 'in her own language (R23)')
+assert.equal(toHer[0].card, null, 'she gets the news, not the receipt')
+
+assert.equal(session.messages.family_group.length, 1, 'the group got the narration')
+const narration = session.messages.family_group[0].text
+assert.ok(!/₹|\brs\b|\binr\b|\d+\s*rupees/i.test(narration), 'R18: no figure reached the group')
+assert.match(narration, /Lakshmi/, 'third person, naming her')
+assert.match(narration, /Arun/, 'and saying what the RP did')
+assert.ok(!/chest/i.test(narration), 'R18: no symptom reached the group')
+assert.equal(session.messages.doctor.length, 0, 'nobody else was written to at any point')
+console.log('ok  the approved visit debited once, told her in Telugu, and narrated it to the group with no figure')
+
+// A second settle would charge her twice for one receipt.
+stub.reset([
+  { text: '', toolCalls: [careLog('R24', 'settle the same receipt again'), { name: 'settle_care', args: { approved: true, why: 'again' } }] },
+  { text: 'done', toolCalls: [] },
+])
+at = session.events.length
+await feed({ kind: 'test', source: 'selfcheck double settle' })
+assert.equal(resultsOf(at, 'settle_care')[0].ok, false, 'a settled receipt cannot settle twice')
+assert.equal(session.wallet.spent, quoted.total_inr, 'the wallet was not touched again')
+console.log('ok  the same receipt cannot be settled twice')
+
+// Declined: nothing moves, she is still told, and the group is not posted --
+// nothing happened, so there is no status to narrate.
+careFixture()
+stub.reset([
+  { text: '', toolCalls: [careLog('R15', 'quote it again'), { name: 'quote_care', args: quoteArgs }] },
+  { text: 'done', toolCalls: [] },
+])
+await feed({ kind: 'test', source: 'selfcheck quote for decline' })
+session.messages.rp[0].answer = 'Not now'
+stub.reset([
+  { text: '', toolCalls: [careLog('R24', 'pass through his refusal'), { name: 'settle_care', args: { approved: false, why: 'he tapped Not now' } }] },
+  { text: 'done', toolCalls: [] },
+])
+at = session.events.length
+await feed({ kind: 'test', source: 'selfcheck settle declined' })
+const heldBack = resultsOf(at, 'settle_care')[0]
+assert.equal(heldBack.ok, true, 'a refusal is a valid outcome, not an error')
+assert.equal(heldBack.debited_inr, 0, 'nothing was debited')
+assert.equal(session.wallet.spent, 0, 'the wallet is untouched')
+assert.equal(session.messages.family_group.length, 0, 'the group is not told about a visit that is not happening')
+assert.equal(session.messages.patient.filter((m) => m.from === 'agent').length, 1, 'she is still told it is on hold')
+console.log('ok  a declined visit debited nothing, told her, and left the group alone')
+
+
+// --------------------------------------------------------- refills and slots
+
+// What is checked here is who hears what. The figures and the receipt are the
+// RP's; the group is told the thing happened and nothing more; and the home
+// screen has to move, or the person taps "refill" again on a refill that
+// already happened.
+const { resetOrders } = await import('./orders.js')
+
+const orderFixture = () => {
+  resetOrders()
+  session.messages = { patient: [], rp: [], family_group: [], doctor: [] }
+  session.wallet = { limit: 5000, spent: 0, ledger: [] }
+  session.onboarding = JSON.parse(readFileSync('config/onboarding.json', 'utf8'))
+}
+const orderLog = (rule, what) => ({ name: 'log_decision', args: { received: 'stock low', source: 'selfcheck', decided: what, rule_id: rule, why: what, action: what, recipient: 'rp', connector: 'Pine Labs' } })
+const resOf = (from, tool) => session.events.slice(from).filter((e) => e.type === 'tool_result' && e.name === tool).map((e) => e.result)
+
+orderFixture()
+const stockBefore = session.onboarding.current_medicines.find((m) => m.id === 'med_chronic_1').pills_left
+stub.reset([
+  { text: '', toolCalls: [orderLog('R2', 'order the refill'), { name: 'order_medicines', args: {
+    medicine_id: 'med_chronic_1', medicine: 'Metoprolol', strength: '25 mg', quantity: '60 tablets',
+    doses_added: 60, chemist: 'Pillar Road Medicals, Hanamkonda', amount_inr: 240, for_member: 'patient',
+    why: 'Six tablets left and two a day',
+  } }] },
+  { text: 'done', toolCalls: [] },
+])
+let oat = session.events.length
+await feed({ kind: 'test', source: 'selfcheck order_medicines' })
+const ordered = resOf(oat, 'order_medicines')[0]
+assert.equal(ordered.ok, true, 'the refill was ordered')
+assert.equal(session.wallet.spent, 240, 'the wallet moved by what it cost')
+assert.equal(ordered.wallet_left_inr, 4760)
+assert.equal(session.wallet.ledger.length, 1, 'one ledger row')
+assert.equal(session.messages.rp.length, 1, 'the RP got exactly one message')
+assert.equal(session.messages.rp[0].card.kind, 'order_receipt', 'with the receipt on it')
+assert.match(session.messages.rp[0].text, /₹240/, 'and the figure in it')
+assert.equal(session.messages.family_group.length, 1, 'the group got exactly one line')
+const groupLine = session.messages.family_group[0].text
+assert.match(groupLine, /medicines have been ordered/i, 'saying the medicines were ordered')
+assert.ok(!/₹|\brs\b|\binr\b/i.test(groupLine), 'R18: no figure reached the group')
+assert.ok(!/metoprolol/i.test(groupLine), 'R18: not even which medicine')
+assert.equal(session.messages.patient.length, 0, 'nobody else was written to')
+assert.equal(session.messages.doctor.length, 0)
+const stockAfter = session.onboarding.current_medicines.find((m) => m.id === 'med_chronic_1').pills_left
+assert.equal(stockAfter, stockBefore + 60, 'the home screen stock went up, so the tab is not stale')
+console.log('ok  the refill debited the wallet, receipted the RP, told the group only that it happened, and topped the stock up')
+
+// A medicine that is not on file is a substitution waiting to happen (R1).
+stub.reset([
+  { text: '', toolCalls: [orderLog('R1', 'order something not prescribed'), { name: 'order_medicines', args: {
+    medicine_id: 'med_not_on_file', medicine: 'Atenolol', quantity: '30 tablets',
+    chemist: 'Kazipet Pharmacy', amount_inr: 200, for_member: 'patient', why: 'the chemist offered it',
+  } }] },
+  { text: 'done', toolCalls: [] },
+])
+oat = session.events.length
+await feed({ kind: 'test', source: 'selfcheck order unknown medicine' })
+assert.equal(resOf(oat, 'order_medicines')[0].ok, false, 'a medicine not on file is refused')
+assert.equal(session.wallet.spent, 240, 'and nothing more was spent')
+console.log('ok  refused to order a medicine that is not the one on file')
+
+// The test slot: she is the one who has to turn up, so she is told, in Telugu.
+orderFixture()
+stub.reset([
+  { text: '', toolCalls: [orderLog('R12', 'confirm the slot the clinic offered'), { name: 'book_test', args: {
+    test_id: 'test_1', test_name: 'BP check', clinic: "Dr. S. Rao's clinic, Hanamkonda",
+    when: 'tomorrow 9:30 am', for_member: 'patient', test_inr: 300, cab_inr: 220,
+    why: 'Due, and the clinic offered this slot',
+  } }] },
+  { text: 'done', toolCalls: [] },
+])
+oat = session.events.length
+await feed({ kind: 'test', source: 'selfcheck book_test' })
+const booked = resOf(oat, 'book_test')[0]
+assert.equal(booked.ok, true, 'the slot was booked')
+assert.equal(session.wallet.spent, 520, 'the test and the cab both came out of the wallet')
+assert.equal(session.messages.rp.length, 1, 'one message to the RP')
+assert.equal(session.messages.rp[0].card.kind, 'order_receipt')
+assert.equal(session.messages.rp[0].card.items.length, 2, 'the receipt itemises the test and the cab')
+assert.match(session.messages.rp[0].text, /₹520/)
+const toHerAboutTest = session.messages.patient.filter((m) => m.from === 'agent')
+assert.equal(toHerAboutTest.length, 1, 'she was told once')
+assert.equal(toHerAboutTest[0].language, 'te-IN', 'in her own language (R23)')
+assert.ok(!/₹|\brs\b/i.test(toHerAboutTest[0].text), 'she is not handed the bill')
+assert.equal(toHerAboutTest[0].card, null, 'and not the receipt either')
+assert.equal(session.messages.family_group.length, 1, 'one line to the group')
+assert.ok(!/₹|\brs\b|\binr\b/i.test(session.messages.family_group[0].text), 'R18: no figure reached the group')
+assert.equal(session.messages.doctor.length, 0, 'nobody else at any point')
+const testRow = session.onboarding.recurring_tests.find((t) => t.id === 'test_1')
+assert.equal(testRow.booked_for, 'tomorrow 9:30 am', 'the record says it is booked, so the tab stops offering it')
+console.log('ok  the test slot debited once, told her in Telugu, receipted the RP, and marked the record booked')
+
+// The curtain answers itself only when asked to. Default is still a stall,
+// because a take wants to see the call waiting rather than an invented reply.
+const autoWas = process.env.CURTAIN_AUTO
+process.env.CURTAIN_AUTO = '1'
+stub.reset([
+  { text: '', toolCalls: [orderLog('R15', 'check the mandate'), { name: 'pinelabs_reserve_status', args: { reserve_pay_sub_id: 'sub_demo' } }] },
+  { text: 'done', toolCalls: [] },
+])
+oat = session.events.length
+await feed({ kind: 'test', source: 'selfcheck curtain auto' })
+const statuses = resOf(oat, 'pinelabs_reserve_status')
+assert.equal(statuses.length, 1, 'the call came back instead of parking')
+assert.equal(pendingList().length, 0, 'and nothing was left on the curtain')
+assert.ok(session.events.slice(oat).some((e) => e.type === 'curtain_resolved' && e.via === 'curtain_auto'), 'the console still saw the call and its answer')
+if (autoWas === undefined) delete process.env.CURTAIN_AUTO
+else process.env.CURTAIN_AUTO = autoWas
+console.log('ok  CURTAIN_AUTO answered the rail call from its fixture and left nothing pending')
+
 
 console.log('\nall checks passed')
 process.exit(0)

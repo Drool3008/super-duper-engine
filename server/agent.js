@@ -7,6 +7,8 @@ import { awaitReply } from './humans.js'
 import { nextContact, startChain, responsiblePerson } from './contacts.js'
 import { recordAccount } from './accounts.js'
 import { recordQuestion, listeningState, setSummary } from './listening.js'
+import { CARE_COSTS, openQuote, careState, markSettled } from './care.js'
+import * as orders from './orders.js'
 import { summarise } from './summarise.js'
 import { recordAssessment, openReversal } from './assessment.js'
 import { nextProvider, recordProviderOutcome, reportDeadEnd, recordFulfilment, recordDispatch, setRefillCycle } from './acting.js'
@@ -76,6 +78,22 @@ const MONEY_PATTERNS = [
   /\d\s*(?:rupees|rs\b|inr\b)/i,
 ]
 const mentionsMoney = (text) => MONEY_PATTERNS.some((re) => re.test(String(text || '')))
+
+
+/**
+ * One message, from the agent, to exactly one recipient. The care tools take no
+ * recipient parameter, so this is the only way they can address anybody and
+ * every call site names the person literally.
+ */
+function postMessage(to, text, language, card = null, extra = null) {
+  const msg = { id: randomUUID(), from: 'agent', to, text, language, card, ...(extra || {}), at: session.clock.toISOString() }
+  ;(session.messages[to] ||= []).push(msg)
+  emit('message', { message: msg })
+  return msg
+}
+
+/** What the RP tapped, read as a yes or a no. The labels are ours, so this is a closed set. */
+const READ_AS_YES = /^(go ahead|yes|approve[ds]?|ok(ay)?|pay|confirm)\b/i
 
 async function runLive(name, args) {
   switch (name) {
@@ -201,6 +219,268 @@ async function runLive(name, args) {
         sent_to: [l.about, rp?.id || 'rp'],
       }
     }
+    case 'quote_care': {
+      // Order is enforced, not asked for. Without a write-up there is nothing to
+      // put in the third person, and quoting first would send him figures for an
+      // account that was never recorded.
+      const l = listeningState()
+      if (!l?.summary) {
+        return { ok: false, error: 'Nothing has been written up yet. Call summarise_account first: this sends the write-up it produced.' }
+      }
+      const members = session.onboarding?.family?.members || []
+      const who = members.find((m) => m.id === args.about)
+      // responsiblePerson() hands back an id, not the member. Reading .name off
+      // it silently yields undefined, and the group narration then calls him
+      // "the responsible person" in front of his own family.
+      const rpId = responsiblePerson() || 'rp'
+      const rp = members.find((m) => m.id === rpId)
+      const name = who?.name || args.about
+
+      const quote = openQuote({ about: name, clinic: args.clinic, when: args.when, why: args.why })
+      const left = session.wallet.limit - session.wallet.spent - quote.total_inr
+
+      // Third person throughout: he is being told about her, not spoken to as
+      // her. The figures belong in this message -- he is the one entitled to
+      // them, and he cannot weigh the spend without seeing it.
+      const text =
+        `${name} described this herself. ${l.summary.for_rp}\n\n` +
+        `To act on it I would book ${args.clinic} for ${args.when} and a cab to take her and bring her back. ` +
+        `The visit is ₹${CARE_COSTS.clinic_visit_inr} and the cab ₹${CARE_COSTS.cab_inr}, ₹${quote.total_inr} in total, ` +
+        `which would leave ₹${left} in the wallet. Receipt ${quote.receipt_no} is below. Nothing is booked or paid until you answer.`
+
+      const msg = postMessage(rpId, text, rp?.language || 'en-IN', {
+        kind: 'care_quote',
+        title: `${name} needs a clinic visit`,
+        detail: l.summary.problems?.join(' · ') || '',
+        for: name,
+        clinic: args.clinic,
+        when: args.when,
+        receipt_no: quote.receipt_no,
+        items: quote.items,
+        total_inr: quote.total_inr,
+        wallet_left_inr: left,
+        why: args.why || 'Above the amount you set for asking first.',
+        on_timeout: 'hold the booking, pay nothing, and call you',
+        buttons: ['Go ahead', 'Not now'],
+      })
+      quote.message_id = msg.id
+
+      emit('care_quoted', {
+        receipt_no: quote.receipt_no, about: args.about, clinic: args.clinic, when: args.when,
+        items: quote.items, total_inr: quote.total_inr, wallet_left_inr: left, sent_to: [rpId],
+      })
+      return {
+        ok: true, receipt_no: quote.receipt_no, total_inr: quote.total_inr,
+        clinic_visit_inr: CARE_COSTS.clinic_visit_inr, cab_inr: CARE_COSTS.cab_inr,
+        wallet_left_inr: left, sent_to: [rpId],
+      }
+    }
+    case 'settle_care': {
+      const quote = careState()
+      if (!quote) return { ok: false, error: 'No quote is open. Call quote_care first.' }
+      if (quote.settled) return { ok: false, error: `Receipt ${quote.receipt_no} was already settled (${quote.outcome}). A second settle would debit her twice.` }
+
+      const members = session.onboarding?.family?.members || []
+      const rpId = responsiblePerson() || 'rp'
+      const rp = members.find((m) => m.id === rpId)
+      const patient = members.find((m) => m.name === quote.about) || members.find((m) => m.role === 'patient')
+      const patientId = patient?.id || 'patient'
+
+      // The whole point of the step is that he decided. So his answer is read
+      // off the card he actually tapped, and a mismatch is refused rather than
+      // believed: silence is not consent, and this debits the wallet and tells
+      // her a cab is coming.
+      const card = (session.messages[rpId] || []).find((m) => m.id === quote.message_id)
+      if (!card?.answer) {
+        return { ok: false, error: `${rp?.name || 'The responsible person'} has not answered receipt ${quote.receipt_no} yet. Nobody answering is not a yes -- hold it and say so.` }
+      }
+      const tappedYes = READ_AS_YES.test(String(card.answer).trim())
+      if (tappedYes !== Boolean(args.approved)) {
+        return { ok: false, error: `approved=${Boolean(args.approved)} disagrees with what he tapped ("${card.answer}"). Pass through what he chose, not what you expected.` }
+      }
+
+      if (!args.approved) {
+        // Nothing moves and nothing is booked. She is still told, because she
+        // was asked to wait for an answer and is owed one.
+        postMessage(
+          patientId,
+          `అమ్మా, క్లినిక్ విజిట్ ఇంకా ఖాయం కాలేదు. ${rp?.name || 'అరుణ్'} ఇప్పుడే వద్దు అన్నారు. నేను ఆయనతో మాట్లాడి మీకు చెప్తాను.`,
+          patient?.language || 'te-IN',
+        )
+        markSettled('declined')
+        emit('care_settled', { receipt_no: quote.receipt_no, approved: false, debited_inr: 0, sent_to: [patientId] })
+        return { ok: true, approved: false, debited_inr: 0, wallet_left_inr: session.wallet.limit - session.wallet.spent, sent_to: [patientId] }
+      }
+
+      // Debited through the same ledger the rest of the spending uses, so the
+      // console's wallet and the sheet both see it like any other row.
+      session.wallet.spent += quote.total_inr
+      const row = {
+        amount_inr: quote.total_inr, payee: quote.clinic, for: quote.about,
+        why: `Clinic visit and cab, receipt ${quote.receipt_no}, approved by ${rp?.name || rpId}`,
+        at: session.clock.toISOString(), balance_inr: session.wallet.limit - session.wallet.spent,
+      }
+      session.wallet.ledger.push(row)
+      emit('wallet', { wallet: { limit: session.wallet.limit, spent: session.wallet.spent, left: row.balance_inr }, row })
+
+      postMessage(
+        patientId,
+        `అమ్మా, మీకు ${quote.clinic} లో ${quote.when} కి డాక్టర్ అపాయింట్‌మెంట్ బుక్ చేశాను. మిమ్మల్ని తీసుకెళ్లడానికి, తిరిగి తీసుకురావడానికి క్యాబ్ కూడా బుక్ అయింది. ${rp?.name || 'అరుణ్'} దీనికి సరే అన్నారు.`,
+        patient?.language || 'te-IN',
+      )
+
+      // R18, and R24's half of it: he authorised the group being told, so the
+      // group is told. Third person, what happened and who handled it, and no
+      // figure anywhere near it -- the money stayed in his thread.
+      const narration =
+        `${quote.about} spoke to the agent herself about how she has been feeling. ` +
+        `${rp?.name || 'The responsible person'} has approved a clinic visit for her and a cab to take her and bring her back. ` +
+        `The visit is at ${quote.clinic}, ${quote.when}.`
+      if (mentionsMoney(narration)) {
+        return { ok: false, error: 'R18: the group narration came out with a figure in it. Refusing rather than posting it.' }
+      }
+      postMessage('family_group', narration, 'en-IN')
+
+      markSettled('approved')
+      const sheet = await sheets.appendRow('wallet_ledger', row)
+      emit('care_settled', {
+        receipt_no: quote.receipt_no, approved: true, debited_inr: quote.total_inr,
+        wallet_left_inr: row.balance_inr, sent_to: [patientId, 'family_group'],
+      })
+      return {
+        ok: true, approved: true, receipt_no: quote.receipt_no, debited_inr: quote.total_inr,
+        wallet_left_inr: row.balance_inr, sheets: sheet, sent_to: [patientId, 'family_group'],
+      }
+    }
+    case 'order_medicines': {
+      const members = session.onboarding?.family?.members || []
+      const whose = members.find((m) => m.id === args.for_member)
+      const rpId = responsiblePerson() || 'rp'
+      const rp = members.find((m) => m.id === rpId)
+      const med = (session.onboarding?.current_medicines || []).find((m) => m.id === args.medicine_id)
+      if (!med) return { ok: false, error: `No medicine on file with id ${args.medicine_id}. Order only what is prescribed (R1).` }
+
+      const label = `${args.medicine}${args.strength ? ` ${args.strength}` : ''} — ${args.quantity}`
+      const { order, row } = orders.record({
+        kind: 'medicine_refill',
+        about: whose?.name || args.for_member,
+        payee: args.chemist,
+        items: [{ label, amount_inr: Number(args.amount_inr) || 0 }],
+        why: args.why || 'Refill ordered against the prescription on file',
+      })
+
+      // His thread, and only his: the amount, the chemist and the receipt.
+      postMessage(
+        rpId,
+        `${args.quantity} of ${args.medicine}${args.strength ? ` ${args.strength}` : ''} ordered from ${args.chemist} for ${order.about}. ` +
+        `₹${order.total_inr} came out of the wallet, which leaves ₹${order.wallet_left_inr}. Receipt ${order.receipt_no} is below.`,
+        rp?.language || 'en-IN',
+        {
+          kind: 'order_receipt',
+          title: `${args.medicine} refill ordered`,
+          detail: `${args.quantity} from ${args.chemist}`,
+          for: order.about,
+          receipt_no: order.receipt_no,
+          items: order.items,
+          total_inr: order.total_inr,
+          wallet_left_inr: order.wallet_left_inr,
+          why: args.why || 'Ordered against the prescription on file.',
+        },
+      )
+
+      // R18. The group is told the thing happened. Not the medicine, because
+      // that is a medical detail, and not the cost, which is his business.
+      postMessage('family_group', `${order.about}'s medicines have been ordered.`, 'en-IN')
+
+      // The home screen reads these fields, so the tab is wrong until they
+      // move: a refill that does not change the stock looks like nothing
+      // happened, and the person taps it again.
+      const added = Number(args.doses_added) || 0
+      if (added > 0) {
+        if (med.doses_left !== undefined) med.doses_left += added
+        else if (med.pills_left !== undefined) med.pills_left += added
+        emit('record_update', {
+          target: 'medicine', id: med.id,
+          changes: { doses_left: med.doses_left, pills_left: med.pills_left },
+          why: `Refill of ${args.quantity} ordered, receipt ${order.receipt_no}`,
+        })
+      }
+
+      const sheet = await sheets.appendRow('wallet_ledger', row)
+      emit('order_placed', { ...order, sent_to: [rpId, 'family_group'] })
+      return {
+        ok: true, receipt_no: order.receipt_no, total_inr: order.total_inr,
+        wallet_left_inr: order.wallet_left_inr, stock_now: med.doses_left ?? med.pills_left ?? null,
+        sheets: sheet, sent_to: [rpId, 'family_group'],
+      }
+    }
+    case 'book_test': {
+      const members = session.onboarding?.family?.members || []
+      const whose = members.find((m) => m.id === args.for_member)
+      const rpId = responsiblePerson() || 'rp'
+      const rp = members.find((m) => m.id === rpId)
+      const test = (session.onboarding?.recurring_tests || []).find((t) => t.id === args.test_id)
+      if (!test) return { ok: false, error: `No test on file with id ${args.test_id}.` }
+
+      const items = [{ label: `${args.test_name} — ${args.clinic}`, amount_inr: Number(args.test_inr) || 0 }]
+      const cab = Number(args.cab_inr) || 0
+      if (cab > 0) items.push({ label: `Cab, return trip for ${whose?.name || args.for_member}`, amount_inr: cab })
+
+      const { order, row } = orders.record({
+        kind: 'test_booking',
+        about: whose?.name || args.for_member,
+        payee: args.clinic,
+        items,
+        why: args.why || `${args.test_name} booked for ${args.when}`,
+      })
+
+      // She has to turn up, so she is told plainly and in her own language.
+      // No figure: she did not agree to the spend and does not need to carry it.
+      postMessage(
+        args.for_member,
+        `అమ్మా, మీ ${args.test_name} కోసం ${args.clinic} లో ${args.when} కి అపాయింట్‌మెంట్ బుక్ అయింది. ` +
+        `మిమ్మల్ని తీసుకెళ్లడానికి, తిరిగి తీసుకురావడానికి క్యాబ్ కూడా బుక్ చేశాను.`,
+        whose?.language || 'te-IN',
+      )
+
+      postMessage(
+        rpId,
+        `${args.test_name} booked for ${order.about} at ${args.clinic}, ${args.when}, with a cab both ways. ` +
+        `₹${order.total_inr} came out of the wallet, which leaves ₹${order.wallet_left_inr}. Receipt ${order.receipt_no} is below.`,
+        rp?.language || 'en-IN',
+        {
+          kind: 'order_receipt',
+          title: `${args.test_name} booked`,
+          detail: `${args.clinic}, ${args.when}`,
+          for: order.about,
+          receipt_no: order.receipt_no,
+          items: order.items,
+          total_inr: order.total_inr,
+          wallet_left_inr: order.wallet_left_inr,
+          why: args.why || 'Booked from the schedule on file.',
+        },
+      )
+
+      postMessage('family_group', `${order.about}'s ${args.test_name} is booked at ${args.clinic}, ${args.when}, and a cab is arranged.`, 'en-IN')
+
+      // Same reason as the refill: the home screen offers the tap again until
+      // the record says it is booked.
+      test.booked_for = args.when
+      test.booked_at = args.clinic
+      emit('record_update', {
+        target: 'test_schedule', id: test.id,
+        changes: { booked_for: test.booked_for, booked_at: test.booked_at },
+        why: `Slot confirmed, receipt ${order.receipt_no}`,
+      })
+
+      const sheet = await sheets.appendRow('wallet_ledger', row)
+      emit('order_placed', { ...order, sent_to: [args.for_member, rpId, 'family_group'] })
+      return {
+        ok: true, receipt_no: order.receipt_no, total_inr: order.total_inr,
+        wallet_left_inr: order.wallet_left_inr, booked_for: args.when,
+        sheets: sheet, sent_to: [args.for_member, rpId, 'family_group'],
+      }
+    }
     case 'next_contact':
       return nextContact({ affected: args.affected, tier: args.tier })
     case 'record_account':
@@ -262,6 +542,9 @@ async function executeTool(name, args) {
     const audio = audioStore.get(args.audio_ref)
     if (!audio) return { ok: false, error: `no audio found for audio_ref ${args.audio_ref}` }
     const result = await gnani.stt({ ...audio, languageCode: args.language_code })
+    // Already a real Gnani answer, so auto mode forwards it rather than
+    // reaching for a fixture: there is nothing to invent.
+    if (curtainAuto()) return result
     return enqueue({
       tool: name, runMode: 'CURTAIN_RUN', rail: tool.rail, endpoint: tool.endpoint,
       request: result.request || { audio_ref: args.audio_ref, language_code: args.language_code },
@@ -272,7 +555,7 @@ async function executeTool(name, args) {
   }
 
   const { variants, missing, error } = loadFixtures(tool.rail, name)
-  return enqueue({
+  const call = {
     tool: name,
     runMode: tool.mode,
     rail: tool.rail,
@@ -281,7 +564,63 @@ async function executeTool(name, args) {
     imagined: tool.mode === 'IMAGINED',
     fixtures: variants,
     fixtureNote: missing ? `no fixture file at ${missing}` : error || null,
-  })
+  }
+  if (curtainAuto()) return autoRespond(call, variants)
+  return enqueue(call)
+}
+
+/**
+ * Which fixture variant to answer with when the curtain is driving itself.
+ * Only tools whose happy path is not called "success" need naming here; the
+ * rest fall through to success, and anything with neither is picked in file
+ * order so a new fixture still answers rather than hanging.
+ */
+const AUTO_VARIANT = {
+  place_call: 'clinic_slot_offered',
+  pinelabs_dispensing_receipt: 'success_full_fill',
+  // Neither of these has a plain "success". Left to fall through to the first
+  // key they would still answer, but the wrong way round for this family:
+  // tracking would come back from the Hyderabad hub for a parcel going to
+  // Warangal, and the named-recipient check is only worth making if it says
+  // who actually took it.
+  delhivery_track: 'success_in_transit_warangal',
+  delhivery_named_recipient: 'success_patient_received',
+}
+
+function autoVariant(name, variants) {
+  const keys = Object.keys(variants || {}).filter((k) => !k.startsWith('_'))
+  const named = AUTO_VARIANT[name]
+  for (const key of [named, 'success', 'answered'].filter(Boolean)) {
+    if (variants?.[key]) return { key, body: variants[key] }
+  }
+  return keys.length ? { key: keys[0], body: variants[keys[0]] } : { key: null, body: null }
+}
+
+/**
+ * CURTAIN_AUTO answers the rail calls from their own fixtures instead of
+ * parking them for a teammate.
+ *
+ * Off by default, and it must stay that way: curtain.js deliberately has no
+ * timeout and no default, because on a take we would rather see a call stall on
+ * camera than have the agent treat an invented reply as real. This is for
+ * driving the thing end to end without a person sitting on the curtain -- a tap
+ * on "refill" otherwise stops dead at pinelabs_reserve_status, which looks like
+ * a hang and is actually the design working.
+ *
+ * Both events are still emitted, so the console shows the call and its answer
+ * exactly as it would have if somebody had picked the variant by hand.
+ */
+const curtainAuto = () => /^(1|true|yes|on)$/i.test(process.env.CURTAIN_AUTO || '')
+
+function autoRespond(call, variants) {
+  const { key, body } = autoVariant(call.tool, variants)
+  if (!body) {
+    return { ok: false, error: `CURTAIN_AUTO is on but fixtures/${call.rail}/${call.tool}.json has no variant to answer with.` }
+  }
+  const resolved = { ...call, id: randomUUID(), at: new Date().toISOString() }
+  emit('curtain_pending', { call: resolved })
+  emit('curtain_resolved', { id: resolved.id, call: resolved, response: body, via: 'curtain_auto', fixture: key })
+  return body
 }
 
 // ---------------------------------------------------------------- the loop

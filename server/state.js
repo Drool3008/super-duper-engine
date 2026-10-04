@@ -46,6 +46,8 @@ export const session = {
   accounts: [],    // transcripts and summaries, see accounts.js
   assessments: [], // tiers and the factors behind them, see assessment.js
   reversals: [],   // decisions the RP may still overrule, see assessment.js
+  care: null,      // the open costed visit awaiting the RP, see care.js
+  orders: [],      // refills bought and slots booked, with their receipts, see orders.js
   ladders: {},     // how far down each ranked provider list we are, see acting.js
   providerLog: [], // every provider attempt and what came of it
   fulfilments: [], // what the chemist actually supplied
@@ -140,6 +142,8 @@ export function resetSession(reason = 'operator reset') {
   session.accounts = []
   session.assessments = []
   session.reversals = []
+  session.care = null
+  session.orders = []
   session.ladders = {}
   session.providerLog = []
   session.fulfilments = []

@@ -85,6 +85,9 @@ const DEFAULT_BUTTONS: Record<string, string[]> = {
   // to the person as their three real options, including not booking. The agent
   // names the doctor and the date in `options`; these are only the fallback.
   slot_unavailable: ['Another doctor', 'Another date', "Don't book"],
+  care_quote: ['Go ahead', 'Not now'],
+  // order_receipt is deliberately absent: a receipt reports what was already
+  // done, so it must never grow a button that offers to answer it.
 }
 
 const TITLES: Record<string, string> = {
@@ -99,6 +102,8 @@ const TITLES: Record<string, string> = {
   incident_summary: 'What happened',
   test_due: 'A check-up is due',
   slot_unavailable: 'That doctor has nothing free',
+  care_quote: 'Approve the visit and the cab',
+  order_receipt: 'Paid and recorded',
 }
 
 type T = (key: string, vars?: Record<string, string | number>) => string
@@ -318,7 +323,14 @@ function PlayLine({ ref_, spoken }: { ref_: string; spoken: boolean }) {
 }
 
 /** Answers that say yes. Anything else (Hold, No, Decline…) is a no or a defer. */
-const YES = new Set(['approve', 'yes', 'act', 'treat as urgent', 'top up', 'ok', 'ask the doctor', 'yes, book it'])
+const YES = new Set(['approve', 'yes', 'act', 'treat as urgent', 'top up', 'ok', 'ask the doctor', 'yes, book it', 'go ahead'])
+
+/**
+ * Card kinds that report something already done. They wear the agent's own
+ * colours rather than the amber "your decision" header, because nothing is
+ * waiting on anybody -- and they stay unanswerable whatever buttons arrive.
+ */
+const RECORDS = new Set(['order_receipt'])
 
 const PAST: Record<string, string> = {
   approve: 'Approved', yes: 'Confirmed', no: 'Declined', hold: 'Held', 'hold unpaid': 'Held unpaid',
@@ -347,22 +359,32 @@ export function DecisionCard({ message, who, onAnswer }: { message: Message; who
 
   if (!card) return null
   const kind = card.kind || card.type || 'card'
-  const buttons: string[] = card.buttons || DEFAULT_BUTTONS[kind] || []
+  const record = RECORDS.has(kind)
+  const buttons: string[] = record ? [] : card.buttons || DEFAULT_BUTTONS[kind] || []
   const title = card.title || TITLES[kind] || null
   const locked = Boolean(answer) || timedOut
   const yes = answer ? YES.has(answer.toLowerCase()) : false
   const facts = FACTS.filter(([k]) => card[k] !== undefined && card[k] !== '')
+  // The lines come from the model, so a stray null or a bare string in `items`
+  // is a crash on `it.label` rather than one missing row.
+  const items: any[] = Array.isArray(card.items) ? card.items.filter((it: any) => it && typeof it === 'object') : []
 
   // The answered state has to read as a different card at a glance: that
   // transition is the proof on camera that a human said yes.
-  const tone = !locked
-    ? 'border-human/60 bg-human-bg'
-    : yes ? 'border-ok bg-ok-bg' : 'border-line bg-artifact-bg'
+  const tone = record
+    ? 'border-ai/20 bg-ai-bg/40'
+    : !locked
+      ? 'border-human/60 bg-human-bg'
+      : yes ? 'border-ok bg-ok-bg' : 'border-line bg-artifact-bg'
 
   return (
     <div className={cn('mt-1.5 overflow-hidden rounded-2xl border-2 transition-colors', tone)}>
-      <div className={cn('flex items-center justify-between gap-2 px-3 py-1.5', !locked ? 'bg-human-soft/70' : yes ? 'bg-[#DCFCE7]' : 'bg-secondary')}>
-        {locked ? (
+      <div className={cn('flex items-center justify-between gap-2 px-3 py-1.5', record ? 'bg-ai-bg' : !locked ? 'bg-human-soft/70' : yes ? 'bg-[#DCFCE7]' : 'bg-secondary')}>
+        {record ? (
+          <span className="flex items-center gap-1.5 text-meta font-bold uppercase tracking-wide text-ai">
+            <CheckCircle2 className="h-4 w-4" aria-hidden /> Done
+          </span>
+        ) : locked ? (
           <span className={cn('flex items-center gap-1.5 text-meta font-bold uppercase tracking-wide', yes ? 'text-ok' : 'text-muted')}>
             {yes ? <CheckCircle2 className="h-4 w-4" aria-hidden /> : timedOut ? <Clock3 className="h-4 w-4" aria-hidden /> : <Pause className="h-4 w-4" aria-hidden />}
             {timedOut ? 'No answer' : PAST[answer!.toLowerCase()] || answer}
@@ -370,7 +392,7 @@ export function DecisionCard({ message, who, onAnswer }: { message: Message; who
         ) : (
           <span className="flex items-center gap-1.5 text-meta font-bold uppercase tracking-wide text-human"><Hand className="h-4 w-4" aria-hidden /> Your decision</span>
         )}
-        <HumanTag label="Human" />
+        {record ? <AiTag label="AI" /> : <HumanTag label="Human" />}
       </div>
 
       <div className="p-3">
@@ -387,7 +409,26 @@ export function DecisionCard({ message, who, onAnswer }: { message: Message; who
           </dl>
         )}
         {card.detail && <div className="mt-1.5 text-meta text-ink">{card.detail}</div>}
-        {card.wallet_left_inr !== undefined && (
+        {(items.length > 0 || typeof card.total_inr === 'number' || Boolean(card.receipt_no)) && (
+          <div className="mt-2 rounded-xl bg-white px-3 py-2 text-meta">
+            {card.receipt_no && <div className="text-muted">Receipt {card.receipt_no}</div>}
+            {items.map((it, i) => (
+              <div key={i} className="mt-1 flex items-baseline justify-between gap-3">
+                <span className="min-w-0 break-words text-ink">{it.label}</span>
+                {typeof it.amount_inr === 'number' && <span className="shrink-0 font-semibold text-ink tabular-nums">{rupees(it.amount_inr)}</span>}
+              </div>
+            ))}
+            {/* The total is the number he is actually approving, so it sits
+                apart from the lines that add up to it. */}
+            {typeof card.total_inr === 'number' && (
+              <div className="mt-1.5 flex items-baseline justify-between gap-3 border-t border-line pt-1.5">
+                <span className="font-bold text-ink">Total</span>
+                <span className="font-bold text-ink tabular-nums">{rupees(card.total_inr)}</span>
+              </div>
+            )}
+          </div>
+        )}
+        {typeof card.wallet_left_inr === 'number' && (
           <div className="mt-1 text-meta text-muted">Wallet after this: <b className="text-ink">{rupees(card.wallet_left_inr)}</b></div>
         )}
         {card.options && (

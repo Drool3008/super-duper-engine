@@ -49,6 +49,7 @@ npm run check            # self-check: R19 gate, curtain pause, fixture passthro
 | `ZEN_MODEL` | Which Go model runs the agent. Default `minimax-m3`. Must be one that speaks `/messages`: Go serves forty-odd models and some refuse with "Model does not support this protocol" (`glm-5.3-flash` is one). `minimax-m3`, `kimi-k3` and `qwen3.8-flash` are confirmed to answer and to return tool calls. There are no Claude models on Go. |
 | `SUMMARY_PROVIDER` | Pin the write-up to `gemini` or `opencode`. Left unset, whichever keys exist are tried in that order and the result says which one wrote it. |
 | `OPENCODE_BASE_URL` | Override the Go endpoint, for pinning a different gateway. Rarely wanted. |
+| `CURTAIN_AUTO` | Answers the rail calls from `fixtures/<rail>/<tool>.json` instead of parking them on the curtain for a teammate. `1` lets a tap on "refill" or on a due test run end to end with nobody on the console. Leave it unset for a take: the curtain has no timeout and no default on purpose, because a call stalling on camera is better than the agent treating an invented reply as real. |
 | `STUB_THINK_MS` | How long each scripted step pauses so the work is visible. Default 2400 (jittered). `0` turns it off, which is what `npm run check` does. Ignored unless `MODEL_PROVIDER=stub` — a real model takes its own time. |
 
 **`MODEL_PROVIDER=stub`** replays `config/stub-script.json` instead of calling a
@@ -231,6 +232,18 @@ WCAG AA.
 4. The decision log drawer is the submission's Part 1 table, produced by the run
    itself. Export CSV or Markdown.
 
+**The arranged visit** is the one flow that spans both halves of the screen in a
+fixed order: the affected person speaks, `summarise_account` writes it up,
+`quote_care` sends the RP — and only the RP — the account in the third person,
+the money status and an itemised `care_quote` card with "Go ahead" / "Not now",
+`wait_for_reply` holds for his tap, and `settle_care` carries whatever he
+actually chose. Approved: the wallet is debited, the affected person is told in
+her own language that the visit is booked and the cab is coming, and the family
+group gets a status-only narration. Not approved: nothing is debited, she is
+told it is on hold, and the group is not posted at all. Neither tool takes a
+recipient parameter by design — the recipients are fixed in server code, so the
+model cannot send the receipt or the figures to the wrong person (R24).
+
 ## Rules enforced in code, not just in the prompt
 
 - **R19** — a tool call with no `log_decision` earlier in the same step never
@@ -240,6 +253,9 @@ WCAG AA.
 - `wait_for_reply` resolves on a real reply, a Director "nobody answered", or the
   **sim clock** passing the deadline — never a wall-clock timer, which would be
   the backend deciding "no answer" by itself.
+- `quote_care` and `settle_care` have no recipient parameter. Who gets the
+  receipt, the figures, the "cab is coming" message and the group status line is
+  decided in server code, not by the model.
 - The backend adds no guidance text to the conversation. It supplies the clock
   and the onboarding data, and nothing else.
 
@@ -247,7 +263,7 @@ WCAG AA.
 
 ```
 server/     agent loop, SSE, curtain queue, provider adapters, rails
-config/     onboarding.json (all tunables), system-prompt.md (R1..R23), stub-script.json
+config/     onboarding.json (all tunables), system-prompt.md (R1..R24), stub-script.json
 fixtures/   <rail>/<tool>.json, each with _source and _confirmed provenance
 src/        Vite + React + TS + Tailwind
               App.tsx        operator console, three panes

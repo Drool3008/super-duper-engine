@@ -246,14 +246,26 @@ function Home({ s, me, meds, tests, isRP, waitingOnMe, who, t, onGoChat, onProfi
                   <PersonAvatar name={ownerName} size={20} /> {t('whose', { name: ownerName })}
                 </div>
               )}
+              {/* Tapping a medicine is a refill request, not a sentence someone
+                  typed. It went out as a plain `message` with no `sample_id`,
+                  so the scripted path was never picked and the run stalled on
+                  the default take. */}
               <button
                 className="mt-2 w-full rounded-2xl bg-white p-3.5 shadow-card text-left transition-shadow hover:shadow-md active:shadow-sm"
                 onClick={() => {
                   sendInput({
-                    kind: 'message',
+                    kind: 'refill',
                     source: `${me.name}, tapped ${m.name} in the app`,
                     from: who,
+                    medicine_id: m.id,
+                    medicine_name: m.name,
+                    strength: m.strength,
+                    stock_left: stock ?? null,
+                    daily_dose: m.daily_dose || null,
+                    for_member: m.member,
+                    for_name: ownerName,
                     text: `Please refill ${m.name} ${m.strength} for ${ownerName}`,
+                    sample_id: 'refill_tap',
                   })
                   onGoChat()
                 }}
@@ -297,7 +309,9 @@ function Home({ s, me, meds, tests, isRP, waitingOnMe, who, t, onGoChat, onProfi
             // A test that is due is the one thing on this screen a person can
             // act on. Tapping it is a real human input, not a UI decision: it
             // says "book this", and the agent decides everything after that.
-            const actionable = overdue || due !== null
+            // Once it is booked the tap goes away: tapping again asks for a
+            // second appointment nobody wanted.
+            const actionable = (overdue || due !== null) && !x.booked_for
             const owner = (s.onboarding?.family?.members || []).find((m: any) => m.id === x.member)
             const body = (
               <>
@@ -310,6 +324,17 @@ function Home({ s, me, meds, tests, isRP, waitingOnMe, who, t, onGoChat, onProfi
                   {x.last_done ? t('last_done', { d: dateIn(me.language, x.last_done) }) : t('never_done')}
                   {due && <span className={overdue ? 'font-semibold text-decision' : ''}> · {overdue ? t('overdue', { d: dateIn(me.language, due) }) : t('next_due', { d: dateIn(me.language, due) })}</span>}
                 </div>
+                {x.booked_for && (
+                  <div className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-ok-bg px-2 py-0.5 text-meta font-semibold text-ok">
+                    {/* Two things write this field and they write it differently:
+                        record_update puts an ISO date on the record, book_test
+                        puts the words the clinic actually said ("tomorrow 9:30
+                        am"), which is what she was told on the phone. Through
+                        dateIn alone the second reads "Invalid Date". */}
+                    <CalendarPlus className="h-3.5 w-3.5" aria-hidden /> Booked for{' '}
+                    {Number.isNaN(new Date(x.booked_for).getTime()) ? x.booked_for : dateIn(me.language, x.booked_for)}
+                  </div>
+                )}
               </>
             )
 
