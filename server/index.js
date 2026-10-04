@@ -144,21 +144,37 @@ app.post('/api/forward', async (req, res) => {
 /**
  * A member types into a family chat.
  *
- * This never reaches the agent. R2 is that it only ever sees what somebody
- * deliberately forwarded, so this writes to the chat log and broadcasts it to
- * the other handsets, and that is the whole job. Forwarding stays a separate,
- * explicit act on /api/forward.
+ * Ordinary chat never reaches the agent. R2 is that it only ever sees what
+ * somebody deliberately sent it, so a plain message writes to the chat log and
+ * broadcasts to the other handsets, and that is the whole job.
+ *
+ * The one exception is explicit: in the family group, where the agent is a
+ * member, someone can address a message to it (`ask_agent`). That is a real
+ * input from a real person, labelled with where it came from, exactly like a
+ * forward. If the agent is already waiting on this person or on the group, it
+ * lands as their reply instead of starting a new run.
  */
 app.post('/api/chat/send', (req, res) => {
-  const { from, chat_id, text } = req.body || {}
+  const { from, chat_id, text, ask_agent } = req.body || {}
   if (!from || !chat_id || !String(text || '').trim()) {
     return res.status(400).json({ error: 'from, chat_id and text are required' })
   }
   const key = chatKey(from, chat_id)
-  const message = { id: randomUUID(), from, text: String(text).trim(), at: session.clock.toISOString() }
+  const toAgent = Boolean(ask_agent) && key === chat_id
+  const message = { id: randomUUID(), from, text: String(text).trim(), at: session.clock.toISOString(), ...(toAgent ? { to_agent: true } : {}) }
   ;(session.chats[key] ||= []).push(message)
   emit('chat_message', { key, message })
   res.json({ ok: true, key, message })
+
+  if (!toAgent) return
+  const name = session.onboarding?.family?.members?.find((m) => m.id === from)?.name || from
+  if (deliverReply({ from, text: message.text }) || deliverReply({ from: chat_id, text: `${name}: ${message.text}` })) return
+  const input = {
+    kind: 'message', source: `${name}, in the family group, addressed to the agent`,
+    from, via: chat_id, text: message.text, at: session.clock.toISOString(),
+  }
+  emit('input', { input })
+  feed(input).catch((err) => emit('error', { error: err.message }))
 })
 
 app.get('/api/curtain', (req, res) => res.json({ pending: pendingList() }))

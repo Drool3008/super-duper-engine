@@ -41,7 +41,17 @@ export const chatKeyFor = (memberId: string, chat: any) =>
 
 /** Seeded history first, then anything typed during the session. */
 const mergeChat = (chat: any, live: any[]) =>
-  [...(chat.messages || []), ...live].sort((a, b) => String(a.at).localeCompare(String(b.at)))
+  [...(chat.messages || []), ...live].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
+
+/**
+ * The agent is a member of the family group, so what it posts there belongs in
+ * the same thread everyone else reads, not only in the operator console.
+ */
+const agentGroupPosts = (s: any, chat: any) =>
+  chat.kind === 'group' ? (s.messages[chat.id] || []).filter((m: Message) => m.from === 'agent') : []
+
+export const threadFor = (s: any, memberId: string, chat: any) =>
+  mergeChat(chat, [...(s.chats[chatKeyFor(memberId, chat)] || []), ...agentGroupPosts(s, chat)])
 
 const dayKey = (iso: string) => new Date(iso).toDateString()
 function daySeparator(iso: string, now: Date) {
@@ -101,7 +111,7 @@ function ChatList({ chats, memberId, nameOf, onOpen }: any) {
     <div className="scroll h-full overflow-y-auto bg-white">
       {chats.map((c: any) => {
         const isAgent = c.kind === 'agent'
-        const msgs: any[] = isAgent ? agentThread : mergeChat(c, s.chats[chatKeyFor(memberId, c)] || [])
+        const msgs: any[] = isAgent ? agentThread : threadFor(s, memberId, c)
         const last = msgs[msgs.length - 1]
         const preview = last ? (last.text || last.caption || (last.media ? (last.media.type === 'pdf' ? 'Document' : 'Photo') : '')) : 'No messages yet'
         return (
@@ -117,7 +127,7 @@ function ChatList({ chats, memberId, nameOf, onOpen }: any) {
               </div>
               <div className="flex items-center gap-2">
                 <span className="truncate text-meta text-muted">
-                  {!isAgent && c.kind === 'group' && last ? `${nameOf(last.from)}: ` : ''}{preview}
+                  {!isAgent && c.kind === 'group' && last ? `${last.from === 'agent' ? 'Agent' : nameOf(last.from)}: ` : ''}{preview}
                 </span>
                 {isAgent && waiting > 0 && (
                   <span className="ml-auto shrink-0 rounded-full bg-human px-1.5 text-[11px] font-bold text-white">{waiting}</span>
@@ -137,10 +147,11 @@ function ChatScreen({ chat, memberId, nameOf, onBack }: any) {
   const [viewer, setViewer] = useState<any | null>(null)
   const [forwarded, setForwarded] = useState<Record<string, boolean>>({})
   const [draft, setDraft] = useState('')
+  const [askAgent, setAskAgent] = useState(false)
   const box = useRef<HTMLDivElement>(null)
+  const isGroup = chat.kind === 'group'
 
-  const live = s.chats[chatKeyFor(memberId, chat)] || []
-  const messages = useMemo(() => mergeChat(chat, live), [chat, live])
+  const messages = useMemo(() => threadFor(s, memberId, chat), [s.chats, s.messages, memberId, chat])
 
   // Follow the thread as it grows, including messages typed on another handset.
   useEffect(() => { box.current?.scrollTo({ top: box.current.scrollHeight }) }, [messages.length])
@@ -148,7 +159,8 @@ function ChatScreen({ chat, memberId, nameOf, onBack }: any) {
   const send = () => {
     const t = draft.trim(); if (!t) return
     setDraft('')
-    sendChat(memberId, chat.id, t)
+    sendChat(memberId, chat.id, t, isGroup && askAgent)
+    setAskAgent(false)
   }
 
   const now = new Date()
@@ -161,7 +173,11 @@ function ChatScreen({ chat, memberId, nameOf, onBack }: any) {
         <Avatar name={chat.name} size={34} />
         <div className="min-w-0">
           <div className="truncate text-body font-semibold">{chat.name}</div>
-          <div className="text-[11px] text-muted">tap for info</div>
+          {isGroup && (
+            <div className="truncate text-[11px] text-muted">
+              {(s.onboarding?.family?.members || []).map((m: any) => (m.id === memberId ? 'You' : m.name.split(' ')[0])).join(', ')}, Family Health agent
+            </div>
+          )}
         </div>
       </div>
 
@@ -170,6 +186,7 @@ function ChatScreen({ chat, memberId, nameOf, onBack }: any) {
           const key = dayKey(m.at)
           const sep = key !== lastDay ? ((lastDay = key), daySeparator(m.at, now)) : null
           const mine = m.from === memberId
+          const fromAgent = m.from === 'agent'
           return (
             <div key={m.id}>
               {sep && (
@@ -178,10 +195,13 @@ function ChatScreen({ chat, memberId, nameOf, onBack }: any) {
                 </div>
               )}
               <div className={`mt-1.5 flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                <div className={`group relative max-w-[86%] rounded-2xl px-2 py-1.5 shadow-sm ${mine ? 'rounded-tr-sm bg-record-bg' : 'rounded-tl-sm bg-white'}`}>
-                  {!mine && chat.kind === 'group' && (
-                    <div className="px-1 text-[11px] font-semibold" style={{ color: toneFor(nameOf(m.from)) }}>{nameOf(m.from)}</div>
+                <div className={`group relative max-w-[86%] rounded-2xl px-2 py-1.5 shadow-sm ${mine ? 'rounded-tr-sm bg-record-bg' : fromAgent ? 'rounded-tl-sm border-l-[3px] border-stage bg-stage-bg' : 'rounded-tl-sm bg-white'}`}>
+                  {!mine && isGroup && (
+                    fromAgent
+                      ? <div className="flex items-center gap-1 px-1 text-[11px] font-semibold text-stage"><Avatar name="agent" agent size={16} />Family Health agent</div>
+                      : <div className="px-1 text-[11px] font-semibold" style={{ color: toneFor(nameOf(m.from)) }}>{nameOf(m.from)}</div>
                   )}
+                  {m.to_agent && <div className="px-1 text-[11px] font-semibold text-stage">to the agent</div>}
                   {m.media && <MediaBlock media={m.media} onOpen={() => setViewer(m.media)} />}
                   {(m.caption || m.text) && <div className="px-1 pt-1 text-body">{m.caption || m.text}</div>}
                   {forwarded[m.id] && (
@@ -189,7 +209,7 @@ function ChatScreen({ chat, memberId, nameOf, onBack }: any) {
                   )}
                   <div className="flex items-center justify-end gap-1 px-1 pt-0.5 text-[11px] text-muted">
                     {hhmm(m.at)}{mine && <span className="text-record">✓✓</span>}
-                    <button onClick={() => setSheet(m)} aria-label="More" className="ml-1 px-1 font-bold text-muted">⋯</button>
+                    {!fromAgent && <button onClick={() => setSheet(m)} aria-label="More" className="ml-1 px-1 font-bold text-muted">⋯</button>}
                   </div>
                 </div>
               </div>
@@ -199,12 +219,21 @@ function ChatScreen({ chat, memberId, nameOf, onBack }: any) {
       </div>
 
       <div className="flex shrink-0 items-center gap-2 border-t border-line bg-white p-2">
-        <span className="px-1 text-pane leading-none text-muted">+</span>
+        {isGroup && (
+          <button
+            onClick={() => setAskAgent((v) => !v)}
+            aria-pressed={askAgent}
+            title="Address this message to the Family Health agent"
+            className={`shrink-0 rounded-full border px-2.5 py-1.5 text-meta font-semibold ${askAgent ? 'border-stage bg-stage text-white' : 'border-stage/40 text-stage'}`}
+          >
+            @agent
+          </button>
+        )}
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && send()}
-          placeholder="Message"
+          placeholder={askAgent ? 'Ask the agent…' : 'Message'}
           aria-label={`Message ${chat.name}`}
           className="min-w-0 flex-1 rounded-full border border-line px-3 py-1.5 text-body"
         />

@@ -29,6 +29,9 @@ export const resetSession = (reason?: string) => post('/api/reset', { reason })
 export const settleReversal = (id: string, by: string, action: 'reverse' | 'accept', why?: string) =>
   post(`/api/reversal/${id}`, { by, action, why })
 
-/** A member posts into a family chat. The agent never sees these (R2). */
-export const sendChat = (from: string, chat_id: string, text: string) =>
-  post('/api/chat/send', { from, chat_id, text })
+/**
+ * A member posts into a family chat. The agent never sees these (R2), unless
+ * the message is in the group and explicitly addressed to it (`askAgent`).
+ */
+export const sendChat = (from: string, chat_id: string, text: string, askAgent = false) =>
+  post('/api/chat/send', { from, chat_id, text, ask_agent: askAgent })
