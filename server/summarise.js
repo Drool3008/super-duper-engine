@@ -42,32 +42,60 @@ Hard constraints, and they are not negotiable:
 - for_rp is English, and should give him what he needs to decide: what she said,
   what is notable about it, and what the agent wants from him.`
 
-export function summariseOn() { return Boolean(process.env.GEMINI_API_KEY) }
+export function summariseOn() { return Boolean(process.env.GEMINI_API_KEY || process.env.OPENCODE_API_KEY) }
+
+const ZEN = 'https://opencode.ai/zen/v1/messages'
+
+/** Gemini's uppercase OpenAPI-style schema, in the lowercase JSON Schema Claude wants. */
+function lower(node) {
+  if (Array.isArray(node)) return node.map(lower)
+  if (node && typeof node === 'object') {
+    const out = {}
+    for (const [k, v] of Object.entries(node)) out[k] = k === 'type' && typeof v === 'string' ? v.toLowerCase() : lower(v)
+    return out
+  }
+  return node
+}
 
 /**
- * @param turns the account in order. The first has no question -- it is what she
- *              said unprompted. The rest are the agent's follow-ups and her
- *              answers, all of them verbatim from Gnani.
+ * The same write-up through OpenCode Zen, whose /messages endpoint is
+ * Anthropic-shaped. Structured output comes from forcing a single tool call
+ * whose input schema is the shape we want, which is the reliable way to get
+ * JSON out of Claude -- asking for "JSON only" in prose is not.
  */
-export async function summarise({ about, language, turns }) {
+async function viaZen({ prompt, model }) {
+  const started = Date.now()
+  const res = await fetch(ZEN, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.OPENCODE_API_KEY, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({
+      model,
+      max_tokens: 2048,
+      temperature: 0.2,
+      system: RULES,
+      messages: [{ role: 'user', content: prompt }],
+      tools: [{ name: 'write_up', description: 'Record the write-up of this account.', input_schema: lower(SCHEMA) }],
+      tool_choice: { type: 'tool', name: 'write_up' },
+    }),
+  })
+  const json = await res.json()
+  if (!res.ok) {
+    return { ok: false, status: res.status, ms: Date.now() - started, reason: json?.error?.message || `OpenCode Zen returned ${res.status}` }
+  }
+  const call = (json.content || []).find((c) => c.type === 'tool_use')
+  if (!call?.input) return { ok: false, ms: Date.now() - started, reason: 'OpenCode Zen returned no write-up.' }
+  return { ok: true, ms: Date.now() - started, model, out: call.input }
+}
+
+/**
+ * The same write-up through Gemini. Structured output comes from responseSchema,
+ * which it honours directly.
+ */
+async function viaGemini({ prompt, model }) {
   const key = process.env.GEMINI_API_KEY
-  if (!key) return { ok: false, reason: 'GEMINI_API_KEY not set, so there is nothing to summarise with.' }
-
-  const transcript = turns
-    .map((t, i) => (t.question ? `Agent asked: ${t.question}\n${about} answered: ${t.answer}` : `${about} said, unprompted: ${t.answer}`))
-    .join('\n\n')
-
-  // Not MODEL_NAME: that is the agent's model, and this is a different job with
-  // different economics -- one short text task, no tools, wanted quickly.
-  // 2.5-flash was the obvious pick and is refused on a key issued today
-  // ("no longer available to new users"), so this names a model that works.
-  const model = process.env.SUMMARY_MODEL || 'gemini-3.8-flash'
   const body = {
     system_instruction: { parts: [{ text: RULES }] },
-    contents: [{
-      role: 'user',
-      parts: [{ text: `The person is ${about}. Write for_patient in ${language}.\n\nThe account, transcribed word for word:\n\n${transcript}` }],
-    }],
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
     generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA, temperature: 0.2 },
   }
 
@@ -97,29 +125,74 @@ export async function summarise({ about, language, turns }) {
   if (!res.ok) {
     let parsed
     try { parsed = JSON.parse(text) } catch { parsed = { raw: text.slice(0, 400) } }
-    return { ok: false, status: res.status, ms: Date.now() - started, reason: parsed?.error?.message || `Gemini returned ${res.status}`, response: parsed }
+    return { ok: false, status: res.status, ms: Date.now() - started, reason: parsed?.error?.message || `Gemini returned ${res.status}` }
   }
 
-  let out
   try {
     const payload = JSON.parse(text)
-    out = JSON.parse(payload.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}')
+    return { ok: true, ms: Date.now() - started, model, out: JSON.parse(payload.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}') }
   } catch {
     return { ok: false, ms: Date.now() - started, reason: 'Gemini returned something that was not the JSON it was asked for.' }
   }
+}
 
-  if (!out.for_patient || !out.for_rp) {
-    return { ok: false, ms: Date.now() - started, reason: 'Gemini left out one of the two summaries.' }
+/**
+ * Write up the exchange.
+ *
+ * Two providers, because one of them will be unavailable at the worst moment:
+ * the Gemini free tier is twenty requests a day per model, and OpenCode Zen's
+ * free models are refused outside their own CLI. SUMMARY_PROVIDER pins one when
+ * a take wants certainty; left alone, whichever is configured is tried and the
+ * other catches the fall. The result says which one wrote it.
+ *
+ * @param turns the account in order. The first has no question -- it is what she
+ *              said unprompted. The rest are the agent's follow-ups and her
+ *              answers, all of them verbatim from Gnani.
+ */
+export async function summarise({ about, language, turns }) {
+  const transcript = turns
+    .map((t) => (t.question ? `Agent asked: ${t.question}\n${about} answered: ${t.answer}` : `${about} said, unprompted: ${t.answer}`))
+    .join('\n\n')
+  const prompt = `The person is ${about}. Write for_patient in ${language}.\n\nThe account, transcribed word for word:\n\n${transcript}`
+
+  const pinned = (process.env.SUMMARY_PROVIDER || '').toLowerCase()
+  const chain = []
+  if (pinned === 'gemini') chain.push('gemini')
+  else if (pinned === 'opencode' || pinned === 'zen') chain.push('opencode')
+  else {
+    if (process.env.GEMINI_API_KEY) chain.push('gemini')
+    if (process.env.OPENCODE_API_KEY) chain.push('opencode')
+  }
+  if (chain.length === 0) {
+    return { ok: false, reason: 'No GEMINI_API_KEY and no OPENCODE_API_KEY, so there is nothing to summarise with.' }
   }
 
-  return {
-    ok: true,
-    ms: Date.now() - started,
-    model,
-    turns: turns.length,
-    problems: out.problems || [],
-    next_steps: out.next_steps || [],
-    for_patient: out.for_patient,
-    for_rp: out.for_rp,
+  const tried = []
+  for (const via of chain) {
+    if (via === 'gemini' && !process.env.GEMINI_API_KEY) continue
+    if (via === 'opencode' && !process.env.OPENCODE_API_KEY) continue
+
+    const got = via === 'gemini'
+      ? await viaGemini({ prompt, model: process.env.SUMMARY_MODEL || 'gemini-3.8-flash' })
+      : await viaZen({ prompt, model: process.env.SUMMARY_MODEL_ZEN || 'claude-haiku-4-5' })
+
+    if (!got.ok) { tried.push(`${via}: ${got.reason}`); continue }
+
+    const out = got.out || {}
+    if (!out.for_patient || !out.for_rp) { tried.push(`${via}: left out one of the two summaries`); continue }
+
+    return {
+      ok: true,
+      via,
+      model: got.model,
+      ms: got.ms,
+      turns: turns.length,
+      problems: out.problems || [],
+      next_steps: out.next_steps || [],
+      for_patient: out.for_patient,
+      for_rp: out.for_rp,
+    }
   }
+
+  return { ok: false, reason: tried.join(' | ') || 'No summary could be produced.' }
 }

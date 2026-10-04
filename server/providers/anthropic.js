@@ -1,4 +1,10 @@
-/** Claude via raw REST /v1/messages. Same reasons as gemini.js. */
+/**
+ * Claude via raw REST /v1/messages. Same reasons as gemini.js.
+ *
+ * `baseUrl` is injectable because OpenCode Zen speaks this same shape at
+ * https://opencode.ai/zen/v1/messages -- same body, same tool_use blocks, same
+ * x-api-key header. One provider serves both; only the URL and the key differ.
+ */
 const URL = 'https://api.anthropic.com/v1/messages'
 
 /** Our schemas are written in Gemini's uppercase OpenAPI style; Claude wants lowercase JSON Schema. */
@@ -41,8 +47,8 @@ function toMessages(history) {
   return messages
 }
 
-export async function run({ systemPrompt, history, tools, model, apiKey }) {
-  const res = await fetch(URL, {
+export async function run({ systemPrompt, history, tools, model, apiKey, baseUrl }) {
+  const res = await fetch(baseUrl || URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
@@ -55,7 +61,7 @@ export async function run({ systemPrompt, history, tools, model, apiKey }) {
     }),
   })
   const json = await res.json()
-  if (!res.ok) throw new Error(`Anthropic ${res.status}: ${JSON.stringify(json).slice(0, 600)}`)
+  if (!res.ok) throw new Error(`${baseUrl ? 'OpenCode Zen' : 'Anthropic'} ${res.status}: ${JSON.stringify(json).slice(0, 600)}`)
 
   const content = json.content || []
   const text = content.filter((c) => c.type === 'text').map((c) => c.text).join('')

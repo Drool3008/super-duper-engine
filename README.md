@@ -40,11 +40,14 @@ npm run check            # self-check: R19 gate, curtain pause, fixture passthro
 
 | Var | What it does |
 |---|---|
-| `MODEL_PROVIDER` | `gemini`, `anthropic`, or `stub` |
+| `MODEL_PROVIDER` | `gemini`, `anthropic`, `opencode`, or `stub` |
 | `MODEL_NAME` | e.g. `gemini-2.5-pro`, `gemini-2.5-flash` |
 | `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` | the brain |
 | `GNANI_API_KEY` | real STT. Without it `gnani_stt` refuses and says so on screen |
 | `SHEETS_WEBHOOK_URL` | Apps Script web app. Empty shows "Sheets: off" |
+| `OPENCODE_API_KEY` | OpenCode Zen, an AI gateway. Lets `MODEL_PROVIDER=opencode` run the agent, and gives the write-up a second provider when Gemini's free tier is spent. |
+| `ZEN_MODEL` | Which model Zen runs the agent on. Default `claude-haiku-4-5`. Must be a Claude one: Zen serves Gemini and GPT too, but only Claude speaks the `/messages` protocol this uses. |
+| `SUMMARY_PROVIDER` | Pin the write-up to `gemini` or `opencode`. Left unset, whichever keys exist are tried in that order and the result says which one wrote it. |
 | `STUB_THINK_MS` | How long each scripted step pauses so the work is visible. Default 2400 (jittered). `0` turns it off, which is what `npm run check` does. Ignored unless `MODEL_PROVIDER=stub` — a real model takes its own time. |
 
 **`MODEL_PROVIDER=stub`** replays `config/stub-script.json` instead of calling a

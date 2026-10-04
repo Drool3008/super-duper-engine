@@ -13,12 +13,26 @@ const rpHistory = loadOptional('config/rp-history.json', { messages: [] })
 // sent to the agent, never the tier it is expected to land on.
 const triggerSamples = loadOptional('config/trigger-samples.json', { samples: [] })
 
+/**
+ * What the console shows as the model in play. Each provider reads a different
+ * variable, so printing MODEL_NAME regardless would have the banner naming a
+ * Gemini model while a Claude one on OpenCode Zen was doing the work -- and
+ * this label is on screen during a take.
+ */
+function modelLabel() {
+  const which = (process.env.MODEL_PROVIDER || 'gemini').toLowerCase()
+  if (which === 'stub') return 'stub (scripted, not a real model)'
+  if (which === 'opencode' || which === 'zen') return `opencode / ${process.env.ZEN_MODEL || 'claude-haiku-4-5'}`
+  if (which === 'anthropic') return `anthropic / ${process.env.MODEL_NAME || 'claude-sonnet-5'}`
+  return `gemini / ${process.env.MODEL_NAME || 'gemini-3.1-pro-preview'}`
+}
+
 export const session = {
   startedAt: new Date().toISOString(),
   onboarding,
   clock: new Date(onboarding.sim_clock.start),
   stage: 1,
-  model: `${process.env.MODEL_PROVIDER || 'gemini'} / ${process.env.MODEL_NAME || 'unset'}`,
+  model: modelLabel(),
   wallet: {
     limit: onboarding.wallet.limit_inr,
     spent: onboarding.wallet.spent_inr,

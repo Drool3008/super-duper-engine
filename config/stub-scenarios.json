@@ -784,6 +784,66 @@
           }
         ]
       }
+    ],
+    "spoken_account_more": [
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "She added something after hearing the write-up",
+              "source": "Patient, recorded in the app; transcript from Gnani STT",
+              "decided": "Take the addition and ask one thing about it",
+              "rule_id": "R5",
+              "why": "what she volunteers after hearing it back is worth more than another question of mine",
+              "action": "asked one follow-up aloud",
+              "recipient": "patient",
+              "connector": "Gnani"
+            }
+          },
+          {
+            "name": "gnani_tts",
+            "args": {
+              "text": "అర్థమైంది. ఇది ఇంతకు ముందు ఎప్పుడైనా జరిగిందా?",
+              "language_code": "te-IN",
+              "to": "patient"
+            }
+          },
+          {
+            "name": "wait_for_reply",
+            "args": {
+              "from": "patient",
+              "wait_seconds": 180,
+              "what_for": "whether this has happened before"
+            }
+          }
+        ]
+      },
+      {
+        "text": "Her addition is on the record and the write-up has been done again.",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "Everything she has said, including the addition",
+              "source": "The exchange recorded at stage 4",
+              "decided": "Write it up again over the whole exchange",
+              "rule_id": "R7",
+              "why": "the summary has to cover what she added, not the version before it",
+              "action": "summarised again and sent it on",
+              "recipient": "patient and rp",
+              "connector": "WhatsApp"
+            }
+          },
+          {
+            "name": "summarise_account",
+            "args": {
+              "why": "she has added what she wanted and answered on top of it"
+            }
+          }
+        ]
+      }
     ]
   }
 }

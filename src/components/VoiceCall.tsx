@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Mic, PhoneOff, Sparkles, ListTree, TriangleAlert, Loader2 } from 'lucide-react'
+import { Check, PhoneOff, Sparkles, ListTree, TriangleAlert, Loader2, Plus } from 'lucide-react'
 import { useSession } from '../lib/session'
 import { audioUrl, sendInput, sendVoiceReply, transcribe } from '../lib/api'
 import { WavRecorder, canRecord } from '../lib/recorder'
@@ -14,12 +14,17 @@ import { cn } from '../lib/utils'
  * talking. The questions are never printed here on purpose -- it is asking out
  * loud, and showing the text would turn listening into reading.
  *
+ * It ends by telling you what it made of it, out loud, and then offers to hear
+ * more. Adding something sends you round the same loop: it asks, you answer, it
+ * writes it up again over everything said so far. Ending hands you the thread.
+ *
  * Nothing here decides anything. The agent asks through gnani_tts and parks on
- * wait_for_reply; this plays what arrived and sends back what was said. When the
- * write-up lands the call is over, and the button hands you to the transcript.
+ * wait_for_reply; this plays what arrived and sends back what was said.
  */
 
-type Phase = 'opening' | 'listening' | 'sending' | 'thinking' | 'speaking' | 'ended' | 'error'
+type Phase =
+  | 'opening' | 'listening' | 'sending' | 'thinking' | 'speaking'
+  | 'summarising' | 'summary' | 'ended' | 'error'
 
 const BARS = 13
 
@@ -49,9 +54,9 @@ function WaveTile({ phase, levelRef }: { phase: Phase; levelRef: React.MutableRe
         if (phase === 'listening') {
           // Real loudness, shaped so the centre bars move most.
           h = 14 + levelRef.current * 74 * (0.45 + 0.55 * middle) * (0.75 + 0.25 * Math.sin(t * 3 + i))
-        } else if (phase === 'speaking') {
+        } else if (phase === 'speaking' || phase === 'summary') {
           h = 20 + 34 * (0.4 + 0.6 * middle) * (1 + Math.sin(t * 2.4 - i * 0.55))
-        } else if (phase === 'thinking' || phase === 'sending') {
+        } else if (phase === 'thinking' || phase === 'sending' || phase === 'summarising') {
           h = 14 + 10 * (0.5 + 0.5 * Math.sin(t * 1.1 - i * 0.4))
         } else {
           h = 14 + 6 * middle
@@ -91,7 +96,9 @@ const LINE: Record<Phase, string> = {
   sending: 'Writing down what you said…',
   thinking: 'Thinking…',
   speaking: 'Asking you something',
-  ended: 'That is everything I needed',
+  summarising: 'Working out what to make of it',
+  summary: 'Here is what I have understood',
+  ended: 'Anything else you want to tell me?',
   error: 'Something went wrong',
 }
 
@@ -106,6 +113,7 @@ export function VoiceCall({ memberId, name, language, onReview, onClose }: {
   const s = useSession()
   const [phase, setPhase] = useState<Phase>('opening')
   const [err, setErr] = useState('')
+  const [progress, setProgress] = useState(0)
   const rec = useRef<WavRecorder | null>(null)
   const level = useRef(0)
   const meter = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -115,15 +123,22 @@ export function VoiceCall({ memberId, name, language, onReview, onClose }: {
   phaseRef.current = phase
 
   // Read through a ref, not the closure. Whether it is waiting on an answer
-  // decides between settling that wait and opening a brand new account, and
-  // getting it wrong on a stale render would start the exchange again midway.
+  // decides between settling that wait and adding to the account, and getting
+  // it wrong on a stale render would send the wrong one.
   const awaitingMe = useRef(false)
   awaitingMe.current = s.awaiting?.from === memberId
+
+  // Once it has written something up, anything further is an addition to the
+  // same exchange and takes the shorter second-round path.
+  const secondRound = useRef(false)
 
   const mine = s.messages[memberId] || []
   const questions = mine.filter((m: any) => m.kind === 'spoken_question' && m.audio_ref)
   const latestQuestion: any = questions[questions.length - 1]
   const summary = s.listening?.summary
+  const summarising = s.listening?.summarising
+  const summariseFailed = s.listening?.failed
+
   // Whatever had already been written up before this call opened. Only a *new*
   // one ends the call -- otherwise opening the overlay again after a finished
   // exchange would land straight on the end screen.
@@ -148,8 +163,8 @@ export function VoiceCall({ memberId, name, language, onReview, onClose }: {
     setPhase('listening')
   }
 
-  // She finished talking. Transcribe, then either open the account or answer
-  // whatever it last asked -- the agent is parked on one or the other.
+  // She finished talking. Transcribe, then either answer what it last asked or
+  // add to the account -- the agent is parked on one or the other.
   const finishListening = async () => {
     stopMeter()
     const r = rec.current
@@ -176,7 +191,7 @@ export function VoiceCall({ memberId, name, language, onReview, onClose }: {
           request_id: t.request_id,
           language_code: language,
           transcribed_by: 'gnani',
-          sample_id: 'spoken_account',
+          sample_id: secondRound.current ? 'spoken_account_more' : 'spoken_account',
         })
       }
       setPhase('thinking')
@@ -209,14 +224,44 @@ export function VoiceCall({ memberId, name, language, onReview, onClose }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [latestQuestion?.id])
 
-  // The write-up landing is what ends a call: it has stopped asking.
+  // It has stopped asking and started writing. Creep a bar towards the end
+  // rather than claim to know how long Gemini will take: it is ten to fifteen
+  // seconds, and the only honest promise is that something is happening.
   useEffect(() => {
-    if (!summary || summary === summaryAtOpen.current) return
+    if (!summarising) return
     stopMeter()
     rec.current?.discard(); rec.current = null
+    setPhase('summarising')
+    setProgress(0.04)
+    const id = setInterval(() => setProgress((p) => p + (0.92 - p) * 0.06), 220)
+    return () => clearInterval(id)
+  }, [summarising])
+
+  // The write-up landed. Say it out loud, then offer to hear more.
+  useEffect(() => {
+    if (!summary || summary === summaryAtOpen.current) return
+    secondRound.current = true
+    setProgress(1)
     audio.current?.pause()
-    setPhase('ended')
+
+    const ref = (summary as any).audio_ref
+    if (!ref) { setPhase('ended'); return }
+    setPhase('summary')
+    const a = new Audio(audioUrl(ref))
+    audio.current = a
+    a.onended = () => setPhase('ended')
+    a.onerror = () => setPhase('ended')
+    a.play().catch(() => setPhase('ended'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [summary])
+
+  // The write-up could not be produced. Say so and let her add to it or leave
+  // -- the alternative is a progress bar that never finishes.
+  useEffect(() => {
+    if (!summariseFailed) return
+    setErr('I could not finish writing this up. Everything you said is saved.')
+    setPhase('ended')
+  }, [summariseFailed])
 
   useEffect(() => () => { stopMeter(); rec.current?.discard(); audio.current?.pause() }, [])
 
@@ -224,6 +269,9 @@ export function VoiceCall({ memberId, name, language, onReview, onClose }: {
     stopMeter(); rec.current?.discard(); audio.current?.pause()
     onClose()
   }
+
+  const asked = s.listening?.asked ?? 0
+  const turns = s.listening?.turns ?? 0
 
   return (
     <div
@@ -243,35 +291,55 @@ export function VoiceCall({ memberId, name, language, onReview, onClose }: {
 
       <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6">
         <WaveTile phase={phase} levelRef={level} />
-        <div className="min-h-[48px] text-center" aria-live="polite">
+        <div className="min-h-[64px] w-full max-w-[280px] text-center" aria-live="polite">
           <div className="text-card">{err || LINE[phase]}</div>
+
           {phase === 'listening' && (
-            <div className="mt-1 text-meta text-white/60">Press done when you have finished</div>
+            <div className="mt-1 text-meta text-white/60">Press done when you have finished speaking</div>
           )}
+
+          {phase === 'summarising' && (
+            <>
+              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/15">
+                <div
+                  className="h-full rounded-full bg-white transition-[width] duration-200 ease-out"
+                  style={{ width: `${Math.round(progress * 100)}%` }}
+                />
+              </div>
+              <div className="mt-1.5 text-meta text-white/60">This takes a few seconds. Stay with me.</div>
+            </>
+          )}
+
           {phase === 'ended' && (
             <div className="mt-1 text-meta text-white/60">
-              {s.listening?.asked ?? 0} question{(s.listening?.asked ?? 0) === 1 ? '' : 's'} · {s.listening?.turns ?? 0} answers recorded
+              {asked} question{asked === 1 ? '' : 's'} · {turns} thing{turns === 1 ? '' : 's'} you told me
             </div>
           )}
         </div>
       </div>
 
       <div className="flex flex-col items-center gap-3 px-6 pb-9">
+        {/*
+          Not a microphone. The microphone is already on -- this ends your turn
+          and hands it back, so it has to read as "done", not as "start
+          recording", which is the opposite of what it does.
+        */}
         {phase === 'listening' && (
           <button
             onClick={finishListening}
-            className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-[#2E1065] shadow-lg"
-            aria-label="Done speaking"
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-white py-3.5 text-card font-bold text-[#2E1065] shadow-lg"
           >
-            <Mic className="h-7 w-7" aria-hidden />
+            <Check className="h-5 w-5" aria-hidden /> Done
           </button>
         )}
 
-        {(phase === 'sending' || phase === 'thinking' || phase === 'speaking' || phase === 'opening') && (
-          <div className="flex h-16 items-center text-white/60">
+        {(phase === 'sending' || phase === 'thinking' || phase === 'speaking' || phase === 'opening' || phase === 'summary') && (
+          <div className="flex h-14 items-center text-white/60">
             <Loader2 className="h-6 w-6 animate-spin" aria-hidden />
           </div>
         )}
+
+        {phase === 'summarising' && <div className="h-14" />}
 
         {phase === 'error' && (
           <button onClick={beginListening} className="flex items-center gap-2 rounded-full bg-white/15 px-5 py-3 text-body font-semibold">
@@ -280,12 +348,20 @@ export function VoiceCall({ memberId, name, language, onReview, onClose }: {
         )}
 
         {phase === 'ended' ? (
-          <button
-            onClick={onReview}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-white py-3.5 text-card font-bold text-[#2E1065]"
-          >
-            <ListTree className="h-5 w-5" aria-hidden /> See what each of us said
-          </button>
+          <div className="flex w-full flex-col gap-2">
+            <button
+              onClick={beginListening}
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-white py-3.5 text-card font-bold text-[#2E1065]"
+            >
+              <Plus className="h-5 w-5" aria-hidden /> Tell it something more
+            </button>
+            <button
+              onClick={onReview}
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-white/15 py-3 text-body font-semibold text-white"
+            >
+              <ListTree className="h-4 w-4" aria-hidden /> End and see what each of us said
+            </button>
+          </div>
         ) : (
           <button
             onClick={hangUp}

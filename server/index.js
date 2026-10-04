@@ -104,18 +104,24 @@ app.post('/api/input', async (req, res) => {
     emit('message', { message: msg })
   }
 
-  // A spoken account opens stage 4: this is the first turn of the exchange the
-  // summary will later be built from, so it is kept before the agent runs.
+  // A spoken account is the exchange the summary gets built from. The first one
+  // opens it; anything said afterwards is added to the same exchange rather than
+  // starting a fresh one, so somebody who remembers one more thing after hearing
+  // the write-up extends their account instead of replacing it.
   if (kind === 'spoken_account' && rest.text) {
     const who = (session.onboarding?.family?.members || []).find((m) => m.id === rest.from)
-    openListening({
-      about: rest.about || rest.from,
-      speaker: rest.from,
-      transcript: rest.text,
-      audio_ref: rest.audio_ref,
-      request_id: rest.request_id,
-      language: rest.language_code || who?.language || 'te-IN',
-    })
+    if (listeningState()) {
+      recordAnswer({ transcript: rest.text, audio_ref: rest.audio_ref, request_id: rest.request_id })
+    } else {
+      openListening({
+        about: rest.about || rest.from,
+        speaker: rest.from,
+        transcript: rest.text,
+        audio_ref: rest.audio_ref,
+        request_id: rest.request_id,
+        language: rest.language_code || who?.language || 'te-IN',
+      })
+    }
   }
 
   emit('input', { input })

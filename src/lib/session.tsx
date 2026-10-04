@@ -26,7 +26,7 @@ export interface SessionView {
   /** Static sample trigger sentences offered in the UI, from config. */
   triggerSamples: any
   /** The spoken exchange at stage 4, while one is open. */
-  listening: { open: boolean; asked: number; turns: number; summary: any } | null
+  listening: { open: boolean; asked: number; turns: number; summary: any; summarising?: boolean; failed?: string } | null
 }
 
 const EMPTY: SessionView = {
@@ -136,8 +136,14 @@ function reduce(v: SessionView, ev: AgentEvent, nextId: () => string): SessionVi
       return { ...v, listening: { ...(v.listening ?? { open: true, turns: 1, summary: null }), open: true, asked: ev.asked ?? ((v.listening?.asked ?? 0) + 1) } as any }
     case 'listening_answer':
       return { ...v, listening: { ...(v.listening ?? { open: true, asked: 0, summary: null }), open: true, turns: ev.turns ?? ((v.listening?.turns ?? 0) + 1) } as any }
+    // Gemini has started writing. Said before it finishes, so the call can show
+    // a bar rather than looking hung for the ten-odd seconds it takes.
+    case 'summarising':
+      return { ...v, listening: { ...(v.listening ?? { open: true, asked: 0, turns: 0, summary: null }), summarising: true } as any }
+    case 'summarise_failed':
+      return { ...v, listening: { ...(v.listening ?? { open: true, asked: 0, turns: 0, summary: null }), summarising: false, failed: ev.reason } as any }
     case 'summarised':
-      return { ...v, listening: { ...(v.listening ?? { open: true, asked: 0, turns: 0 }), summary: { model: ev.model, problems: ev.problems, next_steps: ev.next_steps } } as any }
+      return { ...v, listening: { ...(v.listening ?? { open: true, asked: 0, turns: 0 }), summarising: false, summary: { model: ev.model, problems: ev.problems, next_steps: ev.next_steps, audio_ref: ev.audio_ref } } as any }
     case 'tool_call':
       return push({ kind: 'tool', id: ev.id, at: ev.clock, name: ev.name, args: ev.args, mode: ev.mode, rail: ev.rail, endpoint: ev.endpoint })
     case 'tool_result':

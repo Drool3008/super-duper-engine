@@ -18,6 +18,7 @@ import * as anthropicProvider from './providers/anthropic.js'
 import * as stubProvider from './providers/stub.js'
 
 const MAX_STEPS = 30
+export const ZEN_MESSAGES = 'https://opencode.ai/zen/v1/messages'
 
 function provider() {
   const which = (process.env.MODEL_PROVIDER || 'gemini').toLowerCase()
@@ -26,6 +27,21 @@ function provider() {
   }
   if (which === 'anthropic') {
     return { run: anthropicProvider.run, model: process.env.MODEL_NAME || 'claude-sonnet-5', apiKey: process.env.ANTHROPIC_API_KEY }
+  }
+  // OpenCode Zen: a gateway whose /messages endpoint is Anthropic-shaped, so it
+  // reuses that provider with a different URL and key. Worth having because the
+  // Gemini free tier is twenty requests a day per model, which is roughly one
+  // partial run, and a take needs a great many more than that.
+  if (which === 'opencode' || which === 'zen') {
+    // ZEN_MODEL, not MODEL_NAME. MODEL_NAME is set for the Gemini path, and
+    // pointing a Gemini model at this Anthropic-shaped endpoint is a 400:
+    // "ModelProtocolUnsupported -- Model does not support this protocol."
+    // Zen serves both families; only its Claude models speak /messages.
+    return {
+      run: (opts) => anthropicProvider.run({ ...opts, baseUrl: ZEN_MESSAGES }),
+      model: process.env.ZEN_MODEL || 'claude-haiku-4-5',
+      apiKey: process.env.OPENCODE_API_KEY,
+    }
   }
   // Not 2.5-pro: a key issued today is refused with "no longer available to
   // new users". Override with MODEL_NAME when a take wants a specific model.
@@ -129,19 +145,39 @@ async function runLive(name, args) {
       const who = (session.onboarding?.family?.members || []).find((m) => m.id === l.about)
       const rp = responsiblePerson()
 
+      // Said before it is done, so the handset can show that something is being
+      // written rather than looking hung: Gemini takes ten to fifteen seconds on
+      // a real exchange, which is a long time to stare at nothing.
+      emit('summarising', { about: l.about, turns: l.turns.length })
+
       const out = await summarise({ about: who?.name || l.about, language: l.language, turns: l.turns })
-      if (!out.ok) return { ok: false, error: out.reason, status: out.status ?? null }
+      if (!out.ok) {
+        // Said out loud, because a handset showing a progress bar has no other
+        // way to learn the write-up is never coming and would wait for ever.
+        emit('summarise_failed', { reason: out.reason, status: out.status ?? null })
+        return { ok: false, error: out.reason, status: out.status ?? null }
+      }
       setSummary(out)
 
       // Delivered here rather than handed back, because these are Gemini's own
       // words: passing them through the agent to re-send would invite a
       // paraphrase of a summary, which is one remove too many from what she said.
-      const send = (to, text, language, card) => {
-        const msg = { id: randomUUID(), from: 'agent', to, text, language, card: card ?? null, at: session.clock.toISOString() }
+      const send = (to, text, language, card, extra) => {
+        const msg = { id: randomUUID(), from: 'agent', to, text, language, card: card ?? null, ...(extra || {}), at: session.clock.toISOString() }
         ;(session.messages[to] ||= []).push(msg)
         emit('message', { message: msg })
       }
-      send(l.about, out.for_patient, l.language)
+      // Spoken as well as written. She was told the questions out loud; being
+      // handed the conclusion as a wall of text would be a strange way to end a
+      // conversation. If Gnani cannot speak it the words still arrive.
+      let summary_audio = null
+      const voiced = await gnani.tts({ text: out.for_patient, languageCode: l.language })
+      if (voiced.ok) {
+        summary_audio = randomUUID()
+        audioStore.set(summary_audio, { buffer: voiced.audio, filename: 'summary.wav', mimetype: 'audio/wav' })
+        emit('spoken', { to: l.about, audio_ref: summary_audio, language: l.language, ms: voiced.ms, bytes: voiced.bytes, voice: voiced.request?.voice, kind: 'summary' })
+      }
+      send(l.about, out.for_patient, l.language, null, { kind: 'spoken_summary', audio_ref: summary_audio })
       send(rp?.id || 'rp', out.for_rp, 'en-IN', {
         kind: 'incident_summary',
         title: `${who?.name || l.about} described this herself`,
@@ -150,7 +186,7 @@ async function runLive(name, args) {
         why: out.next_steps?.length ? `What I plan to do: ${out.next_steps.join(' Then ')}` : '',
       })
 
-      emit('summarised', { model: out.model, ms: out.ms, turns: out.turns, problems: out.problems, next_steps: out.next_steps })
+      emit('summarised', { model: out.model, ms: out.ms, turns: out.turns, problems: out.problems, next_steps: out.next_steps, audio_ref: summary_audio })
       return {
         ok: true, model: out.model, ms: out.ms, turns: out.turns,
         problems: out.problems, next_steps: out.next_steps,
