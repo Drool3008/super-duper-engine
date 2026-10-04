@@ -45,14 +45,14 @@ export function TopBar({ model, stage, clock, wallet, rails, present, onPresent 
         </div>
       </div>
 
-      <div className="mt-1.5 flex items-center gap-1">
+      <div className="mt-1.5 flex flex-wrap items-center gap-1">
         {STAGE_NAMES.map((name, i) => {
           const on = i === stage
           const alongside = i === 7
           return (
             <div
               key={i}
-              className={`flex items-center gap-1 rounded px-2 py-0.5 text-meta ${alongside ? 'border border-dashed' : ''}`}
+              className={`flex items-center gap-1 whitespace-nowrap rounded px-2 py-0.5 text-meta ${alongside ? 'border border-dashed' : ''}`}
               style={{
                 background: on ? '#EAF2F8' : 'transparent',
                 color: on ? '#1F4E79' : '#5A6B75',
@@ -66,7 +66,7 @@ export function TopBar({ model, stage, clock, wallet, rails, present, onPresent 
             </div>
           )
         })}
-        <span className="ml-2 text-meta text-muted">7 runs alongside 3–9</span>
+        <span className="ml-2 whitespace-nowrap text-meta text-muted">7 runs alongside 3–9</span>
       </div>
     </header>
   )

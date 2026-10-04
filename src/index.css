@@ -65,3 +65,13 @@ body {
   /* iOS zooms a focused input under 16px; this stops the layout jumping. */
   input, textarea, select { font-size: 16px; }
 }
+
+/* Keyboard focus is always visible; a mouse click does not draw the ring. */
+:focus-visible { outline: 2px solid #1F4E79; outline-offset: 2px; border-radius: 4px; }
+.bg-stage:focus-visible, .bg-human:focus-visible, .bg-decision:focus-visible { outline-color: #1B2A33; }
+
+/* Respect the system setting: no looping shimmer, no slides. */
+@media (prefers-reduced-motion: reduce) {
+  .shimmer, .fadein, .slide-in, .sheet-up { animation: none !important; }
+  * { scroll-behavior: auto !important; }
+}

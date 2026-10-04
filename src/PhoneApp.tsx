@@ -7,7 +7,7 @@ import { AgentChat } from './components/AgentChat'
 import { EditSheet, TopUpSheet, Wallet, type WalletSheet } from './components/Wallet'
 import { Profile } from './components/Profile'
 import { CallBar, CallView, callFor } from './components/CallView'
-import { translator } from './lib/i18n'
+import { dateIn, translator } from './lib/i18n'
 import { SOS_ENABLED } from './lib/config'
 
 export type Tab = 'home' | 'chat' | 'family' | 'wallet'
@@ -24,6 +24,10 @@ export default function PhoneApp({ memberId }: { memberId: string }) {
   const meds = (s.onboarding?.current_medicines || []).filter((m: any) => m.member === memberId || isRP)
   const tests = (s.onboarding?.recurring_tests || []).filter((t: any) => t.member === memberId || isRP)
   const mine = s.messages[memberId] || []
+  const fromAgent = mine.filter((m: Message) => m.from === 'agent').length
+  const [seen, setSeen] = useState(0)
+  useEffect(() => { if (tab === 'chat') setSeen(fromAgent) }, [tab, fromAgent])
+  const unread = Math.max(0, fromAgent - seen)
   const waitingOnMe = s.awaiting?.from === memberId
   const t = translator(me?.language)
 
@@ -60,7 +64,7 @@ export default function PhoneApp({ memberId }: { memberId: string }) {
       {profile && <Profile me={me} onboarding={s.onboarding} clock={s.clock} isRP={isRP} t={t} onClose={() => setProfile(false)} />}
       {isRP && walletSheet === 'topup' && <TopUpSheet me={me} left={s.wallet.limit - s.wallet.spent} onClose={() => setWalletSheet(null)} />}
       {isRP && walletSheet === 'edit' && <EditSheet me={me} wallet={s.wallet} settings={s.onboarding?.wallet} onClose={() => setWalletSheet(null)} />}
-      {!inThread && <Nav tab={tab} onTab={setTab} isRP={isRP} unread={mine.length} nudge={waitingOnMe} t={t} />}
+      {!inThread && <Nav tab={tab} onTab={setTab} isRP={isRP} unread={unread} nudge={waitingOnMe} t={t} />}
     </div>
   )
 }
@@ -151,22 +155,30 @@ function Home({ s, me, meds, tests, isRP, waitingOnMe, who, t, onGoChat, onProfi
       <section>
         <h2 className="text-meta font-semibold uppercase tracking-wide text-muted">{t('medicines')}</h2>
         {meds.length === 0 && <p className="mt-1 text-body text-muted">{t('nothing_on_file')}</p>}
-        {meds.map((m: any) => {
+        {meds.map((m: any, i: number) => {
           const days = m.daily_dose ? Math.floor(m.pills_left / m.daily_dose) : null
           const low = days !== null && days <= 5
+          // The RP sees other people's medicines; say whose, once per person.
+          const owner = m.member !== who && m.member !== meds[i - 1]?.member
+            ? (s.onboarding?.family?.members || []).find((x: any) => x.id === m.member)?.name
+            : null
           return (
-            <div key={m.id} className="mt-2 rounded-xl border border-line p-3">
+            <div key={m.id}>
+            {owner && <div className="mt-2 text-meta font-semibold text-stage">{t('whose', { name: owner })}</div>}
+            <div className="mt-2 rounded-xl border border-line p-3">
               <div className="flex items-baseline justify-between">
                 <span className="text-body font-semibold">{m.name}</span>
                 <span className="text-meta text-muted">{m.strength}</span>
               </div>
               <div className="mt-1.5 flex items-center gap-2">
                 <div className="h-1.5 flex-1 overflow-hidden rounded bg-artifact-bg">
-                  <div className="h-full rounded" style={{ width: Math.min(100, (m.pills_left / 30) * 100) + '%', background: low ? '#C0392B' : '#1E8449' }} />
+                  {/* Days of supply against a month, so the bar says what the label says. */}
+                  <div className="h-full rounded" style={{ width: Math.min(100, ((days ?? 0) / 30) * 100) + '%', background: low ? '#C0392B' : '#1E8449' }} />
                 </div>
                 <span className={`text-meta ${low ? 'font-semibold text-decision' : 'text-muted'}`}>{days !== null ? t('days_left', { n: days }) : t('pills_left', { n: m.pills_left })}</span>
               </div>
               {m.must_not_miss && <div className="mt-1 text-meta text-muted">{t('must_not_miss')}</div>}
+            </div>
             </div>
           )
         })}
@@ -175,11 +187,20 @@ function Home({ s, me, meds, tests, isRP, waitingOnMe, who, t, onGoChat, onProfi
       {tests.length > 0 && (
         <section>
           <h2 className="text-meta font-semibold uppercase tracking-wide text-muted">{t('tests')}</h2>
-          {tests.map((x: any) => (
-            <div key={x.id} className="mt-2 rounded-xl border border-line p-3 text-body">
-              {x.name}<span className="ml-2 text-meta text-muted">{x.every_days ? t('every_n_days', { n: x.every_days }) : t('one_off')}</span>
-            </div>
-          ))}
+          {tests.map((x: any) => {
+            const now = s.clock ? new Date(s.clock).getTime() : Date.now()
+            const due = x.last_done && x.every_days ? new Date(new Date(x.last_done).getTime() + x.every_days * 86400000).toISOString() : null
+            const overdue = due !== null && new Date(due).getTime() < now
+            return (
+              <div key={x.id} className={`mt-2 rounded-xl border p-3 text-body ${overdue ? 'border-decision/40 bg-decision-bg' : 'border-line'}`}>
+                {x.name}<span className="ml-2 text-meta text-muted">{x.every_days ? t('every_n_days', { n: x.every_days }) : t('one_off')}</span>
+                <div className="mt-0.5 text-meta text-muted">
+                  {x.last_done ? t('last_done', { d: dateIn(me.language, x.last_done) }) : t('never_done')}
+                  {due && <span className={overdue ? 'font-semibold text-decision' : ''}> · {overdue ? t('overdue', { d: dateIn(me.language, due) }) : t('next_due', { d: dateIn(me.language, due) })}</span>}
+                </div>
+              </div>
+            )
+          })}
         </section>
       )}
 
@@ -222,7 +243,7 @@ function Nav({ tab, onTab, isRP, unread, nudge, t }: any) {
         <button key={id} onClick={() => onTab(id)}
           className={`relative py-3 text-meta ${tab === id ? 'bg-stage-bg font-semibold text-stage' : 'text-muted'}`}>
           {label}
-          {id === 'chat' && unread > 0 && <span className="ml-1 opacity-60">{unread}</span>}
+          {id === 'chat' && unread > 0 && <span className="ml-1 rounded-full bg-stage px-1.5 text-white" aria-label={`${unread} unread`}>{unread}</span>}
           {id === 'chat' && nudge && <span className="absolute right-5 top-2 h-2 w-2 rounded-full bg-human" />}
         </button>
       ))}

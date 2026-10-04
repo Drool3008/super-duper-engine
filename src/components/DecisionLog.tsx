@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Decision } from '../lib/types'
 
 const COLS: Array<[keyof Decision, string]> = [
@@ -14,6 +14,8 @@ const COLS: Array<[keyof Decision, string]> = [
 
 export function DecisionLog({ decisions }: { decisions: Decision[] }) {
   const [open, setOpen] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => { if (open) box.current?.scrollTo({ top: box.current.scrollHeight }) }, [open, decisions.length])
 
   return (
     <section className="border-t border-line bg-white">
@@ -28,7 +30,7 @@ export function DecisionLog({ decisions }: { decisions: Decision[] }) {
         </div>
       </div>
       {open && (
-        <div className="scroll max-h-[200px] overflow-auto border-t border-line">
+        <div ref={box} className="scroll max-h-[260px] overflow-auto border-t border-line">
           <table className="w-full border-collapse text-meta">
             <thead className="sticky top-0 bg-artifact-bg">
               <tr>{COLS.map(([k, label]) => <th key={k} className="border-b border-line px-2 py-1.5 text-left font-semibold">{label}</th>)}</tr>

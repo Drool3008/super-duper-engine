@@ -25,7 +25,7 @@ export function PhoneScreen({ memberId, scale = 1, label }: { memberId: string; 
   }, [s.lastMessage, memberId])
 
   return (
-    <PhoneFrame simClock={s.clock} scale={scale} label={label} notification={notification}>
+    <PhoneFrame simClock={s.clock} scale={scale} label={label && s.awaiting?.from === memberId ? `${label} · agent waiting on them` : label} notification={notification}>
       <PhoneApp memberId={memberId} />
     </PhoneFrame>
   )

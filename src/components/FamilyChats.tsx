@@ -94,7 +94,8 @@ export function ChatsTab({ memberId, onOpenChange, t, onAnswer }: { memberId: st
   const chats = useMemo(() => {
     const list = [
       { id: '__agent', name: 'Family Health agent', kind: 'agent', pinned: true, messages: [] as any[] },
-      ...seeded.filter((c) => c.id !== memberId || c.kind === 'group'),
+      ...seeded.filter((c) => c.kind === 'group'),
+      ...seeded.filter((c) => c.kind !== 'group' && c.id !== memberId),
     ]
     // Your own 1:1 chat makes no sense in your own list.
     return list.filter((c) => c.id !== memberId)
@@ -202,7 +203,8 @@ function ChatScreen({ chat, memberId, nameOf, onBack }: any) {
                 </div>
               )}
               <div className={`mt-1.5 flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                <div className={`group relative max-w-[86%] rounded-2xl px-2 py-1.5 shadow-sm ${mine ? 'rounded-tr-sm bg-record-bg' : fromAgent ? 'rounded-tl-sm border-l-[3px] border-stage bg-stage-bg' : 'rounded-tl-sm bg-white'}`}>
+                <div onContextMenu={(e) => { if (!fromAgent) { e.preventDefault(); setSheet(m) } }}
+                  className={`group relative max-w-[86%] rounded-2xl px-2 py-1.5 shadow-sm ${mine ? 'rounded-tr-sm bg-record-bg' : fromAgent ? 'rounded-tl-sm border-l-[3px] border-stage bg-stage-bg' : 'rounded-tl-sm bg-white'}`}>
                   {!mine && isGroup && (
                     fromAgent
                       ? <div className="flex items-center gap-1 px-1 text-meta font-semibold text-stage"><Avatar name="agent" agent size={16} />Family Health agent</div>
@@ -267,7 +269,11 @@ function ChatScreen({ chat, memberId, nameOf, onBack }: any) {
 
 function MediaBlock({ media, onOpen }: { media: any; onOpen: () => void }) {
   if (media.type === 'image') {
-    return <img src={media.src} alt="" onClick={onOpen} className="max-h-[230px] w-full cursor-pointer rounded-xl object-cover" />
+    return (
+      <button onClick={onOpen} className="block w-full" aria-label={`Open ${media.name || 'photo'}`}>
+        <img src={media.src} alt={media.name || 'Photo'} className="max-h-[230px] w-full rounded-xl object-cover" />
+      </button>
+    )
   }
   return (
     <button onClick={onOpen} className="flex w-full items-center gap-2.5 rounded-xl bg-artifact-bg px-2.5 py-2 text-left">
@@ -288,7 +294,7 @@ function Viewer({ media, onClose }: { media: any; onClose: () => void }) {
         <button onClick={onClose} aria-label="Close" className="px-2 text-pane leading-none">×</button>
       </div>
       <div className="scroll flex-1 overflow-auto p-3">
-        <img src={media.type === 'pdf' ? media.thumb : media.src} alt="" className="mx-auto w-full rounded-lg bg-white" />
+        <img src={media.type === 'pdf' ? media.thumb : media.src} alt={media.type === 'pdf' ? `${media.name}, page 1` : media.name || 'Photo'} className="mx-auto w-full rounded-lg bg-white" />
       </div>
       {media.type === 'pdf' && <div className="px-3 pb-3 text-center text-meta text-white/70">Page 1 of {media.pages}</div>}
     </div>

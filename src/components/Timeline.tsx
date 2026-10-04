@@ -53,7 +53,7 @@ function ForwardedRecord({ a }: { a: any }) {
   const thumb = a.type === 'pdf' ? a.thumb : a.src
   return (
     <div className="mt-2 flex gap-3 rounded border border-input/40 bg-white p-2">
-      <img src={thumb} alt="" className="h-24 w-20 shrink-0 rounded border border-line object-cover object-top" />
+      <img src={thumb} alt={a.type === 'pdf' ? `${a.name}, page 1` : a.name} className="h-24 w-20 shrink-0 rounded border border-line object-cover object-top" />
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <span className="rounded bg-input-bg px-1.5 text-badge uppercase text-input">{a.type}</span>

@@ -74,6 +74,15 @@ function Inputs({ onboarding }: { onboarding: any }) {
   const [clockTo, setClockTo] = useState('')
   const [clockSrc, setClockSrc] = useState('')
 
+  const members: any[] = onboarding?.family?.members || []
+  const role = (r: string) => ({ patient: 'patient', responsible_person: 'RP', family: 'family' } as Record<string, string>)[r] || r
+  const people = [
+    ...members.map((m) => ({ id: m.id, name: m.name, label: `${m.name} (${role(m.role)})` })),
+    { id: 'family_group', name: `${onboarding?.family?.name || 'Family'} group`, label: 'Family group' },
+  ]
+  // O2: no alert(), and one upload at a time.
+  const [upload, setUpload] = useState<{ busy: boolean; err: string }>({ busy: false, err: '' })
+
   const med = onboarding?.current_medicines?.[0]
   const refillHint = med ? `refill date for ${med.name} (${med.pills_left} pills left, ${med.daily_dose}/day) from ${med.prescription_id}` : ''
 
@@ -97,29 +106,34 @@ function Inputs({ onboarding }: { onboarding: any }) {
           <select value={lang} onChange={(e) => setLang(e.target.value)} className="rounded border border-line bg-white px-1 py-1 text-meta">
             {['hi-IN', 'kn-IN', 'ta-IN', 'te-IN', 'bn-IN', 'mr-IN', 'gu-IN', 'ml-IN', 'pa-IN', 'or-IN', 'en-IN'].map((l) => <option key={l}>{l}</option>)}
           </select>
-          <input ref={fileRef} type="file" accept="audio/*" className="w-full text-meta" />
+          <input ref={fileRef} type="file" accept="audio/*" aria-label="Voice note file" className="w-full text-meta" onChange={() => setUpload({ busy: false, err: '' })} />
         </div>
+        {upload.err && <div className="mt-1 text-meta text-decision" aria-live="polite">{upload.err}</div>}
         <button
-          className="mt-2 w-full rounded bg-input px-3 py-1.5 text-meta font-semibold text-white hover:brightness-110"
+          disabled={upload.busy}
+          className="mt-2 w-full rounded bg-input px-3 py-1.5 text-meta font-semibold text-white hover:brightness-110 disabled:opacity-50"
           onClick={async () => {
             const f = fileRef.current?.files?.[0]
-            if (!f) return alert('Pick an audio file first. It must be a real recording.')
-            const { audio_ref } = await uploadAudio(f, 'Patient, voice note via WhatsApp')
-            sendInput({ kind: 'voice_note', source: 'Patient, voice note via WhatsApp', from: 'patient', audio_ref, language_code: lang, filename: f.name })
+            if (!f) return setUpload({ busy: false, err: 'Pick an audio file first. It must be a real recording.' })
+            setUpload({ busy: true, err: '' })
+            try {
+              const { audio_ref } = await uploadAudio(f, 'Patient, voice note via WhatsApp')
+              await sendInput({ kind: 'voice_note', source: 'Patient, voice note via WhatsApp', from: 'patient', audio_ref, language_code: lang, filename: f.name })
+              if (fileRef.current) fileRef.current.value = ''
+              setUpload({ busy: false, err: '' })
+            } catch {
+              setUpload({ busy: false, err: 'Upload failed. Is the server running? Nothing was sent.' })
+            }
           }}
         >
-          Send voice note to agent
+          {upload.busy ? 'Sending…' : 'Send voice note to agent'}
         </button>
       </div>
 
       <div className="mt-2 rounded border border-input/40 bg-input-bg p-2">
         <div className="text-meta text-input">Message from a person</div>
-        <select value={who} onChange={(e) => setWho(e.target.value)} className="mt-1 w-full rounded border border-line bg-white px-1 py-1 text-meta">
-          <option value="rp">RP</option>
-          <option value="patient">Patient</option>
-          <option value="member_3">Member 3</option>
-          <option value="member_4">Member 4</option>
-          <option value="family_group">Family group</option>
+        <select value={who} onChange={(e) => setWho(e.target.value)} aria-label="Who sent it" className="mt-1 w-full rounded border border-line bg-white px-1 py-1 text-meta">
+          {people.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
         </select>
         <textarea
           value={text} onChange={(e) => setText(e.target.value)} rows={2}
@@ -128,7 +142,7 @@ function Inputs({ onboarding }: { onboarding: any }) {
         />
         <button
           className="mt-1 w-full rounded bg-input px-3 py-1.5 text-meta font-semibold text-white hover:brightness-110"
-          onClick={() => { if (!text.trim()) return; sendInput({ kind: 'message', source: `${who}, WhatsApp message`, from: who, text }); setText('') }}
+          onClick={() => { if (!text.trim()) return; sendInput({ kind: 'message', source: `${people.find((p) => p.id === who)?.name || who}, WhatsApp message`, from: who, text }); setText('') }}
         >
           Send message to agent
         </button>
