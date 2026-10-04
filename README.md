@@ -45,6 +45,7 @@ npm run check            # self-check: R19 gate, curtain pause, fixture passthro
 | `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` | the brain |
 | `GNANI_API_KEY` | real STT. Without it `gnani_stt` refuses and says so on screen |
 | `SHEETS_WEBHOOK_URL` | Apps Script web app. Empty shows "Sheets: off" |
+| `STUB_THINK_MS` | How long each scripted step pauses so the work is visible. Default 2400 (jittered). `0` turns it off, which is what `npm run check` does. Ignored unless `MODEL_PROVIDER=stub` — a real model takes its own time. |
 
 **`MODEL_PROVIDER=stub`** replays `config/stub-script.json` instead of calling a
 model. It costs nothing and needs no key, which makes it right for UI work and

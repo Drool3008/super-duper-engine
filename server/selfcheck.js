@@ -8,6 +8,9 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
 process.env.MODEL_PROVIDER = 'stub'
+// The stub's deliberate thinking pause is for people watching a take, not for
+// a test suite. Thirty-odd checks at two seconds a step is a coffee break.
+process.env.STUB_THINK_MS = '0'
 
 const stub = await import('./providers/stub.js')
 stub.reset([

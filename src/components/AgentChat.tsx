@@ -5,6 +5,7 @@ import { rupees, sendInput, sendReply } from '../lib/api'
 import type { Message } from '../lib/types'
 import { AgentAvatar, AiTag, HumanTag, PersonAvatar } from './brand'
 import { cn } from '../lib/utils'
+import { VoiceAccount } from './VoiceAccount'
 
 /**
  * The RP's 1:1 with the agent: where every escalation lands.
@@ -228,6 +229,14 @@ export function AgentChat({ memberId, onBack, t = english, onAnswer }: {
         <Suggestions
           memberId={memberId}
           onPick={(s) => { setText(s.text); setPicked({ id: s.id, text: s.text }) }}
+        />
+      )}
+      {/* Stage 4: she says it herself, Gnani writes it down, she sends it. */}
+      {!awaiting && (
+        <VoiceAccount
+          memberId={memberId}
+          name={me?.name || memberId}
+          language={me?.language || 'te-IN'}
         />
       )}
       <div className="flex shrink-0 items-center gap-2 border-t border-line bg-white px-3 py-2.5">

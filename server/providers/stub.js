@@ -45,10 +45,21 @@ export function select(sampleId) {
   if (!sampleId) return null
   const samples = read('config/trigger-samples.json', { samples: [] }).samples || []
   const sample = samples.find((s) => s.id === sampleId)
-  if (!sample) return null
+  const bank = read('config/stub-scenarios.json', { samples: {}, bands: {} })
+
+  // A key that is not one of the canned sentences may still name a script
+  // outright. The spoken account at stage 4 arrives that way: it is a real
+  // recording, not a sample, but the stub still needs a path to walk.
+  if (!sample) {
+    const direct = (bank.samples || {})[sampleId]
+    if (!Array.isArray(direct) || direct.length === 0) return null
+    script = direct
+    turn = 0
+    current = sampleId
+    return sampleId
+  }
 
   const band = sample.expect?.tier
-  const bank = read('config/stub-scenarios.json', { samples: {}, bands: {} })
 
   // A sentence that exercises something its band does not covers itself —
   // crit_unreachable is the R9 dispatch, not the ordinary critical booking.

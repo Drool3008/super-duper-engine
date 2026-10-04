@@ -420,6 +420,122 @@
     ]
   },
   "samples": {
+    "spoken_account": [
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "A spoken account from the patient, transcribed by Gnani",
+              "source": "Patient, recorded in the app; transcript from Gnani STT",
+              "decided": "Take the account as given and acknowledge it in her own language",
+              "rule_id": "R5",
+              "why": "the words are hers and are kept as they came back; nothing is interpreted at this stage",
+              "action": "acknowledged and moved to listening",
+              "recipient": "patient",
+              "connector": "WhatsApp"
+            }
+          },
+          { "name": "set_stage", "args": { "stage": 4, "why": "the patient has described it in her own words" } },
+          {
+            "name": "send_message",
+            "args": {
+              "to": "patient",
+              "text": "విన్నాను, చెప్పినందుకు ధన్యవాదాలు. ఇది నేను అర్జున్‌కి తెలియజేస్తాను, తరువాత మీకు చెబుతాను.",
+              "language": "te-IN"
+            }
+          }
+        ]
+      },
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "The account, in her own words",
+              "source": "Agent's own weighing at stage 5",
+              "decided": "Urgent, and the responsible person decides what happens next",
+              "rule_id": "R7",
+              "why": "weighed against her red flags, her baseline and her current medicines; it needs a person, not a booking",
+              "action": "assessed urgent",
+              "recipient": "none",
+              "connector": "none"
+            }
+          },
+          { "name": "set_stage", "args": { "stage": 5, "why": "weighing what she said against her record" } },
+          {
+            "name": "record_assessment",
+            "args": {
+              "about": "patient",
+              "tier": "urgent",
+              "factors": "weighed against the red-flag list, her baseline, the medicines she is on, and who is reachable right now",
+              "can_tell": true,
+              "unsure": false
+            }
+          }
+        ]
+      },
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "Assessment came back urgent",
+              "source": "record_assessment at stage 5",
+              "decided": "Send the responsible person a summary with her own words under it, and wait",
+              "rule_id": "R17",
+              "why": "this is his call to make, and he should see what she actually said rather than only my reading of it",
+              "action": "summarised to the RP and stopped",
+              "recipient": "rp",
+              "connector": "WhatsApp"
+            }
+          },
+          {
+            "name": "send_message",
+            "args": {
+              "to": "rp",
+              "text": "Lakshmi recorded a message for me just now. In short: she is describing something new that I would call urgent, and I have booked nothing. Her own words are below, exactly as they came back. Do you want me to get her a clinic slot today?",
+              "language": "en-IN",
+              "card": "{\"kind\":\"incident_summary\",\"title\":\"Lakshmi described something herself\",\"detail\":\"She spoke in Telugu and I kept the transcript word for word. I have weighed it against her red flags, her baseline and the medicines she is on.\",\"for\":\"Lakshmi\",\"why\":\"Nothing is booked and nothing is spent. Tell me what you would like me to do.\"}"
+            }
+          },
+          {
+            "name": "wait_for_reply",
+            "args": { "from": "rp", "wait_seconds": 180, "what_for": "what to do about the account Lakshmi recorded" }
+          }
+        ]
+      },
+      {
+        "text": "Arun has the summary and her own words. Waiting on him before anything is booked.",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "The RP answered",
+              "source": "RP's tap in the app",
+              "decided": "Do what he said, and tell the group only that it is being handled",
+              "rule_id": "R10",
+              "why": "he holds this call; the group hears the status and never the symptom",
+              "action": "acted on his answer",
+              "recipient": "rp",
+              "connector": "WhatsApp"
+            }
+          },
+          { "name": "set_stage", "args": { "stage": 7, "why": "the RP has answered" } },
+          {
+            "name": "send_message",
+            "args": {
+              "to": "family_group",
+              "text": "Lakshmi got in touch with me and Arun and I are sorting it out. I will update here.",
+              "language": "en-IN"
+            }
+          }
+        ]
+      }
+    ],
     "crit_unreachable": [
       {
         "text": "",

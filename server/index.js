@@ -12,6 +12,7 @@ import { providerLog, fulfilments, dispatches, refillCycles } from './acting.js'
 import { readFileSync } from 'node:fs'
 import { TOOLS } from './tools.js'
 import { gnaniOn } from './rails/gnani.js'
+import * as gnani from './rails/gnani.js'
 import { sheetsOn } from './rails/sheets.js'
 import * as sheets from './rails/sheets.js'
 
@@ -113,6 +114,62 @@ app.post('/api/input/audio', upload.single('audio'), (req, res) => {
   audioStore.set(id, { buffer: req.file.buffer, filename: req.file.originalname, mimetype: req.file.mimetype })
   emit('audio_received', { audio_ref: id, filename: req.file.originalname, bytes: req.file.size, source: req.body.source || 'unlabelled' })
   res.json({ audio_ref: id })
+})
+
+/**
+ * Stage 4, Listening: the person speaks and Gnani turns it into words.
+ *
+ * This does one thing and deliberately stops there. It transcribes, and hands
+ * the words back to the handset for the person to read. Nothing reaches the
+ * agent until they press send, because an account they have not seen is one
+ * they cannot correct, and the transcript is the thing R5 says must be kept
+ * word for word. A bad capture should be re-recorded, not interpreted.
+ *
+ * The call is real. It appears in the console as a LIVE gnani call with its
+ * endpoint, request and response, the same as any other rail.
+ */
+app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'no audio file' })
+  if (!gnaniOn()) {
+    return res.status(503).json({ error: 'GNANI_API_KEY is not set, so there is nothing to transcribe with. Nothing was sent to the agent.' })
+  }
+
+  const language_code = req.body.language_code || 'te-IN'
+  const from = req.body.from || 'patient'
+  const filename = req.file.originalname || 'recording.webm'
+
+  const audio_ref = randomUUID()
+  audioStore.set(audio_ref, { buffer: req.file.buffer, filename, mimetype: req.file.mimetype })
+  emit('audio_received', { audio_ref, filename, bytes: req.file.size, source: `${from}, recorded in the app` })
+
+  const id = randomUUID()
+  emit('tool_call', {
+    id, name: 'gnani_stt', args: { audio_ref, language_code },
+    mode: 'LIVE', rail: 'gnani', endpoint: 'POST https://api.vachana.ai/stt/v3',
+  })
+
+  let result
+  try {
+    result = await gnani.stt({ buffer: req.file.buffer, filename, mimetype: req.file.mimetype, languageCode: language_code })
+  } catch (err) {
+    result = { ok: false, error: err.message }
+  }
+  emit('tool_result', { id, name: 'gnani_stt', result })
+
+  // Gnani returns the words under `transcript`, with `output.literal` alongside.
+  const transcript = result?.response?.transcript ?? result?.response?.output?.literal ?? ''
+  if (!result.ok || !String(transcript).trim()) {
+    return res.status(502).json({
+      error: result.reason || result.error || 'Gnani returned no transcript. Nothing was sent to the agent.',
+      detail: result.response ?? null,
+    })
+  }
+
+  res.json({
+    audio_ref, transcript, language_code,
+    request_id: result.response?.request_id ?? null,
+    ms: result.ms ?? null,
+  })
 })
 
 /**

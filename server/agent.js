@@ -191,6 +191,24 @@ export function abortRun() { epoch++; running = false }
 const usingStub = () => (process.env.MODEL_PROVIDER || 'gemini').toLowerCase() === 'stub'
 
 /**
+ * The stub answers instantly, which reads as nothing happening: a step lands
+ * complete before the typing dots have drawn. This holds each scripted step for
+ * a couple of seconds so the work is legible at the speed a person watches it.
+ *
+ * Only for the stub. A real model takes its own time and padding that would be
+ * inventing latency rather than showing it. STUB_THINK_MS=0 turns it off, which
+ * is what the self-check does -- thirty-odd checks at two seconds each is a
+ * coffee break.
+ */
+function thinkPause() {
+  if (!usingStub()) return Promise.resolve()
+  const base = Number(process.env.STUB_THINK_MS ?? 2400)
+  if (!Number.isFinite(base) || base <= 0) return Promise.resolve()
+  // Jittered, because a metronome reads as a progress bar rather than thought.
+  return new Promise((r) => setTimeout(r, base + Math.random() * 700))
+}
+
+/**
  * A sample trigger was raised from the UI. Under the stub this points the
  * script at the path that sentence is meant to exercise; under a real model it
  * does nothing at all, because a real model reads the sentence and decides for
@@ -230,6 +248,8 @@ async function loop() {
   for (let step = 0; step < MAX_STEPS; step++) {
     if (epoch !== myEpoch) return
     emit('thinking', { step })
+    await thinkPause()
+    if (epoch !== myEpoch) return
     let out
     try {
       out = await run({ systemPrompt: systemPrompt(), history: session.history, tools: TOOLS, model, apiKey })

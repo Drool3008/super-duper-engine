@@ -18,6 +18,30 @@ export async function uploadAudio(file: File, source: string) {
   return r.json() as Promise<{ audio_ref: string }>
 }
 
+export interface Transcription {
+  audio_ref: string
+  transcript: string
+  language_code: string
+  request_id: string | null
+  ms: number | null
+}
+
+/**
+ * Send a recording to Gnani and get the words back. Transcribes only: the
+ * agent hears nothing until the person has read it and pressed send.
+ * Throws with the server's own wording, which is written to be shown.
+ */
+export async function transcribe(blob: Blob, from: string, language_code: string): Promise<Transcription> {
+  const fd = new FormData()
+  fd.append('audio', blob, 'recording.wav')
+  fd.append('from', from)
+  fd.append('language_code', language_code)
+  const r = await fetch(api('/api/transcribe'), { method: 'POST', body: fd })
+  const body = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(body.error || 'Could not transcribe that. Nothing was sent to the agent.')
+  return body as Transcription
+}
+
 export const rupees = (n: number) => '₹' + n.toLocaleString('en-IN')
 
 export const forwardToAgent = (body: any) => post('/api/forward', body)
