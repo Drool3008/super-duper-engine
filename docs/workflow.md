@@ -129,8 +129,16 @@ what R10 asks for.
 `wait_for_reply`. A real timer would be the backend deciding the window had
 passed on its own. `POST /api/reversal/:id` is how the RP's phone exercises it.
 
-Covered by five checks: the R8 raise, the R7/R8 stack, the missing factors, the
-RP-only reversal with both views kept, and expiry by sim clock.
+The RP's phone shows it. An open window appears as a card at the top of their
+Home tab and nobody else's: **Reverse it** (which asks for a reason first) or
+**Leave it**, which is a real outcome that closes the window rather than
+dismissing a card. The card disappears on every device the moment the window
+settles, over the same SSE stream.
+
+Covered by six checks: the R8 raise, the R7/R8 stack, the missing factors, the
+RP-only reversal with both views kept, letting a decision stand, and expiry by
+sim clock. The card itself was verified on the simulator: one window opened, the
+card shown, a non-RP refused, the RP's reversal accepted, and the card gone.
 
 ## Spend
 

@@ -195,6 +195,17 @@ console.log('ok  R10 only the RP reversed, and both views were kept')
 const twice = exerciseReversal({ id: win.reversal_id, by: 'rp', why: 'again' })
 assert.equal(twice.ok, false, 'a decision cannot be reversed twice')
 
+const standing = openReversal({
+  about: 'patient', decided_by: 'patient', decision: 'escalate now',
+  action_taken: 'booked the clinic', window_seconds: 600,
+})
+const { acceptReversal } = await import('./assessment.js')
+assert.equal(acceptReversal({ id: standing.reversal_id, by: 'member_3' }).ok, false, 'only the RP settles it')
+const stands = acceptReversal({ id: standing.reversal_id, by: 'rp' })
+assert.equal(stands.ok, true)
+assert.equal(openReversals().length, 0, 'accepting closes the window too')
+console.log('ok  the RP let a decision stand, and that closed the window')
+
 // The window closes on the simulated clock, never a wall-clock timer.
 const late = openReversal({
   about: 'patient', decided_by: 'patient', decision: 'escalate',

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSession } from './lib/session'
-import { rupees, sendInput, sendReply } from './lib/api'
+import { rupees, sendInput, sendReply, settleReversal } from './lib/api'
 import type { Message } from './lib/types'
 import { ChatsTab } from './components/FamilyChats'
 
@@ -61,11 +61,65 @@ function Header({ me, stage, thinking }: any) {
   )
 }
 
+/**
+ * The agent already acted on somebody's answer. The responsible person can
+ * overrule it while the window is open (R10). Nobody else sees this: the veto
+ * is theirs alone.
+ */
+function ReversalCard({ r, me }: { r: any; me: string }) {
+  const [busy, setBusy] = useState(false)
+  const [why, setWhy] = useState('')
+  const [open, setOpen] = useState(false)
+
+  const settle = async (action: 'reverse' | 'accept') => {
+    setBusy(true)
+    await settleReversal(r.id, me, action, action === 'reverse' ? why || 'Overruled by the responsible person' : undefined)
+  }
+
+  return (
+    <div className="rounded-xl border border-human bg-human-bg p-3">
+      <div className="text-meta font-bold uppercase tracking-wide text-human">You can overrule this</div>
+      <div className="mt-1 text-body text-ink">
+        <span className="font-semibold">{r.decided_by === 'patient' ? 'The patient' : r.decided_by}</span> chose: {r.decision}
+      </div>
+      <div className="mt-1 rounded-lg bg-white/70 px-2 py-1.5 text-meta text-muted">
+        Already done: {r.action_taken}
+      </div>
+      {open && (
+        <input
+          value={why} onChange={(e) => setWhy(e.target.value)}
+          placeholder="Why are you overruling? (optional)"
+          className="mt-2 w-full rounded-lg border border-line px-3 py-2 text-body"
+        />
+      )}
+      <div className="mt-2 flex gap-1.5">
+        <button
+          disabled={busy}
+          onClick={() => (open ? settle('reverse') : setOpen(true))}
+          className="flex-1 rounded-lg border border-human bg-white py-2 text-meta font-semibold text-human disabled:opacity-50"
+        >
+          {open ? 'Confirm reverse' : 'Reverse it'}
+        </button>
+        <button
+          disabled={busy}
+          onClick={() => settle('accept')}
+          className="flex-1 rounded-lg border border-line bg-white py-2 text-meta font-semibold text-muted disabled:opacity-50"
+        >
+          Leave it
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function Home({ s, me, meds, tests, isRP, waitingOnMe, who, onGoChat }: any) {
   const [sent, setSent] = useState(false)
   const last = (s.messages[who] || []).filter((m: Message) => m.from === 'agent').slice(-1)[0]
+  const mineToReverse = isRP ? (s.reversals || []).filter((r: any) => r.may_reverse === who) : []
   return (
     <div className="scroll h-full space-y-3 overflow-y-auto p-4">
+      {mineToReverse.map((r: any) => <ReversalCard key={r.id} r={r} me={who} />)}
+
       {waitingOnMe && (
         <button onClick={onGoChat} className="w-full rounded-xl border border-human bg-human-bg p-3 text-left">
           <div className="text-meta font-bold uppercase tracking-wide text-human">Needs your answer</div>

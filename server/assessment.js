@@ -162,6 +162,21 @@ export function exerciseReversal({ id, by, why } = {}) {
   }
 }
 
+/** The RP looked and let it stand. A real outcome, not a dismissed card. */
+export function acceptReversal({ id, by } = {}) {
+  const row = (session.reversals || []).find((r) => r.id === id)
+  if (!row) return { ok: false, error: `no reversal window with id ${id}` }
+
+  const rp = responsiblePerson()
+  if (by !== rp) return { ok: false, error: `only the responsible person (${rp}) can settle this. ${by} cannot.` }
+  if (row.state !== 'open') return { ok: false, error: `that window is already ${row.state}.` }
+
+  row.state = 'accepted'
+  row.reversal = { by, accepted: true, at: session.clock.toISOString() }
+  emit('reversal_accepted', { reversal: row })
+  return { ok: true, accepted: row.id, note: `${row.decision} stands.` }
+}
+
 /** Called whenever the sim clock moves. Anything past its window is closed. */
 export function expireReversals() {
   for (const row of session.reversals || []) {

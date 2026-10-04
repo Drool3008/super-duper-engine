@@ -7,7 +7,7 @@ import { deliverReply, noAnswer, expireByClock, openWaits } from './humans.js'
 import { feed, isRunning } from './agent.js'
 import { chainState, contactChain } from './contacts.js'
 import { accounts } from './accounts.js'
-import { assessments, openReversals, exerciseReversal, expireReversals } from './assessment.js'
+import { assessments, openReversals, exerciseReversal, acceptReversal, expireReversals } from './assessment.js'
 import { readFileSync } from 'node:fs'
 import { TOOLS } from './tools.js'
 import { gnaniOn } from './rails/gnani.js'
@@ -192,7 +192,10 @@ app.post('/api/reply', (req, res) => {
  * Only they can, and only while the window is open (R10).
  */
 app.post('/api/reversal/:id', (req, res) => {
-  const out = exerciseReversal({ id: req.params.id, by: req.body?.by, why: req.body?.why })
+  const { by, why, action } = req.body || {}
+  const out = action === 'accept'
+    ? acceptReversal({ id: req.params.id, by })
+    : exerciseReversal({ id: req.params.id, by, why })
   res.status(out.ok ? 200 : 400).json(out)
 })
 

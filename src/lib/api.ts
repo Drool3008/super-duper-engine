@@ -22,6 +22,10 @@ export const rupees = (n: number) => '₹' + n.toLocaleString('en-IN')
 
 export const forwardToAgent = (body: any) => post('/api/forward', body)
 
+/** The responsible person overrules, or lets it stand. Only they can (R10). */
+export const settleReversal = (id: string, by: string, action: 'reverse' | 'accept', why?: string) =>
+  post(`/api/reversal/${id}`, { by, action, why })
+
 /** A member posts into a family chat. The agent never sees these (R2). */
 export const sendChat = (from: string, chat_id: string, text: string) =>
   post('/api/chat/send', { from, chat_id, text })

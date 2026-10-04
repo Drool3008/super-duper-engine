@@ -13,6 +13,8 @@ export interface SessionView {
   messages: Record<string, Message[]>
   /** Live family-chat messages, keyed by the server's chatKey(). */
   chats: Record<string, any[]>
+  /** Decisions the responsible person can still overrule. */
+  reversals: any[]
   pending: PendingCall[]
   timeline: TimelineItem[]
   thinking: boolean
@@ -26,7 +28,7 @@ export interface SessionView {
 const EMPTY: SessionView = {
   model: '', stage: 1, clock: '', wallet: { limit: 0, spent: 0, ledger: [] },
   rails: { gnani: false, sheets: false }, onboarding: null,
-  decisions: [], messages: {}, chats: {}, pending: [], timeline: [], thinking: false,
+  decisions: [], messages: {}, chats: {}, reversals: [], pending: [], timeline: [], thinking: false,
   awaiting: null, lastMessage: null, familyHistory: null, rpHistory: null,
 }
 
@@ -42,11 +44,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const seq = useRef(0)
 
   useEffect(() => {
+    // Only seed what the event log does NOT carry. Anything that arrives as an
+    // event (messages, decisions, chats, reversals) is rebuilt by the replay, and
+    // seeding it here as well would show it twice.
     fetch(api('/api/session')).then((r) => r.json()).then((s) => {
       setView((v) => ({
         ...v, model: s.model, stage: s.stage, clock: s.clock,
         wallet: s.wallet, rails: s.rails, onboarding: s.onboarding,
-        chats: s.chats || {},
         familyHistory: s.familyHistory, rpHistory: s.rpHistory,
       }))
     }).catch(() => {})
@@ -84,8 +88,20 @@ function reduce(v: SessionView, ev: AgentEvent, nextId: () => string): SessionVi
         awaiting: v.awaiting && open.has(v.awaiting.id) ? v.awaiting : null,
       }
     }
-    case 'chat_message':
-      return { ...v, chats: { ...v.chats, [ev.key]: [...(v.chats[ev.key] || []), ev.message] } }
+    case 'reversal_window_open':
+      if (v.reversals.some((r) => r.id === ev.reversal.id)) return v
+      return { ...v, reversals: [...v.reversals, ev.reversal] }
+    // Reversed, accepted or expired: either way it is no longer the RP's to act on.
+    case 'reversal_exercised':
+    case 'reversal_accepted':
+      return { ...v, reversals: v.reversals.filter((r) => r.id !== ev.reversal.id) }
+    case 'reversal_window_closed':
+      return { ...v, reversals: v.reversals.filter((r) => r.id !== ev.id) }
+    case 'chat_message': {
+      const seen = v.chats[ev.key] || []
+      if (seen.some((m: any) => m.id === ev.message.id)) return v
+      return { ...v, chats: { ...v.chats, [ev.key]: [...seen, ev.message] } }
+    }
     case 'thinking':
       return { ...v, thinking: true }
     case 'idle':
