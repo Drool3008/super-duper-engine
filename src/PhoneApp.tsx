@@ -5,6 +5,7 @@ import type { Message } from './lib/types'
 import { ChatsTab } from './components/FamilyChats'
 import { AgentChat } from './components/AgentChat'
 import { EditSheet, TopUpSheet, Wallet, type WalletSheet } from './components/Wallet'
+import { Profile } from './components/Profile'
 import { CallBar, CallView, callFor } from './components/CallView'
 import { translator } from './lib/i18n'
 import { SOS_ENABLED } from './lib/config'
@@ -34,6 +35,7 @@ export default function PhoneApp({ memberId }: { memberId: string }) {
   const call = useMemo(() => callFor(s.timeline, me, members), [s.timeline, me, members])
   const [hidden, setHidden] = useState<string | null>(null)
   const [walletSheet, setWalletSheet] = useState<WalletSheet>(null)
+  const [profile, setProfile] = useState(false)
 
   // "Top up" on the agent's low-wallet card goes straight to topping up.
   const onAnswer = (answer: string, card: any) => {
@@ -48,13 +50,14 @@ export default function PhoneApp({ memberId }: { memberId: string }) {
     <div className="relative flex h-full flex-col bg-white">
       {call && callKey !== hidden && <CallView key={call.id} call={call} t={t} onClose={() => setHidden(callKey)} />}
       {call && callKey === hidden && callLive && <CallBar call={call} t={t} onOpen={() => setHidden(null)} />}
-      {!inThread && <Header me={me} stage={s.stage} thinking={s.thinking} t={t} />}
+      {!inThread && <Header me={me} stage={s.stage} thinking={s.thinking} t={t} onProfile={() => setProfile(true)} />}
       <div className="min-h-0 flex-1 overflow-hidden">
-        {tab === 'home' && <Home s={s} me={me} meds={meds} tests={tests} isRP={isRP} waitingOnMe={waitingOnMe} who={memberId} t={t} onGoChat={() => setTab('chat')} />}
+        {tab === 'home' && <Home s={s} me={me} meds={meds} tests={tests} isRP={isRP} waitingOnMe={waitingOnMe} who={memberId} t={t} onGoChat={() => setTab('chat')} onProfile={() => setProfile(true)} />}
         {tab === 'chat' && <AgentChat memberId={memberId} t={t} onAnswer={onAnswer} />}
         {tab === 'family' && <ChatsTab memberId={memberId} t={t} onAnswer={onAnswer} onOpenChange={setInThread} />}
         {tab === 'wallet' && isRP && <Wallet wallet={s.wallet} settings={s.onboarding?.wallet} timeline={s.timeline} onSheet={setWalletSheet} />}
       </div>
+      {profile && <Profile me={me} onboarding={s.onboarding} clock={s.clock} isRP={isRP} t={t} onClose={() => setProfile(false)} />}
       {isRP && walletSheet === 'topup' && <TopUpSheet me={me} left={s.wallet.limit - s.wallet.spent} onClose={() => setWalletSheet(null)} />}
       {isRP && walletSheet === 'edit' && <EditSheet me={me} wallet={s.wallet} settings={s.onboarding?.wallet} onClose={() => setWalletSheet(null)} />}
       {!inThread && <Nav tab={tab} onTab={setTab} isRP={isRP} unread={mine.length} nudge={waitingOnMe} t={t} />}
@@ -62,12 +65,14 @@ export default function PhoneApp({ memberId }: { memberId: string }) {
   )
 }
 
-function Header({ me, stage, thinking, t }: any) {
+function Header({ me, stage, thinking, t, onProfile }: any) {
   return (
     <div className="shrink-0 border-b border-line bg-stage-bg px-4 py-2.5">
       <div className="flex items-baseline justify-between">
         <h1 className="text-card text-stage">Family Health</h1>
-        <span className="text-meta text-stage/70">{me.name}</span>
+        <button onClick={onProfile} className="rounded text-meta text-stage/80 underline-offset-2 hover:underline" aria-label={`${me.name}: ${t('profile_title')}`}>
+          {me.name} ›
+        </button>
       </div>
       <div className="mt-0.5 flex items-center gap-1.5 text-meta text-stage/80">
         <span className={`inline-block h-2 w-2 rounded-full bg-stage ${thinking ? 'shimmer' : ''}`} />
@@ -128,7 +133,7 @@ function ReversalCard({ r, me }: { r: any; me: string }) {
   )
 }
 
-function Home({ s, me, meds, tests, isRP, waitingOnMe, who, t, onGoChat }: any) {
+function Home({ s, me, meds, tests, isRP, waitingOnMe, who, t, onGoChat, onProfile }: any) {
   const [sos, setSos] = useState<'idle' | 'armed' | 'sent'>('idle')
   const last = (s.messages[who] || []).filter((m: Message) => m.from === 'agent').slice(-1)[0]
   const mineToReverse = isRP ? (s.reversals || []).filter((r: any) => r.may_reverse === who) : []
@@ -184,6 +189,10 @@ function Home({ s, me, meds, tests, isRP, waitingOnMe, who, t, onGoChat }: any) 
           <div className="mt-2 rounded-xl border-l-[3px] border-record bg-record-bg p-3 text-body text-stage">{last.text}</div>
         </section>
       )}
+
+      <button onClick={onProfile} className="w-full rounded-xl border border-stage/30 bg-stage-bg px-3 py-2.5 text-left text-body font-semibold text-stage">
+        {t('open_profile')}
+      </button>
 
       {/* Cut from the Round 3 recording (plan 2.2). When enabled it takes two
           taps and stays sent: one stray touch must never raise an SOS, and a
