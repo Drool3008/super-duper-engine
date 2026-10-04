@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { TimelineItem } from '../lib/types'
 import { Avatar } from './FamilyChats'
+import { AudioLines, Clock3, Minimize2, Phone, PhoneForwarded, PhoneIncoming, PhoneMissed, Sparkles, UserRound, X } from 'lucide-react'
+import { cn } from '../lib/utils'
 
 /**
  * The phone side of a call the agent placed. Everything here is derived from
@@ -110,37 +112,46 @@ export function CallView({ call, onClose, t = english }: { call: CallState; onCl
   const ringing = call.phase === 'ringing' && !answered
 
   return (
-    <div className="slide-in absolute inset-0 z-40 flex flex-col bg-[#13232E] text-white" role="dialog" aria-label="Call">
+    <div className="slide-in absolute inset-0 z-40 flex flex-col bg-gradient-to-b from-[#1E1B4B] via-[#2E1065] to-[#0F172A] text-white" role="dialog" aria-label="Call">
       <div className="flex flex-col items-center px-5 pt-8 text-center">
-        <Avatar name={call.peer} agent={!handover} size={76} />
-        <div className="mt-3 text-pane">{handover ? call.peer : 'Family Health agent'}</div>
-        <div className={`mt-1 text-body ${live ? 'text-[#7DCEA0]' : 'text-white/75'}`} aria-live="polite">
+        <div className={cn('relative rounded-full', ringing && 'animate-pulse')}>
+          {ringing && <span className="absolute inset-0 -m-3 animate-ping rounded-full bg-white/15" aria-hidden />}
+          <Avatar name={call.peer} agent={!handover} size={84} />
+        </div>
+        <div className="mt-4 flex items-center gap-2 font-display text-pane font-bold">
+          {handover ? call.peer : 'Vantari'}
+          {!handover && <span className="inline-flex items-center gap-0.5 rounded-full bg-white/15 px-2 py-0.5 text-[12px] font-bold"><Sparkles className="h-3 w-3" aria-hidden />AI</span>}
+        </div>
+        <div className={cn('mt-1 flex max-w-[280px] items-start justify-center gap-1.5 text-center text-body', live ? 'text-[#86EFAC]' : 'text-white/80')} aria-live="polite">
+          {ringing ? <PhoneIncoming className="mt-1 h-4 w-4 shrink-0" aria-hidden /> : live ? <Phone className="mt-1 h-4 w-4 shrink-0" aria-hidden /> : call.phase === 'missed' ? <PhoneMissed className="mt-1 h-4 w-4 shrink-0" aria-hidden /> : <Clock3 className="mt-1 h-4 w-4 shrink-0" aria-hidden />}
           {ringing ? PHASE_LINE.ringing(call, t) : call.phase === 'ringing' ? 'Connecting…' : PHASE_LINE[call.phase](call, t)}
         </div>
         {handover && (
-          <div className="mt-2 rounded-full bg-[#1E8449] px-3 py-1 text-meta font-semibold">Clinic connected · the agent has left the call</div>
+          <div className="mt-3 flex items-center gap-1.5 rounded-full bg-[#16A34A] px-3 py-1.5 text-meta font-bold">
+            <PhoneForwarded className="h-4 w-4" aria-hidden /> Clinic connected · the agent has left the call
+          </div>
         )}
         {call.phase === 'holding' && call.holdSeconds === undefined && (
-          <div className="shimmer mt-2 text-meta text-white/70">waiting for a person to answer…</div>
+          <div className="shimmer mt-2 text-meta text-white/75">waiting for a person to answer…</div>
         )}
       </div>
 
       {call.phase === 'ringing' ? <div className="flex-1" /> : (
-      <div className="scroll mx-4 mt-5 min-h-0 flex-1 space-y-2 overflow-y-auto rounded-2xl bg-white/[.07] p-3">
-        <div className="text-meta font-semibold uppercase tracking-wide text-white/60">{t('live_transcript')}</div>
+      <div className="scroll mx-4 mt-5 min-h-0 flex-1 space-y-2.5 overflow-y-auto rounded-2xl bg-white/[.08] p-3 ring-1 ring-white/10">
+        <div className="flex items-center gap-1.5 text-meta font-bold uppercase tracking-wide text-white/70"><AudioLines className="h-4 w-4" aria-hidden />{t('live_transcript')}</div>
         {!call.agentSaid && !call.transcript && !call.theySaid && (
-          <p className="text-meta text-white/60">Nothing said yet.</p>
+          <p className="text-meta text-white/70">Nothing said yet.</p>
         )}
         {call.agentSaid && (
-          <Line who={handover ? 'Agent, to the clinic' : 'Agent'} text={call.agentSaid} />
+          <Line ai who={handover ? 'Agent, to the clinic' : 'Vantari · AI'} text={call.agentSaid} />
         )}
         {call.theySaid && <Line who={handover ? call.peer : 'You'} text={call.theySaid} />}
         {call.transcript && (
-          <div className="rounded-lg border border-[#BB8FCE]/50 bg-[#6C3483]/25 p-2">
-            <div className="text-meta font-semibold text-[#D7BDE2]">Gnani transcript · raw, unedited</div>
+          <div className="rounded-xl border border-[#C4B5FD]/50 bg-[#7C3AED]/25 p-2.5">
+            <div className="text-meta font-bold text-[#DDD6FE]">Gnani transcript · raw, unedited</div>
             <div className="mt-0.5 text-body">{call.transcript}</div>
             {call.gloss && (
-              <div className="mt-1.5 border-t border-white/15 pt-1.5 text-meta text-white/75">
+              <div className="mt-1.5 border-t border-white/15 pt-1.5 text-meta text-white/80">
                 <span className="font-semibold">Agent's note (English):</span> {call.gloss}
               </div>
             )}
@@ -153,15 +164,17 @@ export function CallView({ call, onClose, t = english }: { call: CallState; onCl
         {ringing ? (
           <button
             onClick={() => setAnswered(true)}
-            className="flex h-16 w-16 items-center justify-center rounded-full bg-[#1E8449] text-meta font-semibold shadow-lg"
+            aria-label={t('answer')}
+            className="flex flex-col items-center gap-1.5 text-meta font-semibold"
           >
+            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[#16A34A] shadow-lg"><Phone className="h-7 w-7" aria-hidden /></span>
             {t('answer')}
           </button>
         ) : (
-          <button
-            onClick={onClose}
-            className={`flex h-16 min-w-16 items-center justify-center rounded-full px-4 text-meta font-semibold shadow-lg ${live || call.phase === 'holding' ? 'bg-[#C0392B]' : 'bg-white/20'}`}
-          >
+          <button onClick={onClose} className="flex flex-col items-center gap-1.5 text-meta font-semibold">
+            <span className={cn('flex h-16 w-16 items-center justify-center rounded-full shadow-lg', live || call.phase === 'holding' ? 'bg-white/20' : 'bg-white/15')}>
+              {live || call.phase === 'holding' ? <Minimize2 className="h-6 w-6" aria-hidden /> : <X className="h-7 w-7" aria-hidden />}
+            </span>
             {live || call.phase === 'holding' ? t('hide') : t('close')}
           </button>
         )}
@@ -170,10 +183,12 @@ export function CallView({ call, onClose, t = english }: { call: CallState; onCl
   )
 }
 
-function Line({ who, text }: { who: string; text: string }) {
+function Line({ who, text, ai = false }: { who: string; text: string; ai?: boolean }) {
   return (
-    <div>
-      <div className="text-meta font-semibold text-white/60">{who}</div>
+    <div className={cn('rounded-xl px-2.5 py-2', ai ? 'bg-[#7C3AED]/20' : 'bg-white/10')}>
+      <div className={cn('flex items-center gap-1 text-meta font-bold', ai ? 'text-[#DDD6FE]' : 'text-[#FDE68A]')}>
+        {ai ? <Sparkles className="h-3.5 w-3.5" aria-hidden /> : <UserRound className="h-3.5 w-3.5" aria-hidden />}{who}
+      </div>
       <div className="text-body">{text}</div>
     </div>
   )
@@ -182,7 +197,8 @@ function Line({ who, text }: { who: string; text: string }) {
 /** A thin bar while a call is hidden, so it is never lost. */
 export function CallBar({ call, onOpen, t = english }: { call: CallState; onOpen: () => void; t?: T }) {
   return (
-    <button onClick={onOpen} className="w-full shrink-0 bg-[#1E8449] px-4 py-1.5 text-left text-meta font-semibold text-white">
+    <button onClick={onOpen} className="flex w-full shrink-0 items-center gap-2 bg-[#16A34A] px-4 py-2 text-left text-meta font-bold text-white">
+      <Phone className="h-4 w-4" aria-hidden />
       {PHASE_LINE[call.phase](call, t)} · {t('tap_to_return')}
     </button>
   )

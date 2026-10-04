@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowDown, Check, CheckCircle2, ChevronLeft, Clock3, Hand, Pause, SendHorizontal } from 'lucide-react'
 import { useSession } from '../lib/session'
 import { rupees, sendInput, sendReply } from '../lib/api'
 import type { Message } from '../lib/types'
-import { Avatar } from './FamilyChats'
+import { AgentAvatar, AiTag, HumanTag, PersonAvatar } from './brand'
+import { cn } from '../lib/utils'
 
 /**
  * The RP's 1:1 with the agent: where every escalation lands.
@@ -46,6 +48,10 @@ const english: T = (k) => ({ message: 'Message…', send: 'Send', no_messages: '
  * The one conversation with the agent. The Chat tab shows it inline; the
  * Family list opens the same thing with a back button. One component, so a
  * card looks and answers the same way wherever the person meets it.
+ *
+ * The agent's lines sit on the left with its sparkle avatar and an AI tag;
+ * the person's own lines sit on the right in the familiar green. Nobody
+ * watching has to guess which is which.
  */
 export function AgentChat({ memberId, onBack, t = english, onAnswer }: {
   memberId: string
@@ -83,14 +89,19 @@ export function AgentChat({ memberId, onBack, t = english, onAnswer }: {
   useEffect(() => { box.current?.scrollTo({ top: box.current.scrollHeight, behavior: 'smooth' }) }, [all.length])
 
   return (
-    <div className={`flex h-full flex-col bg-surface ${onBack ? 'slide-in' : ''}`}>
+    <div className={cn('flex h-full flex-col', onBack && 'slide-in')}>
       {onBack && (
-        <div className="flex shrink-0 items-center gap-2.5 border-b border-line bg-white px-2 py-2">
-          <button onClick={onBack} aria-label="Back" className="px-1 text-pane leading-none text-stage">‹</button>
-          <Avatar name="agent" agent size={34} />
-          <div className="min-w-0">
-            <div className="truncate text-body font-semibold">Family Health agent</div>
-            <div className="text-meta text-muted">{s.thinking ? t('working') : 'always on'}</div>
+        <div className="flex shrink-0 items-center gap-2.5 border-b border-line bg-white px-2 py-2.5 shadow-sm">
+          <button onClick={onBack} aria-label="Back" className="flex h-9 w-9 items-center justify-center rounded-full text-stage hover:bg-stage-bg">
+            <ChevronLeft className="h-6 w-6" aria-hidden />
+          </button>
+          <AgentAvatar size={38} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <span className="truncate text-body font-bold">Vantari</span>
+              <AiTag label="AI" />
+            </div>
+            <div className="text-meta text-muted">{s.thinking ? t('working') : 'your family health agent'}</div>
           </div>
         </div>
       )}
@@ -98,46 +109,74 @@ export function AgentChat({ memberId, onBack, t = english, onAnswer }: {
       {unanswered.length > 0 && (
         <button
           onClick={() => anchors.current[unanswered[0].id]?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-          className="shrink-0 border-b border-human/40 bg-human-bg px-3 py-2 text-left text-meta font-semibold text-human"
+          className="flex shrink-0 items-center gap-2 border-b border-human/30 bg-human-bg px-3 py-2 text-left text-meta font-bold text-human"
         >
-          {unanswered.length} decision{unanswered.length > 1 ? 's' : ''} waiting · tap to jump
+          <Hand className="h-4 w-4" aria-hidden />
+          {unanswered.length} decision{unanswered.length > 1 ? 's' : ''} waiting for you
+          <ArrowDown className="ml-auto h-4 w-4" aria-hidden />
         </button>
       )}
 
-      <div ref={box} className="scroll flex-1 overflow-y-auto px-3 py-2">
+      <div ref={box} className="chat-wall scroll flex-1 overflow-y-auto px-3 py-3">
         {all.length === 0 && <p className="mt-10 text-center text-body text-muted">{t('no_messages')}</p>}
-        {all.map((m) => {
+        {all.map((m, i) => {
           const mine = m.from !== 'agent'
+          // Group consecutive agent lines under one avatar, like a messaging app.
+          const firstOfRun = all[i - 1]?.from !== m.from
           return (
             <div key={m.id} ref={(el) => { anchors.current[m.id] = el }}
-              className={`mt-1.5 flex ${mine ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[88%] rounded-2xl px-2 py-1.5 shadow-sm ${mine ? 'rounded-tr-sm bg-record-bg' : 'rounded-tl-sm bg-white'}`}>
-                {m.text && <div className="px-1 pt-0.5 text-body">{m.text}</div>}
-                {m.action && <div className="px-1 text-body italic text-muted">you chose {m.action}</div>}
+              className={cn('flex items-end gap-2', firstOfRun ? 'mt-3' : 'mt-1', mine ? 'justify-end' : 'justify-start')}>
+              {!mine && (firstOfRun ? <AgentAvatar size={28} className="mb-0.5" /> : <div className="w-7 shrink-0" />)}
+              <div className={cn(
+                'max-w-[84%] rounded-2xl px-3 py-2 shadow-bubble',
+                mine ? 'rounded-br-md bg-chat-mine text-ink' : 'rounded-bl-md border border-ai/10 bg-white text-ink',
+              )}>
+                {!mine && firstOfRun && (
+                  <div className="mb-0.5 flex items-center gap-1 text-[12px] font-bold text-ai">Vantari · AI</div>
+                )}
+                {m.text && <div className="whitespace-pre-wrap text-body">{m.text}</div>}
+                {m.action && (
+                  <div className="flex items-center gap-1.5 text-body font-semibold text-[#166534]">
+                    <Check className="h-4 w-4" aria-hidden /> You chose {m.action}
+                  </div>
+                )}
                 {m.card && <DecisionCard message={m} who={memberId} onAnswer={onAnswer} />}
-                <div className="flex items-center justify-end gap-1 px-1 pt-0.5 text-meta text-muted">
-                  {hhmm(m.at)}{mine && <span className="text-record">✓✓</span>}
+                <div className="mt-0.5 flex items-center justify-end gap-1 text-[12px] text-muted">
+                  {hhmm(m.at)}{mine && <CheckCircle2 className="h-3.5 w-3.5 text-[#53BDEB]" aria-label="Delivered" />}
                 </div>
               </div>
+              {mine && firstOfRun && me && <PersonAvatar name={me.name} size={28} className="mb-0.5" />}
+              {mine && !firstOfRun && <div className="w-7 shrink-0" />}
             </div>
           )
         })}
-        {s.thinking && <div className="shimmer mt-2 px-1 text-meta text-muted">{t('working')}</div>}
+        {s.thinking && (
+          <div className="mt-3 flex items-center gap-2">
+            <AgentAvatar size={28} />
+            <div className="flex items-center gap-1 rounded-2xl rounded-bl-md bg-white px-3 py-2.5 shadow-bubble" aria-label={t('working')}>
+              <span className="h-2 w-2 animate-bounce rounded-full bg-ai [animation-delay:-0.3s]" />
+              <span className="h-2 w-2 animate-bounce rounded-full bg-ai [animation-delay:-0.15s]" />
+              <span className="h-2 w-2 animate-bounce rounded-full bg-ai" />
+            </div>
+          </div>
+        )}
       </div>
 
       {awaiting && (
-        <div className="shrink-0 border-t border-human/40 bg-human-bg px-3 py-1.5 text-meta text-human">
-          {t('waiting_on_you')} {awaiting.what_for}
+        <div className="flex shrink-0 items-center gap-2 border-t border-human/30 bg-human-bg px-3 py-2 text-meta font-semibold text-human">
+          <Hand className="h-4 w-4 shrink-0" aria-hidden />
+          <span className="truncate">{t('waiting_on_you')} {awaiting.what_for}</span>
         </div>
       )}
-      <div className="flex shrink-0 gap-2 border-t border-line bg-white p-2.5">
+      <div className="flex shrink-0 items-center gap-2 border-t border-line bg-white px-3 py-2.5">
         <input
           value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()}
           placeholder={t('message')} aria-label="Message the agent"
-          className="min-w-0 flex-1 rounded-full border border-line px-3 py-2 text-body"
+          className="min-w-0 flex-1 rounded-full border border-line bg-surface px-4 py-2.5 text-body"
         />
-        <button onClick={send} disabled={!text.trim()} className="shrink-0 rounded-full bg-stage px-4 text-body font-semibold text-white disabled:opacity-40">
-          {t('send')}
+        <button onClick={send} disabled={!text.trim()} aria-label={t('send')}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-stage text-white shadow-md disabled:opacity-40">
+          <SendHorizontal className="h-5 w-5" aria-hidden />
         </button>
       </div>
     </div>
@@ -158,6 +197,10 @@ const FACTS: Array<[string, string]> = [
   ['for', 'For'], ['payee', 'Chemist'],
 ]
 
+/**
+ * A question the agent asks a person. Amber while it waits on the human,
+ * green once they said yes, grey for a hold or a no.
+ */
 export function DecisionCard({ message, who, onAnswer }: { message: Message; who: string; onAnswer?: (answer: string, card: any) => void }) {
   const card = typeof message.card === 'string' ? safeParse(message.card) : message.card
   const [answer, setAnswer] = useState<string | null>(message.answer ?? null)
@@ -178,67 +221,78 @@ export function DecisionCard({ message, who, onAnswer }: { message: Message; who
   // transition is the proof on camera that a human said yes.
   const tone = !locked
     ? 'border-human/60 bg-human-bg'
-    : yes ? 'border-[#1E8449] bg-[#E9F7EF]' : 'border-line bg-artifact-bg'
+    : yes ? 'border-ok bg-ok-bg' : 'border-line bg-artifact-bg'
 
   return (
-    <div className={`mt-1 rounded-xl border-2 p-2.5 transition-colors ${tone}`}>
-      {locked && (
-        <div className={`mb-1.5 flex items-center gap-1.5 text-meta font-bold uppercase tracking-wide ${yes ? 'text-[#196F3D]' : 'text-muted'}`}>
-          <span aria-hidden>{yes ? '✓' : timedOut ? '⏱' : '–'}</span>
-          {timedOut ? 'No answer' : PAST[answer!.toLowerCase()] || answer}
-          {when && !timedOut && <span className="font-semibold normal-case tracking-normal">· {hhmm(when)}</span>}
-        </div>
-      )}
-      {title && <div className="text-body font-semibold text-ink">{title}</div>}
-      {card.amount_inr !== undefined && <div className="mt-0.5 text-app leading-tight text-ink tabular-nums">{rupees(card.amount_inr)}</div>}
-      {facts.length > 0 && (
-        <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 rounded-lg bg-white/80 px-2 py-1.5 text-meta">
-          {facts.map(([k, label]) => (
-            <div key={k} className="contents">
-              <dt className="text-muted">{label}</dt>
-              <dd className="font-semibold text-ink">{String(card[k])}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
-      {card.detail && <div className="mt-1 text-meta text-ink">{card.detail}</div>}
-      {card.wallet_left_inr !== undefined && (
-        <div className="mt-0.5 text-meta text-muted">Wallet after this: {rupees(card.wallet_left_inr)}</div>
-      )}
-      {card.options && (
-        <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-          {card.options.map((o: any, i: number) => (
-            <div key={i} className="rounded-lg bg-white p-1.5">
-              <div className="text-meta font-semibold uppercase tracking-wide text-muted">{o.label}</div>
-              <div className="text-meta text-ink">{o.value}</div>
-            </div>
-          ))}
-        </div>
-      )}
-      {card.why && <div className="mt-1.5 text-meta text-muted">{card.why}</div>}
+    <div className={cn('mt-1.5 overflow-hidden rounded-2xl border-2 transition-colors', tone)}>
+      <div className={cn('flex items-center justify-between gap-2 px-3 py-1.5', !locked ? 'bg-human-soft/70' : yes ? 'bg-[#DCFCE7]' : 'bg-secondary')}>
+        {locked ? (
+          <span className={cn('flex items-center gap-1.5 text-meta font-bold uppercase tracking-wide', yes ? 'text-ok' : 'text-muted')}>
+            {yes ? <CheckCircle2 className="h-4 w-4" aria-hidden /> : timedOut ? <Clock3 className="h-4 w-4" aria-hidden /> : <Pause className="h-4 w-4" aria-hidden />}
+            {timedOut ? 'No answer' : PAST[answer!.toLowerCase()] || answer}
+          </span>
+        ) : (
+          <span className="flex items-center gap-1.5 text-meta font-bold uppercase tracking-wide text-human"><Hand className="h-4 w-4" aria-hidden /> Your decision</span>
+        )}
+        <HumanTag label="Human" />
+      </div>
 
-      {locked ? (
-        <div className={`mt-2 rounded-lg bg-white px-2 py-1.5 text-meta font-semibold ${yes ? 'text-[#196F3D]' : 'text-muted'}`}>
-          {timedOut
-            ? `No answer: ${card.on_timeout || 'I followed my rule'}${timedOut === true ? '' : ` at ${hhmm(timedOut)}`}`
-            : `You chose ${answer}${when ? ` at ${hhmm(when)}` : ''}`}
-        </div>
-      ) : buttons.length > 0 ? (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {buttons.map((b, i) => (
-            <button key={b}
-              onClick={() => {
-                // The time arrives with the server's card_answered, on the sim clock.
-                setAnswer(b)
-                sendReply(who, undefined, b, message.id)
-                onAnswer?.(b, card)
-              }}
-              className={`flex-1 whitespace-nowrap rounded-lg border-2 px-2 py-2.5 text-body font-semibold ${i === 0 ? 'border-human bg-human text-white' : 'border-human bg-white text-human'}`}>
-              {b}
-            </button>
-          ))}
-        </div>
-      ) : null}
+      <div className="p-3">
+        {title && <div className="text-body font-bold text-ink">{title}</div>}
+        {card.amount_inr !== undefined && <div className="mt-0.5 font-display text-app leading-tight text-ink tabular-nums">{rupees(card.amount_inr)}</div>}
+        {facts.length > 0 && (
+          <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-xl bg-white px-3 py-2 text-meta">
+            {facts.map(([k, label]) => (
+              <div key={k} className="contents">
+                <dt className="text-muted">{label}</dt>
+                <dd className="font-semibold text-ink">{String(card[k])}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+        {card.detail && <div className="mt-1.5 text-meta text-ink">{card.detail}</div>}
+        {card.wallet_left_inr !== undefined && (
+          <div className="mt-1 text-meta text-muted">Wallet after this: <b className="text-ink">{rupees(card.wallet_left_inr)}</b></div>
+        )}
+        {card.options && (
+          <div className="mt-2 grid grid-cols-2 gap-1.5">
+            {card.options.map((o: any, i: number) => (
+              <div key={i} className="rounded-xl bg-white p-2">
+                <div className="text-meta font-semibold uppercase tracking-wide text-muted">{o.label}</div>
+                <div className="text-meta text-ink">{o.value}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {card.why && <div className="mt-2 flex gap-1.5 text-meta text-muted"><span className="font-bold text-ai">Why:</span> {card.why}</div>}
+
+        {locked ? (
+          <div className={cn('mt-2.5 flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-meta font-semibold', yes ? 'text-ok' : 'text-muted')}>
+            {timedOut
+              ? `No answer: ${card.on_timeout || 'I followed my rule'}${timedOut === true ? '' : ` at ${hhmm(timedOut)}`}`
+              : `You chose ${answer}${when ? ` at ${hhmm(when)}` : ''}`}
+          </div>
+        ) : buttons.length > 0 ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {buttons.map((b, i) => (
+              <button key={b}
+                onClick={() => {
+                  // The time arrives with the server's card_answered, on the sim clock.
+                  setAnswer(b)
+                  sendReply(who, undefined, b, message.id)
+                  onAnswer?.(b, card)
+                }}
+                className={cn(
+                  'flex h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-body font-bold',
+                  i === 0 ? 'bg-human text-white shadow-md hover:bg-human/90' : 'border-2 border-human bg-white text-human hover:bg-human-bg',
+                )}>
+                {i === 0 && YES.has(b.toLowerCase()) && <Check className="h-5 w-5" aria-hidden />}
+                {b}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }

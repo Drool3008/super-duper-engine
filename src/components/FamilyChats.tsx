@@ -3,33 +3,29 @@ import { useSession } from '../lib/session'
 import { forwardToAgent, sendChat } from '../lib/api'
 import type { Message } from '../lib/types'
 import { AgentChat } from './AgentChat'
+import { AtSign, ChevronLeft, CheckCheck, FileText, Forward, MoreVertical, Pin, SendHorizontal, Sparkles, Users, X } from 'lucide-react'
+import { AgentAvatar, PersonAvatar, toneFor } from './brand'
+import { cn } from '../lib/utils'
 
 /**
  * A familiar family-chat layout: list, then thread. Deliberately our own
  * palette and no borrowed brand marks, but the shape people already know.
  */
 
-const AVATAR_TONES = ['#6C3483', '#1E8449', '#CB4335', '#1F4E79', '#7D6608', '#2874A6']
-export const toneFor = (s: string) => AVATAR_TONES[[...s].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_TONES.length]
-export const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+export { toneFor, initials } from './brand'
 
-export function Avatar({ name, size = 40, agent = false }: { name: string; size?: number; agent?: boolean }) {
-  return (
-    <div
-      className="flex shrink-0 items-center justify-center rounded-full font-semibold text-white"
-      style={{ width: size, height: size, background: agent ? '#1F4E79' : toneFor(name), fontSize: size * 0.36 }}
-    >
-      {agent ? <AgentGlyph size={size * 0.52} /> : initials(name)}
-    </div>
-  )
+/** One avatar for every list and header: the agent's sparkle, a group, or a person. */
+export function Avatar({ name, size = 40, agent = false, group = false }: { name: string; size?: number; agent?: boolean; group?: boolean }) {
+  if (agent) return <AgentAvatar size={size} />
+  if (group) {
+    return (
+      <div className="flex shrink-0 items-center justify-center rounded-full bg-[#0F766E] text-white" style={{ width: size, height: size }} aria-hidden>
+        <Users style={{ width: size * 0.5, height: size * 0.5 }} />
+      </div>
+    )
+  }
+  return <PersonAvatar name={name} size={size} />
 }
-
-const AgentGlyph = ({ size }: { size: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
-    <path d="M12 3.2 4.6 6.4v5c0 4.4 3.1 8.1 7.4 9.4 4.3-1.3 7.4-5 7.4-9.4v-5L12 3.2Z" stroke="#fff" strokeWidth="1.7" strokeLinejoin="round" />
-    <path d="M9 12.1h6M12 9.1v6" stroke="#fff" strokeWidth="1.7" strokeLinecap="round" />
-  </svg>
-)
 
 /**
  * Must match chatKey() in server/state.js. A group keeps its own id; a direct
@@ -124,12 +120,14 @@ function ChatList({ chats, memberId, nameOf, onOpen }: any) {
         const preview = last ? (last.text || last.caption || (last.media ? (last.media.type === 'pdf' ? 'Document' : 'Photo') : '')) : 'No messages yet'
         return (
           <button key={c.id} onClick={() => onOpen(c.id)}
-            className="flex w-full items-center gap-3 border-b border-line px-3 py-2.5 text-left hover:bg-surface">
-            <Avatar name={c.name} agent={isAgent} />
+            className={cn('flex w-full items-center gap-3 border-b border-line px-4 py-3 text-left hover:bg-surface', isAgent && 'bg-brand-soft')}>
+            <Avatar name={c.name} agent={isAgent} group={c.kind === 'group'} size={46} />
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline justify-between gap-2">
-                <span className="truncate text-body font-semibold">
-                  {c.name}{c.pinned && <span className="ml-1.5 text-meta font-normal text-muted">pinned</span>}
+                <span className="flex min-w-0 items-center gap-1.5 truncate text-body font-bold text-ink">
+                  <span className="truncate">{isAgent ? 'Vantari' : c.name}</span>
+                  {isAgent && <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-ai-soft px-1.5 text-[12px] font-bold text-ai-deep"><Sparkles className="h-3 w-3" aria-hidden />AI</span>}
+                  {c.pinned && <Pin className="h-3.5 w-3.5 shrink-0 text-muted" aria-label="pinned" />}
                 </span>
                 {last && <span className="shrink-0 text-meta text-muted">{listStamp(last.at, now)}</span>}
               </div>
@@ -138,7 +136,7 @@ function ChatList({ chats, memberId, nameOf, onOpen }: any) {
                   {!isAgent && c.kind === 'group' && last ? `${last.from === 'agent' ? 'Agent' : nameOf(last.from)}: ` : ''}{preview}
                 </span>
                 {isAgent && waiting > 0 && (
-                  <span className="ml-auto shrink-0 rounded-full bg-human px-1.5 text-meta font-bold text-white">{waiting}</span>
+                  <span className="ml-auto min-w-[20px] shrink-0 rounded-full bg-human px-1.5 text-center text-meta font-bold text-white" aria-label={`${waiting} decisions waiting`}>{waiting}</span>
                 )}
               </div>
             </div>
@@ -175,12 +173,14 @@ function ChatScreen({ chat, memberId, nameOf, onBack }: any) {
   let lastDay = ''
 
   return (
-    <div className="slide-in relative flex h-full flex-col bg-surface">
-      <div className="flex shrink-0 items-center gap-2.5 border-b border-line bg-white px-2 py-2">
-        <button onClick={onBack} aria-label="Back" className="px-1 text-pane leading-none text-stage">‹</button>
-        <Avatar name={chat.name} size={34} />
+    <div className="slide-in relative flex h-full flex-col">
+      <div className="flex shrink-0 items-center gap-2.5 border-b border-line bg-white px-2 py-2.5 shadow-sm">
+        <button onClick={onBack} aria-label="Back" className="flex h-9 w-9 items-center justify-center rounded-full text-stage hover:bg-stage-bg">
+          <ChevronLeft className="h-6 w-6" aria-hidden />
+        </button>
+        <Avatar name={chat.name} group={isGroup} size={38} />
         <div className="min-w-0">
-          <div className="truncate text-body font-semibold">{chat.name}</div>
+          <div className="truncate text-body font-bold">{chat.name}</div>
           {isGroup && (
             <div className="truncate text-meta text-muted">
               {groupMembers(s.onboarding?.family?.members || [], memberId)}, Family Health agent
@@ -189,7 +189,7 @@ function ChatScreen({ chat, memberId, nameOf, onBack }: any) {
         </div>
       </div>
 
-      <div ref={box} className="scroll flex-1 overflow-y-auto px-3 py-2">
+      <div ref={box} className="chat-wall scroll flex-1 overflow-y-auto px-3 py-3">
         {messages.map((m: any) => {
           const key = dayKey(m.at)
           const sep = key !== lastDay ? ((lastDay = key), daySeparator(m.at, now)) : null
@@ -199,26 +199,34 @@ function ChatScreen({ chat, memberId, nameOf, onBack }: any) {
             <div key={m.id}>
               {sep && (
                 <div className="my-3 flex justify-center">
-                  <span className="rounded-full bg-white px-2.5 py-0.5 text-meta text-muted shadow-sm">{sep}</span>
+                  <span className="rounded-lg bg-white/90 px-3 py-1 text-meta font-semibold text-muted shadow-bubble">{sep}</span>
                 </div>
               )}
-              <div className={`mt-1.5 flex ${mine ? 'justify-end' : 'justify-start'}`}>
+              <div className={cn('mt-2 flex items-end gap-2', mine ? 'justify-end' : 'justify-start')}>
+                {!mine && isGroup && (fromAgent ? <AgentAvatar size={28} className="mb-0.5" /> : <PersonAvatar name={nameOf(m.from)} size={28} className="mb-0.5" />)}
                 <div onContextMenu={(e) => { if (!fromAgent) { e.preventDefault(); setSheet(m) } }}
-                  className={`group relative max-w-[86%] rounded-2xl px-2 py-1.5 shadow-sm ${mine ? 'rounded-tr-sm bg-record-bg' : fromAgent ? 'rounded-tl-sm border-l-[3px] border-stage bg-stage-bg' : 'rounded-tl-sm bg-white'}`}>
+                  className={cn(
+                    'group relative max-w-[82%] rounded-2xl px-2.5 py-1.5 shadow-bubble',
+                    mine ? 'rounded-br-md bg-chat-mine' : fromAgent ? 'rounded-bl-md border border-ai/25 bg-ai-bg' : 'rounded-bl-md bg-white',
+                  )}>
                   {!mine && isGroup && (
                     fromAgent
-                      ? <div className="flex items-center gap-1 px-1 text-meta font-semibold text-stage"><Avatar name="agent" agent size={16} />Family Health agent</div>
-                      : <div className="px-1 text-meta font-semibold" style={{ color: toneFor(nameOf(m.from)) }}>{nameOf(m.from)}</div>
+                      ? <div className="flex items-center gap-1 px-1 text-[12px] font-bold text-ai"><Sparkles className="h-3 w-3" aria-hidden />Vantari · AI agent</div>
+                      : <div className="px-1 text-[12px] font-bold" style={{ color: toneFor(nameOf(m.from)) }}>{nameOf(m.from)}</div>
                   )}
-                  {m.to_agent && <div className="px-1 text-meta font-semibold text-stage">to the agent</div>}
+                  {m.to_agent && <div className="flex items-center gap-1 px-1 text-[12px] font-bold text-ai"><AtSign className="h-3 w-3" aria-hidden />to Vantari</div>}
                   {m.media && <MediaBlock media={m.media} onOpen={() => setViewer(m.media)} />}
-                  {(m.caption || m.text) && <div className="px-1 pt-1 text-body">{m.caption || m.text}</div>}
+                  {(m.caption || m.text) && <div className="px-1 pt-0.5 text-body text-ink">{m.caption || m.text}</div>}
                   {forwarded[m.id] && (
-                    <div className="mx-1 mt-1 inline-block rounded bg-record-bg px-1.5 text-meta font-semibold text-record">Forwarded to agent ✓</div>
+                    <div className="mx-1 mt-1 inline-flex items-center gap-1 rounded-full bg-ai-soft px-2 py-0.5 text-[12px] font-bold text-ai-deep"><Forward className="h-3 w-3" aria-hidden />Sent to Vantari</div>
                   )}
-                  <div className="flex items-center justify-end gap-1 px-1 pt-0.5 text-meta text-muted">
-                    {hhmm(m.at)}{mine && <span className="text-record">✓✓</span>}
-                    {!fromAgent && <button onClick={() => setSheet(m)} aria-label="More" className="ml-1 px-1 font-bold text-muted">⋯</button>}
+                  <div className="flex items-center justify-end gap-1 px-1 pt-0.5 text-[12px] text-muted">
+                    {hhmm(m.at)}{mine && <CheckCheck className="h-4 w-4 text-[#53BDEB]" aria-label="Read" />}
+                    {!fromAgent && (
+                      <button onClick={() => setSheet(m)} aria-label="Message options" className="-mr-1 ml-0.5 rounded-full p-0.5 text-muted hover:bg-black/5">
+                        <MoreVertical className="h-4 w-4" aria-hidden />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -227,31 +235,32 @@ function ChatScreen({ chat, memberId, nameOf, onBack }: any) {
         })}
       </div>
 
-      <div className="flex shrink-0 items-center gap-2 border-t border-line bg-white p-2">
+      <div className="flex shrink-0 items-center gap-2 border-t border-line bg-white px-3 py-2.5">
         {isGroup && (
           <button
             onClick={() => setAskAgent((v) => !v)}
             aria-pressed={askAgent}
-            title="Address this message to the Family Health agent"
-            className={`shrink-0 rounded-full border px-2.5 py-1.5 text-meta font-semibold ${askAgent ? 'border-stage bg-stage text-white' : 'border-stage/40 text-stage'}`}
+            title="Address this message to Vantari, the AI agent"
+            className={cn('flex h-10 shrink-0 items-center gap-1 rounded-full px-3 text-meta font-bold transition-colors', askAgent ? 'bg-brand text-white shadow-md' : 'bg-ai-bg text-ai')}
           >
-            @agent
+            <Sparkles className="h-4 w-4" aria-hidden /> Ask AI
           </button>
         )}
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && send()}
-          placeholder={askAgent ? 'Ask the agent…' : 'Message'}
+          placeholder={askAgent ? 'Ask Vantari…' : 'Message…'}
           aria-label={`Message ${chat.name}`}
-          className="min-w-0 flex-1 rounded-full border border-line px-3 py-1.5 text-body"
+          className={cn('min-w-0 flex-1 rounded-full border bg-surface px-4 py-2.5 text-body', askAgent ? 'border-ai/50' : 'border-line')}
         />
         <button
           onClick={send}
           disabled={!draft.trim()}
-          className="shrink-0 rounded-full bg-stage px-3 py-1.5 text-meta font-semibold text-white disabled:opacity-40"
+          aria-label="Send"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-stage text-white shadow-md disabled:opacity-40"
         >
-          Send
+          <SendHorizontal className="h-5 w-5" aria-hidden />
         </button>
       </div>
 
@@ -277,7 +286,7 @@ function MediaBlock({ media, onOpen }: { media: any; onOpen: () => void }) {
   }
   return (
     <button onClick={onOpen} className="flex w-full items-center gap-2.5 rounded-xl bg-artifact-bg px-2.5 py-2 text-left">
-      <div className="flex h-10 w-9 shrink-0 items-center justify-center rounded bg-decision text-[12px] font-bold text-white">PDF</div>
+      <div className="flex h-10 w-9 shrink-0 flex-col items-center justify-center rounded-lg bg-decision text-[10px] font-bold text-white"><FileText className="h-4 w-4" aria-hidden />PDF</div>
       <div className="min-w-0">
         <div className="truncate text-meta font-semibold">{media.name}</div>
         <div className="text-meta text-muted">{media.pages} page · {media.size_kb} kB</div>
@@ -291,7 +300,7 @@ function Viewer({ media, onClose }: { media: any; onClose: () => void }) {
     <div className="absolute inset-0 z-50 flex flex-col bg-black/92">
       <div className="flex items-center justify-between px-3 py-2 text-white">
         <span className="truncate text-meta">{media.name}</span>
-        <button onClick={onClose} aria-label="Close" className="px-2 text-pane leading-none">×</button>
+        <button onClick={onClose} aria-label="Close" className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-white/10"><X className="h-6 w-6" aria-hidden /></button>
       </div>
       <div className="scroll flex-1 overflow-auto p-3">
         <img src={media.type === 'pdf' ? media.thumb : media.src} alt={media.type === 'pdf' ? `${media.name}, page 1` : media.name || 'Photo'} className="mx-auto w-full rounded-lg bg-white" />
@@ -312,7 +321,7 @@ function ForwardSheet({ message, chat, memberId, nameOf, onClose, onDone }: any)
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line" />
         {canForward ? (
           <>
-            <div className="text-card">Forward to Family Health agent</div>
+            <div className="flex items-center gap-2 text-card"><AgentAvatar size={30} /> Send to Vantari</div>
             <p className="mt-1 text-meta text-muted">
               The agent only sees what you send it. It will read this {message.media.type === 'pdf' ? 'document' : 'photo'} and your note.
             </p>

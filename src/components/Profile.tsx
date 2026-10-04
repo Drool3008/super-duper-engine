@@ -1,3 +1,4 @@
+import { ChevronLeft, HeartPulse, PhoneCall, Pill, Stethoscope, Wallet as WalletIcon } from 'lucide-react'
 import { rupees } from '../lib/api'
 import { dateIn } from '../lib/i18n'
 
@@ -32,9 +33,9 @@ export function Profile({ me, onboarding, clock, isRP, t, onClose }: {
   const lang = me.language
 
   return (
-    <div className="slide-in absolute inset-0 z-40 flex flex-col bg-white" role="dialog" aria-label={t('profile_title')}>
-      <div className="flex shrink-0 items-center gap-2 border-b border-line px-2 py-2">
-        <button onClick={onClose} aria-label={t('back')} className="px-1 text-pane leading-none text-stage">‹</button>
+    <div className="slide-in absolute inset-0 z-40 flex flex-col bg-surface" role="dialog" aria-label={t('profile_title')}>
+      <div className="flex shrink-0 items-center gap-2 border-b border-line bg-white px-2 py-2.5 shadow-sm">
+        <button onClick={onClose} aria-label={t('back')} className="flex h-9 w-9 items-center justify-center rounded-full text-stage hover:bg-stage-bg"><ChevronLeft className="h-6 w-6" aria-hidden /></button>
         <div>
           <div className="text-body font-semibold">{t('profile_title')}</div>
           <div className="text-meta text-muted">{t('profile_sub')}</div>
@@ -42,14 +43,14 @@ export function Profile({ me, onboarding, clock, isRP, t, onClose }: {
       </div>
 
       <div className="scroll min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-        <Section title={t('conditions')}>
+        <Section icon={HeartPulse} tone="bg-[#FFE4E6] text-[#BE123C]" title={t('conditions')}>
           {conditions.length === 0 && <Empty />}
           {conditions.map((c: any, i: number) => (
             <Row key={i} main={c.label} sub={[isRP && c.member !== me.id ? nameOf(c.member) : null, c.since && t('since', { d: c.since })].filter(Boolean).join(' · ')} />
           ))}
         </Section>
 
-        <Section title={t('medicines')}>
+        <Section icon={Pill} tone="bg-stage-bg text-stage" title={t('medicines')}>
           {meds.length === 0 && <Empty />}
           {meds.map((m: any) => {
             const days = m.daily_dose ? Math.floor(m.pills_left / m.daily_dose) : null
@@ -68,13 +69,13 @@ export function Profile({ me, onboarding, clock, isRP, t, onClose }: {
           })}
         </Section>
 
-        <Section title={t('doctor')}>
+        <Section icon={Stethoscope} tone="bg-[#E6FFFB] text-[#0F766E]" title={t('doctor')}>
           {onboarding?.red_flags?.set_by ? <Row main={onboarding.red_flags.set_by} /> : <Empty />}
           {clinics.length > 0 && <div className="mt-2 text-meta font-semibold text-muted">{t('clinics')}</div>}
           {clinics.map((c) => <Row key={c.rank} main={`${c.rank}. ${c.name}`} sub={c.phone} />)}
         </Section>
 
-        <Section title={t('contacts')}>
+        <Section icon={PhoneCall} tone="bg-human-bg text-human" title={t('contacts')}>
           {order.map((id, i) => {
             const m = members.find((x) => x.id === id)
             return <Row key={id} main={`${i + 1}. ${m?.name || id}${id === me.id ? ' (you)' : ''}`} sub={[m?.role?.replace('_', ' '), m?.phone].filter(Boolean).join(' · ')} />
@@ -82,7 +83,7 @@ export function Profile({ me, onboarding, clock, isRP, t, onClose }: {
         </Section>
 
         {isRP && onboarding?.wallet && (
-          <Section title={t('spend')}>
+          <Section icon={WalletIcon} tone="bg-ok-bg text-ok" title={t('spend')}>
             <Row main={`${rupees(onboarding.wallet.limit_inr)} wallet`} sub={`asks you above ${rupees(onboarding.wallet.major_spend_threshold_inr)} · top up below ${onboarding.wallet.low_wallet_pct}%`} />
           </Section>
         )}
@@ -91,10 +92,10 @@ export function Profile({ me, onboarding, clock, isRP, t, onClose }: {
   )
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, icon: Icon, tone }: { title: string; children: React.ReactNode; icon: any; tone: string }) {
   return (
     <section>
-      <h2 className="text-meta font-semibold uppercase tracking-wide text-muted">{title}</h2>
+      <h2 className="flex items-center gap-2 font-sans text-meta font-bold uppercase tracking-wide text-muted"><span className={`flex h-6 w-6 items-center justify-center rounded-lg ${tone}`}><Icon className="h-3.5 w-3.5" aria-hidden /></span>{title}</h2>
       <div className="mt-1.5 space-y-1.5">{children}</div>
     </section>
   )
@@ -102,7 +103,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Row({ main, sub }: { main: string; sub?: string }) {
   return (
-    <div className="rounded-lg border border-line px-3 py-2">
+    <div className="rounded-xl bg-white px-3.5 py-2.5 shadow-card">
       <div className="text-body">{main}</div>
       {sub && <div className="text-meta text-muted">{sub}</div>}
     </div>

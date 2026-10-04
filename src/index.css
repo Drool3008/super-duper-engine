@@ -9,15 +9,50 @@ html[data-present='on'] { font-size: 18.4px; }
 body {
   margin: 0;
   background: #fff;
-  color: #1B2A33;
+  color: #0F172A;
   font-family: Inter, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+/* shadcn/ui tokens, as HSL triplets for Tailwind 3. Values match the app
+   palette in tailwind.config.js. */
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 243 57% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 23% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --accent: 263 100% 97%;
+    --accent-foreground: 263 70% 50%;
+    --destructive: 0 74% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 230 18% 92%;
+    --ring: 243 57% 50%;
+    --radius: 0.75rem;
+  }
+  * { border-color: hsl(var(--border)); }
+}
+
+h1, h2, .font-display { font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif; }
+
+/* The family-chat wallpaper: warm, with a faint dot texture, like the
+   messaging apps people already use. */
+.chat-wall {
+  background-color: #EFEAE2;
+  background-image: radial-gradient(rgba(15, 23, 42, .06) 1px, transparent 1px);
+  background-size: 18px 18px;
 }
 
 /* Phone frame, about twenty lines of our own CSS instead of a dependency. */
 .phone {
   border-radius: 28px;
-  border: 10px solid #2C3A42;
+  border: 10px solid #1E1B4B;
   background: #fff;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .18), 0 8px 28px rgba(27, 42, 51, .14);
   position: relative;
@@ -28,7 +63,7 @@ body {
   position: absolute;
   top: 0; left: 50%; transform: translateX(-50%);
   width: 38%; height: 18px;
-  background: #2C3A42;
+  background: #1E1B4B;
   border-radius: 0 0 12px 12px;
   z-index: 2;
 }
@@ -40,7 +75,7 @@ body {
 .fadein { animation: fadein .15s ease-out; }
 
 .scroll::-webkit-scrollbar { width: 10px; height: 10px; }
-.scroll::-webkit-scrollbar-thumb { background: #D6DDE3; border-radius: 6px; }
+.scroll::-webkit-scrollbar-thumb { background: #CBD0DC; border-radius: 6px; }
 .scroll::-webkit-scrollbar-track { background: transparent; }
 
 @keyframes notifyIn  { from { transform: translateY(-120%); opacity: 0 } to { transform: none; opacity: 1 } }
@@ -67,7 +102,7 @@ body {
 }
 
 /* Keyboard focus is always visible; a mouse click does not draw the ring. */
-:focus-visible { outline: 2px solid #1F4E79; outline-offset: 2px; border-radius: 4px; }
+:focus-visible { outline: 2px solid #4338CA; outline-offset: 2px; border-radius: 4px; }
 .bg-stage:focus-visible, .bg-human:focus-visible, .bg-decision:focus-visible { outline-color: #1B2A33; }
 
 /* Respect the system setting: no looping shimmer, no slides. */

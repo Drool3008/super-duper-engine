@@ -17,7 +17,7 @@ export function PhoneScreen({ memberId, scale = 1, label }: { memberId: string; 
     const forMe = m.from === 'agent' && (m.to === memberId || m.to === 'family_group')
     if (!forMe) return
     setNotification({
-      title: m.to === 'family_group' ? 'Family group' : 'Family Health agent',
+      title: m.to === 'family_group' ? 'AI agent in the family group' : 'Your AI agent',
       body: m.text || 'New message',
     })
     const t = setTimeout(() => setNotification(null), 4200)

@@ -1,4 +1,9 @@
 import { useState } from 'react'
+import {
+  AlertTriangle, ArrowDownLeft, ArrowUpRight, BatteryLow, Hand, History, Lock, Plus, ReceiptText, ShieldCheck, SlidersHorizontal, Wallet as WalletIcon,
+} from 'lucide-react'
+import { Button } from './ui/button'
+import { cn } from '../lib/utils'
 import { rupees, topUpWallet, updateWallet } from '../lib/api'
 import type { TimelineItem } from '../lib/types'
 
@@ -35,35 +40,51 @@ export function Wallet({ wallet, settings, timeline, onSheet }: {
     .map((t) => t.result)
 
   return (
-    <div className="scroll h-full overflow-y-auto p-4">
-      <h2 className="text-card">Wallet</h2>
-      <p className="mt-0.5 text-meta text-muted">Only you can see or change this.</p>
-
-      <div className="mt-3 rounded-xl border border-line p-4">
-        <div className="text-app tabular-nums">{rupees(left)}</div>
-        <div className="text-meta text-muted">left of {rupees(wallet.limit)} · spent {rupees(wallet.spent)}</div>
-        <div className="mt-2 h-2 overflow-hidden rounded bg-artifact-bg" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)} aria-label="Wallet left">
-          <div className="h-full rounded" style={{ width: pct + '%', background: low ? '#C0392B' : '#1E8449' }} />
+    <div className="scroll h-full space-y-5 overflow-y-auto px-4 pb-6 pt-4">
+      {/* The balance as a card, the way banking apps show money. */}
+      <div className="relative overflow-hidden rounded-3xl bg-brand p-5 text-white shadow-float">
+        <div className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-white/10" aria-hidden />
+        <div className="pointer-events-none absolute -bottom-16 -left-8 h-36 w-36 rounded-full bg-white/10" aria-hidden />
+        <div className="relative flex items-center justify-between text-meta font-semibold text-white/85">
+          <span className="flex items-center gap-1.5"><WalletIcon className="h-4 w-4" aria-hidden /> Family wallet</span>
+          <span className="flex items-center gap-1"><Lock className="h-3.5 w-3.5" aria-hidden /> Only you</span>
         </div>
-        {low && <div className="mt-2 text-meta font-semibold text-decision">Below your {lowPct}% mark. Your agent will ask you to top up before the next spend.</div>}
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <button onClick={() => onSheet('topup')} className="rounded-lg bg-stage py-2.5 text-body font-semibold text-white">Top up</button>
-          <button onClick={() => onSheet('edit')} className="rounded-lg border border-stage py-2.5 text-body font-semibold text-stage">Edit limits</button>
+        <div className="relative mt-3 font-display text-[34px] font-extrabold leading-none tabular-nums">{rupees(left)}</div>
+        <div className="relative mt-1 text-meta text-white/85">left of {rupees(wallet.limit)} · spent {rupees(wallet.spent)}</div>
+        <div className="relative mt-3 h-2 overflow-hidden rounded-full bg-white/25" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)} aria-label="Wallet left">
+          <div className={cn('h-full rounded-full', low ? 'bg-[#FCA5A5]' : 'bg-[#6EE7B7]')} style={{ width: pct + '%' }} />
         </div>
       </div>
 
-      <div className="mt-3 rounded-xl bg-stage-bg p-3 text-meta text-stage">
-        {threshold !== undefined && <div>Your agent asks you before any single spend above <b>{rupees(threshold)}</b>.</div>}
-        <div className="mt-0.5">It asks you to top up when less than <b>{lowPct}%</b> is left.</div>
+      <div className="grid grid-cols-2 gap-2.5">
+        <Button variant="default" size="touch" onClick={() => onSheet('topup')}><Plus aria-hidden /> Top up</Button>
+        <Button variant="outline" size="touch" className="border-2 border-stage/30 text-stage" onClick={() => onSheet('edit')}><SlidersHorizontal aria-hidden /> Edit limits</Button>
+      </div>
+
+      {low && (
+        <div className="flex items-start gap-2 rounded-2xl bg-decision-bg p-3 text-meta font-semibold text-decision">
+          <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden /> Below your {lowPct}% mark. Your agent will ask you to top up before the next spend.
+        </div>
+      )}
+
+      <div className="rounded-2xl bg-white p-3.5 shadow-card">
+        <div className="flex items-center gap-2 text-meta font-bold text-ink">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-ai-bg text-ai"><ShieldCheck className="h-4 w-4" aria-hidden /></span>
+          When the AI agent must ask you
+        </div>
+        <ul className="mt-2 space-y-1.5 text-meta text-muted">
+          {threshold !== undefined && <li className="flex gap-2"><Hand className="mt-0.5 h-4 w-4 shrink-0 text-human" aria-hidden /><span>Before any single spend above <b className="text-ink">{rupees(threshold)}</b></span></li>}
+          <li className="flex gap-2"><BatteryLow className="mt-0.5 h-4 w-4 shrink-0 text-human" aria-hidden /><span>To top up when less than <b className="text-ink">{lowPct}%</b> is left</span></li>
+        </ul>
       </div>
 
       {receipts.length > 0 && (
-        <>
-          <h3 className="mt-4 text-meta font-semibold uppercase tracking-wide text-muted">Itemised receipts</h3>
+        <section>
+          <h3 className="flex items-center gap-2 text-meta font-bold uppercase tracking-wide text-muted"><ReceiptText className="h-4 w-4 text-ok" aria-hidden /> Itemised receipts</h3>
           {receipts.map((r: any) => (
-            <div key={r.transaction_id} className="mt-2 rounded-lg border border-[#1E8449]/40 bg-[#E9F7EF] px-3 py-2">
+            <div key={r.transaction_id} className="mt-2 rounded-2xl border border-ok/30 bg-ok-bg px-3.5 py-2.5">
               <div className="flex items-baseline justify-between text-meta text-muted">
-                <span>{r.transaction_id}</span><span className="font-semibold text-ink">{rupees(r.amount_inr)}</span>
+                <span>{r.transaction_id}</span><span className="font-bold text-ink">{rupees(r.amount_inr)}</span>
               </div>
               {r.line_items.length === 0 && <div className="text-meta text-decision">{r.message || 'No line items sent.'}</div>}
               {r.line_items.map((li: any, i: number) => (
@@ -76,31 +97,37 @@ export function Wallet({ wallet, settings, timeline, onSheet }: {
               ))}
             </div>
           ))}
-        </>
+        </section>
       )}
 
-      <h3 className="mt-4 text-meta font-semibold uppercase tracking-wide text-muted">Activity</h3>
-      {rows.length === 0 && <p className="mt-1 text-body text-muted">Nothing spent yet.</p>}
-      {shown.map((r: any, i: number) => {
-        const topup = r.kind === 'topup'
-        return (
-          <div key={i} className="mt-2 flex items-baseline justify-between gap-3 rounded-lg border border-line px-3 py-2">
-            <div className="min-w-0">
-              <div className="truncate text-body">{r.payee}</div>
-              <div className="text-meta text-muted">{[r.what, r.for && `for ${r.for}`].filter(Boolean).join(' · ')}</div>
-              {r.at && <div className="text-meta text-muted">{dateTime(r.at)}</div>}
-            </div>
-            <div className={`shrink-0 text-body font-semibold tabular-nums ${topup ? 'text-[#196F3D]' : ''}`}>
-              {topup ? '+' : '−'}{rupees(r.amount_inr)}
-            </div>
-          </div>
-        )
-      })}
-      {rows.length > 5 && (
-        <button onClick={() => setShowAll((v) => !v)} className="mt-2 w-full rounded-lg py-2 text-meta font-semibold text-stage">
-          {showAll ? 'Show fewer' : `Show all ${rows.length}`}
-        </button>
-      )}
+      <section>
+        <h3 className="flex items-center gap-2 text-meta font-bold uppercase tracking-wide text-muted"><History className="h-4 w-4" aria-hidden /> Activity</h3>
+        {rows.length === 0 && <p className="mt-2 text-body text-muted">Nothing spent yet.</p>}
+        <div className={cn('mt-2 divide-y divide-line overflow-hidden rounded-2xl bg-white shadow-card', rows.length === 0 && 'hidden')}>
+          {shown.map((r: any, i: number) => {
+            const topup = r.kind === 'topup'
+            return (
+              <div key={i} className="flex items-center gap-3 px-3.5 py-3">
+                <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-full', topup ? 'bg-ok-bg text-ok' : 'bg-stage-bg text-stage')}>
+                  {topup ? <ArrowDownLeft className="h-4 w-4" aria-hidden /> : <ArrowUpRight className="h-4 w-4" aria-hidden />}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-body font-semibold text-ink">{r.payee}</div>
+                  <div className="truncate text-meta text-muted">{[r.what, r.for && `for ${r.for}`, r.at && dateTime(r.at)].filter(Boolean).join(' · ')}</div>
+                </div>
+                <div className={cn('shrink-0 text-body font-bold tabular-nums', topup ? 'text-ok' : 'text-ink')}>
+                  {topup ? '+' : '−'}{rupees(r.amount_inr)}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        {rows.length > 5 && (
+          <button onClick={() => setShowAll((v) => !v)} className="mt-2 w-full rounded-xl py-2 text-meta font-bold text-stage hover:bg-stage-bg">
+            {showAll ? 'Show fewer' : `Show all ${rows.length}`}
+          </button>
+        )}
+      </section>
     </div>
   )
 }

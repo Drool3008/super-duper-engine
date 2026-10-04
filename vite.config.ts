@@ -1,5 +1,6 @@
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
+import { fileURLToPath } from 'node:url'
 
 /**
  * Vite marks the entry script and stylesheet `crossorigin`. Served over
@@ -25,6 +26,7 @@ function stripCrossorigin(): Plugin {
 
 export default defineConfig({
   plugins: process.env.CAP_NATIVE === '1' ? [stripCrossorigin()] : [],
+  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   server: {
     port: 5173,
     // `npm run dev:lan` exposes this on the Wi-Fi so a real phone can open it.

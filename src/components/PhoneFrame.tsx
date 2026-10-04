@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { LogoMark } from './brand'
 
 export const PHONE_W = 390
 export const PHONE_H = 844
@@ -30,17 +31,17 @@ export function PhoneFrame({
           transform: `scale(${scale})`, transformOrigin: 'top left',
           marginBottom: (scale - 1) * PHONE_H,
         }}
-        className="relative shrink-0 rounded-[46px] bg-[#111A1F] p-[11px] shadow-[0_18px_44px_rgba(27,42,51,.30)]"
+        className="relative shrink-0 rounded-[46px] bg-[#15132B] p-[11px] shadow-[0_18px_44px_rgba(30,27,75,.35)]"
       >
         {/* side buttons */}
-        <span className="absolute -left-[2px] top-[132px] h-[26px] w-[3px] rounded-l bg-[#2C3A42]" />
-        <span className="absolute -left-[2px] top-[182px] h-[46px] w-[3px] rounded-l bg-[#2C3A42]" />
-        <span className="absolute -left-[2px] top-[242px] h-[46px] w-[3px] rounded-l bg-[#2C3A42]" />
-        <span className="absolute -right-[2px] top-[200px] h-[66px] w-[3px] rounded-r bg-[#2C3A42]" />
+        <span className="absolute -left-[2px] top-[132px] h-[26px] w-[3px] rounded-l bg-[#2B2853]" />
+        <span className="absolute -left-[2px] top-[182px] h-[46px] w-[3px] rounded-l bg-[#2B2853]" />
+        <span className="absolute -left-[2px] top-[242px] h-[46px] w-[3px] rounded-l bg-[#2B2853]" />
+        <span className="absolute -right-[2px] top-[200px] h-[66px] w-[3px] rounded-r bg-[#2B2853]" />
 
         <div className="relative h-full w-full overflow-hidden rounded-[36px] bg-white">
           {/* pill cutout */}
-          <div className="pointer-events-none absolute left-1/2 top-[9px] z-30 h-[26px] w-[104px] -translate-x-1/2 rounded-full bg-[#111A1F]" />
+          <div className="pointer-events-none absolute left-1/2 top-[9px] z-30 h-[26px] w-[104px] -translate-x-1/2 rounded-full bg-[#15132B]" />
 
           <StatusBar time={time} />
 
@@ -100,17 +101,21 @@ function NotificationBanner({ title, body }: { title: string; body: string }) {
     const t = setTimeout(() => setOut(true), 3600)
     return () => clearTimeout(t)
   }, [])
+  // Fully opaque and near-black, so it reads over the violet header, the white
+  // home screen and the beige chat wallpaper alike (body text 14:1).
   return (
     <div
-      className="absolute left-2 right-2 top-[46px] z-40 rounded-2xl bg-[#1B2A33]/92 px-3 py-2 text-white shadow-lg backdrop-blur"
+      className="absolute left-2 right-2 top-[46px] z-50 rounded-2xl bg-[#0B1020] px-3.5 py-3 text-white shadow-float ring-1 ring-white/10"
       style={{ animation: out ? 'notifyOut .3s ease-in forwards' : 'notifyIn .32s cubic-bezier(.2,.8,.3,1)' }}
+      role="status"
     >
-      <div className="flex items-center gap-1.5 text-meta font-semibold uppercase tracking-wide text-white/70">
-        <span className="inline-block h-3 w-3 rounded-[4px] bg-record" />
-        Family Health
+      <div className="flex items-center gap-2 text-[12px] font-semibold text-white/75">
+        <LogoMark size={18} className="rounded-[5px]" />
+        <span className="font-bold uppercase tracking-wide text-white">Vantari</span>
+        <span className="ml-auto">now</span>
       </div>
-      <div className="mt-0.5 text-[13px] font-semibold leading-tight">{title}</div>
-      <div className="line-clamp-2 text-[13px] leading-tight text-white/85">{body}</div>
+      <div className="mt-1.5 text-[15px] font-bold leading-snug">{title}</div>
+      <div className="line-clamp-2 text-[14px] leading-snug text-[#E5E7EB]">{body}</div>
     </div>
   )
 }

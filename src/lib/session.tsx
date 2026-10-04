@@ -92,9 +92,11 @@ function reduce(v: SessionView, ev: AgentEvent, nextId: () => string): SessionVi
       // server's live answer wins. An awaited reply survives only if its wait is
       // genuinely still open.
       const open = new Set((ev.waits || []).map((w: any) => w.id))
+      // A run paused on wait_for_reply is "running" on the server, but the
+      // agent is not working: it is waiting on a person.
       return {
         ...v,
-        thinking: Boolean(ev.running),
+        thinking: Boolean(ev.running) && open.size === 0,
         awaiting: v.awaiting && open.has(v.awaiting.id) ? v.awaiting : null,
       }
     }
