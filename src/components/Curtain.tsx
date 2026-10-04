@@ -4,6 +4,7 @@ import { RunBadge, Json, PaneHeader } from './ui'
 import { RAIL_COLOUR } from '../lib/types'
 import { advanceClock, resetSession, sendCurtain, sendInput, sendNoAnswer, uploadAudio } from '../lib/api'
 import { SOS_ENABLED } from '../lib/config'
+import { Clock, Inbox, Mic, MessageSquareText, RotateCcw, Send, Theater, UserRoundSearch } from 'lucide-react'
 
 export function Curtain({ pending, awaiting, onboarding, present }: {
   pending: PendingCall[]
@@ -13,7 +14,11 @@ export function Curtain({ pending, awaiting, onboarding, present }: {
 }) {
   return (
     <aside className="flex h-full w-[380px] shrink-0 flex-col border-r border-line bg-surface">
-      <PaneHeader title="Curtain" right={<span className="text-meta text-muted">behind the scenes</span>} />
+      <PaneHeader
+        title="Curtain"
+        icon={<span className="flex h-8 w-8 items-center justify-center rounded-lg bg-human-bg text-human"><Theater className="h-4 w-4" aria-hidden /></span>}
+        right={<span className="rounded-full border-2 border-dashed border-muted/40 px-2 py-0.5 text-[12px] font-bold text-muted">played by people</span>}
+      />
       <div className="scroll flex-1 overflow-y-auto">
         {awaiting && <Awaiting awaiting={awaiting} />}
         <PendingQueue pending={pending} present={present} />
@@ -34,7 +39,7 @@ function ResetTake() {
 
   return (
     <section className="border-b border-line p-4">
-      <h3 className="text-card">Reset</h3>
+      <h3 className="flex items-center gap-2 text-card"><RotateCcw className="h-4 w-4 text-decision" aria-hidden /> Reset</h3>
       <p className="mt-0.5 text-meta text-muted">
         Clears the decision log, messages, chats and everything the stages recorded, and re-reads the family profile from disk.
       </p>
@@ -88,7 +93,7 @@ function Inputs({ onboarding }: { onboarding: any }) {
 
   return (
     <section className="border-b border-line p-4">
-      <h3 className="text-card">Inputs</h3>
+      <h3 className="flex items-center gap-2 text-card"><Inbox className="h-4 w-4 text-input" aria-hidden /> Inputs</h3>
       <p className="mt-0.5 text-meta text-muted">Only real sources. Each one states where it came from.</p>
 
       {SOS_ENABLED && (
@@ -101,7 +106,7 @@ function Inputs({ onboarding }: { onboarding: any }) {
       )}
 
       <div className="mt-2 rounded border border-input/40 bg-input-bg p-2">
-        <div className="text-meta text-input">Patient voice note → Gnani STT</div>
+        <div className="flex items-center gap-1.5 text-meta font-semibold text-input"><Mic className="h-4 w-4" aria-hidden /> Patient voice note → Gnani STT</div>
         <div className="mt-1 flex items-center gap-2">
           <select value={lang} onChange={(e) => setLang(e.target.value)} className="rounded border border-line bg-white px-1 py-1 text-meta">
             {['hi-IN', 'kn-IN', 'ta-IN', 'te-IN', 'bn-IN', 'mr-IN', 'gu-IN', 'ml-IN', 'pa-IN', 'or-IN', 'en-IN'].map((l) => <option key={l}>{l}</option>)}
@@ -131,7 +136,7 @@ function Inputs({ onboarding }: { onboarding: any }) {
       </div>
 
       <div className="mt-2 rounded border border-input/40 bg-input-bg p-2">
-        <div className="text-meta text-input">Message from a person</div>
+        <div className="flex items-center gap-1.5 text-meta font-semibold text-input"><MessageSquareText className="h-4 w-4" aria-hidden /> Message from a person</div>
         <select value={who} onChange={(e) => setWho(e.target.value)} aria-label="Who sent it" className="mt-1 w-full rounded border border-line bg-white px-1 py-1 text-meta">
           {people.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
         </select>
@@ -149,7 +154,7 @@ function Inputs({ onboarding }: { onboarding: any }) {
       </div>
 
       <div className="mt-2 rounded border border-input/40 bg-input-bg p-2">
-        <div className="text-meta text-input">Advance the clock</div>
+        <div className="flex items-center gap-1.5 text-meta font-semibold text-input"><Clock className="h-4 w-4" aria-hidden /> Advance the clock</div>
         <input type="datetime-local" value={clockTo} onChange={(e) => setClockTo(e.target.value)} className="mt-1 w-full rounded border border-line px-2 py-1 text-meta" />
         <input
           value={clockSrc} onChange={(e) => setClockSrc(e.target.value)}
@@ -172,7 +177,7 @@ function Inputs({ onboarding }: { onboarding: any }) {
 function Awaiting({ awaiting }: { awaiting: { from: string; what_for: string } }) {
   return (
     <section className="border-b border-line bg-human-bg p-4">
-      <div className="text-meta font-semibold uppercase tracking-wide text-human">Agent is waiting on a person</div>
+      <div className="flex items-center gap-1.5 text-meta font-bold uppercase tracking-wide text-human"><UserRoundSearch className="h-4 w-4" aria-hidden /> Agent is waiting on a person</div>
       <div className="mt-1 text-body">
         <b>{awaiting.from}</b> — {awaiting.what_for}
       </div>
@@ -247,7 +252,7 @@ function PendingCard({ call, present }: { call: PendingCall; present: boolean })
             className="mt-2 w-full rounded bg-rail-gnani px-3 py-2 text-body font-semibold text-white hover:brightness-110"
             onClick={() => sendCurtain(call.id, call.prefilled, 'gnani_live')}
           >
-            Send to agent
+            <span className="inline-flex items-center gap-1.5"><Send className="h-4 w-4" aria-hidden /> Send to agent</span>
           </button>
         </>
       ) : (

@@ -13,9 +13,10 @@ import animate from 'tailwindcss-animate'
  *   input        orange   an external input arriving (console)
  *
  * shadcn/ui components read the CSS variables in src/index.css (HSL triplets).
- * `muted` and `input` were app tokens first, so they stay app tokens here; the
- * shadcn component copies in src/components/ui use `secondary` and `border`
- * where upstream uses `muted` backgrounds or `input` borders.
+ * `muted`, `input` and `card` were app tokens first (`text-card` is a font
+ * size), so they stay app tokens here; the shadcn copies in src/components/ui
+ * use `secondary`, `border` and plain white where upstream uses `muted`
+ * backgrounds, `input` borders or the `card` colour.
  */
 export default {
   darkMode: ['class'],
@@ -48,7 +49,6 @@ export default {
 
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
-        card: { DEFAULT: 'hsl(var(--card))', foreground: 'hsl(var(--card-foreground))' },
         popover: { DEFAULT: 'hsl(var(--popover))', foreground: 'hsl(var(--popover-foreground))' },
         primary: { DEFAULT: 'hsl(var(--primary))', foreground: 'hsl(var(--primary-foreground))' },
         secondary: { DEFAULT: 'hsl(var(--secondary))', foreground: 'hsl(var(--secondary-foreground))' },

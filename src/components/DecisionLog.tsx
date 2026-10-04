@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { ChevronDown, ChevronRight, Download, ScrollText } from 'lucide-react'
 import type { Decision } from '../lib/types'
 
 const COLS: Array<[keyof Decision, string]> = [
@@ -20,13 +21,15 @@ export function DecisionLog({ decisions }: { decisions: Decision[] }) {
   return (
     <section className="border-t border-line bg-white">
       <div className="flex items-center gap-3 px-4 py-2">
-        <button onClick={() => setOpen(!open)} className="text-card">
-          {open ? '▾' : '▸'} Decision log <span className="ml-1 text-meta font-normal text-muted">{decisions.length} rows</span>
+        <button onClick={() => setOpen(!open)} aria-expanded={open} className="flex items-center gap-2 text-card">
+          {open ? <ChevronDown className="h-5 w-5" aria-hidden /> : <ChevronRight className="h-5 w-5" aria-hidden />}
+          <ScrollText className="h-5 w-5 text-ai" aria-hidden /> Decision log
+          <span className="rounded-full bg-ai-bg px-2 text-meta font-bold text-ai">{decisions.length}</span>
         </button>
         <span className="text-meta text-muted">the submission's Part 1 table, produced by the run itself</span>
         <div className="ml-auto flex gap-2">
-          <button onClick={() => download(csv(decisions), 'decision-log.csv')} className="rounded border border-line px-2.5 py-1 text-meta hover:bg-artifact-bg">Export CSV</button>
-          <button onClick={() => download(md(decisions), 'decision-log.md')} className="rounded border border-line px-2.5 py-1 text-meta hover:bg-artifact-bg">Export Markdown</button>
+          <button onClick={() => download(csv(decisions), 'decision-log.csv')} className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-meta font-semibold hover:bg-surface"><Download className="h-4 w-4" aria-hidden /> CSV</button>
+          <button onClick={() => download(md(decisions), 'decision-log.md')} className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-meta font-semibold hover:bg-surface"><Download className="h-4 w-4" aria-hidden /> Markdown</button>
         </div>
       </div>
       {open && (

@@ -1,3 +1,4 @@
+import { Smartphone } from 'lucide-react'
 import { useState } from 'react'
 import type { Message } from '../lib/types'
 import { PaneHeader } from './ui'
@@ -22,7 +23,11 @@ export function Phones({ messages, wallet, settings, names, awaiting }: {
 
   return (
     <aside className="flex h-full w-[460px] shrink-0 flex-col border-l border-line bg-surface">
-      <PaneHeader title="Phones" right={<span className="text-meta text-muted">what people see</span>} />
+      <PaneHeader
+        title="Phones"
+        icon={<span className="flex h-8 w-8 items-center justify-center rounded-lg bg-stage-bg text-stage"><Smartphone className="h-4 w-4" aria-hidden /></span>}
+        right={<span className="text-meta text-muted">what people see</span>}
+      />
 
       <div className="flex gap-1 px-4 pt-3">
         {BOXES.map((b) => {

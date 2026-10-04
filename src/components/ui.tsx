@@ -55,10 +55,10 @@ export function Json({ label, value, open = false }: { label: string; value: any
   )
 }
 
-export function PaneHeader({ title, right }: { title: string; right?: ReactNode }) {
+export function PaneHeader({ title, right, icon }: { title: string; right?: ReactNode; icon?: ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between border-b border-line px-4 py-3">
-      <h2 className="text-pane">{title}</h2>
+    <div className="flex items-center justify-between border-b border-line bg-white px-4 py-3">
+      <h2 className="flex items-center gap-2 text-pane">{icon}{title}</h2>
       {right}
     </div>
   )

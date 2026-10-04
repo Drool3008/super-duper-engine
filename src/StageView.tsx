@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useSession } from './lib/session'
 import { PhoneScreen } from './PhoneScreen'
 import ConsoleApp from './App'
+import { Legend, Logo } from './components/brand'
 
 type Layout = 'three' | 'console2'
 
@@ -21,7 +22,8 @@ export default function StageView() {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-surface">
       <div className="flex shrink-0 items-center gap-3 border-b border-line bg-white px-4 py-2">
-        <span className="text-card">Stage</span>
+        <Logo size={30} sub="Stage · recording" />
+        <Legend className="ml-2 hidden lg:flex" />
         <div className="flex gap-1">
           {(['console2', 'three'] as Layout[]).map((l) => (
             <button key={l} onClick={() => setLayout(l)}

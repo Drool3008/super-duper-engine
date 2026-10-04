@@ -23,7 +23,7 @@ export default function App({ embedded = false }: { embedded?: boolean } = {}) {
     <div className={embedded ? "flex h-full flex-col overflow-hidden" : "flex h-screen flex-col overflow-hidden"}>
       <TopBar
         model={s.model} stage={s.stage} clock={s.clock} wallet={s.wallet}
-        rails={s.rails} present={present} onPresent={setPresent}
+        rails={s.rails} present={present} onPresent={setPresent} embedded={embedded}
       />
       <div className="flex min-h-0 flex-1">
         <Curtain pending={s.pending} awaiting={s.awaiting} onboarding={s.onboarding} present={present} />

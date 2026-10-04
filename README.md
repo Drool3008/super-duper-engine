@@ -183,6 +183,23 @@ goes back into the agent loop.
 The persona switcher is a simulation affordance. In a real build you are logged
 in as yourself.
 
+## Look and feel
+
+One visual rule across the console, the stage and every phone, so a viewer
+can tell who did what without reading a label:
+
+- **The agent (Vantari) is violet** — a sparkle avatar on the brand gradient
+  and an "AI" tag on everything it says or decides.
+- **People are flat-colour initials**; their own messages are green, like the
+  messaging apps they already use. **A person deciding is amber.**
+- **Anything played behind the curtain** is drawn with a dashed border.
+
+Built with shadcn/ui components (`src/components/ui`, Tailwind 3 setup),
+lucide-react icons, Inter and Plus Jakarta Sans. Brand pieces (logo, avatars,
+tags, legend) live in `src/components/brand.tsx`; colour tokens and what each
+one means are in `tailwind.config.js`. Every text/background pair passes
+WCAG AA.
+
 ## How a take runs
 
 1. A teammate feeds a **real** input from the curtain: a voice note, an SOS (if enabled), a

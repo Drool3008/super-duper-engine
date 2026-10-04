@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { TimelineItem } from '../lib/types'
 import { STAGE_NAMES } from '../lib/types'
 import { Chip, Json, PaneHeader, RunBadge } from './ui'
+import { AgentAvatar, AiTag } from './brand'
+import { ArrowDown, ArrowRightLeft, Ban, CircleAlert, Flag, Sparkles, UserRound, Wrench } from 'lucide-react'
 
 export function Timeline({ items, thinking, present }: { items: TimelineItem[]; thinking: boolean; present: boolean }) {
   const boxRef = useRef<HTMLDivElement>(null)
@@ -18,7 +20,11 @@ export function Timeline({ items, thinking, present }: { items: TimelineItem[]; 
 
   return (
     <main className="relative flex h-full min-w-0 flex-1 flex-col bg-white">
-      <PaneHeader title="Agent" right={<span className="text-meta text-muted">{items.length} steps</span>} />
+      <PaneHeader
+        title="Agent"
+        icon={<AgentAvatar size={32} />}
+        right={<span className="flex items-center gap-2"><AiTag label="real model" /><span className="text-meta text-muted">{items.length} steps</span></span>}
+      />
       <div
         ref={boxRef}
         className="scroll relative flex-1 overflow-y-auto px-4 py-3"
@@ -34,14 +40,20 @@ export function Timeline({ items, thinking, present }: { items: TimelineItem[]; 
           </p>
         )}
         {items.map((it) => <Item key={it.id} item={it} present={present} />)}
-        {thinking && <div className="shimmer mt-3 text-body text-muted">thinking…</div>}
+        {thinking && (
+          <div className="mt-3 flex items-center gap-2 text-body font-semibold text-ai">
+            <AgentAvatar size={24} />
+            <span className="flex gap-1"><span className="h-2 w-2 animate-bounce rounded-full bg-ai [animation-delay:-0.3s]" /><span className="h-2 w-2 animate-bounce rounded-full bg-ai [animation-delay:-0.15s]" /><span className="h-2 w-2 animate-bounce rounded-full bg-ai" /></span>
+            thinking
+          </div>
+        )}
       </div>
       {!stuck && (
         <button
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full border border-line bg-white px-3 py-1.5 text-meta shadow"
+          className="absolute bottom-6 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-stage px-3.5 py-1.5 text-meta font-semibold text-white shadow-float"
           onClick={() => setStuck(true)}
         >
-          jump to latest ↓
+          Jump to latest <ArrowDown className="h-4 w-4" aria-hidden />
         </button>
       )}
     </main>
@@ -72,7 +84,7 @@ function Item({ item, present }: { item: TimelineItem; present: boolean }) {
   if (item.kind === 'stage') {
     return (
       <div className="fadein mt-4 flex items-center gap-2">
-        <span className="rounded bg-stage-bg px-2 py-1 text-card text-stage">{item.stage} {STAGE_NAMES[item.stage]}</span>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-brand px-3 py-1 text-card text-white shadow-sm"><Flag className="h-4 w-4" aria-hidden />{item.stage} {STAGE_NAMES[item.stage]}</span>
         <span className="text-meta text-muted">{item.why}</span>
         <span className="ml-auto font-mono text-meta text-muted">{time}</span>
       </div>
@@ -81,8 +93,9 @@ function Item({ item, present }: { item: TimelineItem; present: boolean }) {
 
   if (item.kind === 'input') {
     return (
-      <div className="fadein mt-3 rounded border border-input/40 bg-input-bg p-3">
+      <div className="fadein mt-3 rounded-xl border border-input/30 bg-input-bg p-3">
         <div className="flex items-center gap-2">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-input text-white"><UserRound className="h-4 w-4" aria-hidden /></span>
           <Chip tone="input">external input</Chip>
           <span className="text-meta font-semibold text-input">{item.input.source}</span>
           <span className="ml-auto font-mono text-meta text-muted">{time}</span>
@@ -97,10 +110,11 @@ function Item({ item, present }: { item: TimelineItem; present: boolean }) {
   if (item.kind === 'decision') {
     const d = item.decision
     return (
-      <div className="fadein mt-3 rounded border border-decision/30 bg-decision-bg p-3">
+      <div className="fadein mt-3 rounded-xl border border-ai/20 bg-ai-bg p-3 shadow-sm">
         <div className="flex items-center gap-2">
-          <span className="text-meta font-bold uppercase tracking-wide text-decision">Decision</span>
-          <span className="rounded bg-decision px-1.5 py-0.5 text-badge text-white">{d.rule_id}</span>
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-white"><Sparkles className="h-4 w-4" aria-hidden /></span>
+          <span className="text-meta font-bold uppercase tracking-wide text-ai">AI decision</span>
+          <span className="rounded-full bg-ai px-2 py-0.5 text-badge text-white">{d.rule_id}</span>
           <span className="ml-auto font-mono text-meta text-muted">{time}</span>
         </div>
         <dl className="mt-1.5 grid grid-cols-[72px_1fr] gap-x-2 gap-y-0.5 text-body">
@@ -115,22 +129,24 @@ function Item({ item, present }: { item: TimelineItem; present: boolean }) {
   }
 
   if (item.kind === 'error') {
-    return <div className="fadein mt-3 rounded border border-decision bg-decision-bg p-3 text-body text-decision">{item.error}</div>
+    return <div className="fadein mt-3 flex items-start gap-2 rounded-xl border border-decision bg-decision-bg p-3 text-body text-decision"><CircleAlert className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />{item.error}</div>
   }
 
   // tool
   if (item.rejected) {
     return (
-      <div className="fadein mt-2 rounded border border-dashed border-decision bg-white p-2 text-meta text-decision">
-        <b>{item.rejected} refused</b> {item.name} — no log_decision in this step. The agent was told, and must log first.
+      <div className="fadein mt-2 flex items-start gap-2 rounded-xl border border-dashed border-decision bg-white p-2.5 text-meta text-decision">
+        <Ban className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+        <span><b>{item.rejected} refused</b> {item.name} — no log_decision in this step. The agent was told, and must log first.</span>
       </div>
     )
   }
 
   const failed = item.result && item.result.ok === false
   return (
-    <div className="fadein mt-2 rounded border border-line bg-white p-3">
+    <div className={`fadein mt-2 rounded-xl border bg-white p-3 ${item.mode && item.mode !== 'LIVE' ? 'border-dashed border-muted/40' : 'border-line'}`}>
       <div className="flex flex-wrap items-center gap-2">
+        {item.mode && item.mode !== 'LIVE' ? <ArrowRightLeft className="h-4 w-4 text-human" aria-label="Answered behind the curtain" /> : <Wrench className="h-4 w-4 text-muted" aria-hidden />}
         <RunBadge mode={item.mode} rail={item.rail} />
         <span className="font-mono text-body">{item.name}</span>
         {item.result === undefined && <span className="shimmer text-meta text-muted">waiting…</span>}
