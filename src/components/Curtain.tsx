@@ -3,6 +3,7 @@ import type { PendingCall } from '../lib/types'
 import { RunBadge, Json, PaneHeader } from './ui'
 import { RAIL_COLOUR } from '../lib/types'
 import { advanceClock, resetSession, sendCurtain, sendInput, sendNoAnswer, uploadAudio } from '../lib/api'
+import { SOS_ENABLED } from '../lib/config'
 
 export function Curtain({ pending, awaiting, onboarding, present }: {
   pending: PendingCall[]
@@ -64,7 +65,11 @@ function ResetTake() {
 function Inputs({ onboarding }: { onboarding: any }) {
   const [text, setText] = useState('')
   const [who, setWho] = useState('rp')
-  const [lang, setLang] = useState('hi-IN')
+  // The voice note is the patient's, so default to the language set for them
+  // at onboarding; Telugu for the filmed scenario.
+  const patientLang = onboarding?.family?.members?.find((m: any) => m.role === 'patient')?.language || 'te-IN'
+  const [langPicked, setLang] = useState<string | null>(null)
+  const lang = langPicked ?? patientLang
   const fileRef = useRef<HTMLInputElement>(null)
   const [clockTo, setClockTo] = useState('')
   const [clockSrc, setClockSrc] = useState('')
@@ -75,14 +80,16 @@ function Inputs({ onboarding }: { onboarding: any }) {
   return (
     <section className="border-b border-line p-4">
       <h3 className="text-card">Inputs</h3>
-      <p className="mt-0.5 text-meta text-muted">Only three real sources. Each one states where it came from.</p>
+      <p className="mt-0.5 text-meta text-muted">Only real sources. Each one states where it came from.</p>
 
-      <button
-        className="mt-3 w-full rounded border border-input/40 bg-input-bg px-3 py-2 text-left text-body text-input hover:brightness-95"
-        onClick={() => sendInput({ kind: 'sos', source: 'Patient, SOS button via the app', from: 'patient' })}
-      >
-        Patient SOS
-      </button>
+      {SOS_ENABLED && (
+        <button
+          className="mt-3 w-full rounded border border-input/40 bg-input-bg px-3 py-2 text-left text-body text-input hover:brightness-95"
+          onClick={() => sendInput({ kind: 'sos', source: 'Patient, SOS button via the app', from: 'patient' })}
+        >
+          Patient SOS
+        </button>
+      )}
 
       <div className="mt-2 rounded border border-input/40 bg-input-bg p-2">
         <div className="text-meta text-input">Patient voice note → Gnani STT</div>

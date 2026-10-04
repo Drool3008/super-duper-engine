@@ -4,13 +4,8 @@ import { rupees, sendInput, sendReply, settleReversal } from './lib/api'
 import type { Message } from './lib/types'
 import { ChatsTab } from './components/FamilyChats'
 import { CallBar, CallView, callFor } from './components/CallView'
-
-const STAGE_LINE: Record<number, string> = {
-  0: 'Setting things up', 1: 'Watching your medicines and test dates',
-  2: 'Something needs attention', 3: 'Trying to reach someone', 4: 'Listening',
-  5: 'Working out how urgent this is', 6: 'Sorting it out now',
-  7: 'Keeping everyone posted', 8: 'Sharing your record with the doctor', 9: 'Wrapping up',
-}
+import { translator } from './lib/i18n'
+import { SOS_ENABLED } from './lib/config'
 
 export type Tab = 'home' | 'chat' | 'family' | 'wallet'
 
@@ -27,6 +22,7 @@ export default function PhoneApp({ memberId }: { memberId: string }) {
   const tests = (s.onboarding?.recurring_tests || []).filter((t: any) => t.member === memberId || isRP)
   const mine = s.messages[memberId] || []
   const waitingOnMe = s.awaiting?.from === memberId
+  const t = translator(me?.language)
 
   useEffect(() => { if (tab === 'wallet' && !isRP) setTab('home') }, [isRP, tab])
   useEffect(() => { if (tab !== 'family') setInThread(false) }, [tab])
@@ -42,21 +38,21 @@ export default function PhoneApp({ memberId }: { memberId: string }) {
 
   return (
     <div className="relative flex h-full flex-col bg-white">
-      {call && callKey !== hidden && <CallView key={call.id} call={call} onClose={() => setHidden(callKey)} />}
-      {call && callKey === hidden && callLive && <CallBar call={call} onOpen={() => setHidden(null)} />}
-      {!inThread && <Header me={me} stage={s.stage} thinking={s.thinking} />}
+      {call && callKey !== hidden && <CallView key={call.id} call={call} t={t} onClose={() => setHidden(callKey)} />}
+      {call && callKey === hidden && callLive && <CallBar call={call} t={t} onOpen={() => setHidden(null)} />}
+      {!inThread && <Header me={me} stage={s.stage} thinking={s.thinking} t={t} />}
       <div className="min-h-0 flex-1 overflow-hidden">
-        {tab === 'home' && <Home s={s} me={me} meds={meds} tests={tests} isRP={isRP} waitingOnMe={waitingOnMe} who={memberId} onGoChat={() => setTab('chat')} />}
-        {tab === 'chat' && <Chat who={memberId} me={me} messages={mine} awaiting={waitingOnMe ? s.awaiting : null} thinking={s.thinking} />}
+        {tab === 'home' && <Home s={s} me={me} meds={meds} tests={tests} isRP={isRP} waitingOnMe={waitingOnMe} who={memberId} t={t} onGoChat={() => setTab('chat')} />}
+        {tab === 'chat' && <Chat who={memberId} me={me} messages={mine} awaiting={waitingOnMe ? s.awaiting : null} thinking={s.thinking} t={t} />}
         {tab === 'family' && <ChatsTab memberId={memberId} onOpenChange={setInThread} />}
         {tab === 'wallet' && isRP && <Wallet wallet={s.wallet} onboarding={s.onboarding} />}
       </div>
-      {!inThread && <Nav tab={tab} onTab={setTab} isRP={isRP} unread={mine.length} nudge={waitingOnMe} />}
+      {!inThread && <Nav tab={tab} onTab={setTab} isRP={isRP} unread={mine.length} nudge={waitingOnMe} t={t} />}
     </div>
   )
 }
 
-function Header({ me, stage, thinking }: any) {
+function Header({ me, stage, thinking, t }: any) {
   return (
     <div className="shrink-0 border-b border-line bg-stage-bg px-4 py-2.5">
       <div className="flex items-baseline justify-between">
@@ -65,7 +61,7 @@ function Header({ me, stage, thinking }: any) {
       </div>
       <div className="mt-0.5 flex items-center gap-1.5 text-meta text-stage/80">
         <span className={`inline-block h-2 w-2 rounded-full bg-stage ${thinking ? 'shimmer' : ''}`} />
-        {thinking ? 'Working on it…' : STAGE_LINE[stage] || 'Here if you need me'}
+        {thinking ? t('working') : stage >= 0 && stage <= 9 ? t(`stage.${stage}`) : t('here')}
       </div>
     </div>
   )
@@ -122,8 +118,8 @@ function ReversalCard({ r, me }: { r: any; me: string }) {
   )
 }
 
-function Home({ s, me, meds, tests, isRP, waitingOnMe, who, onGoChat }: any) {
-  const [sent, setSent] = useState(false)
+function Home({ s, me, meds, tests, isRP, waitingOnMe, who, t, onGoChat }: any) {
+  const [sos, setSos] = useState<'idle' | 'armed' | 'sent'>('idle')
   const last = (s.messages[who] || []).filter((m: Message) => m.from === 'agent').slice(-1)[0]
   const mineToReverse = isRP ? (s.reversals || []).filter((r: any) => r.may_reverse === who) : []
   return (
@@ -132,14 +128,14 @@ function Home({ s, me, meds, tests, isRP, waitingOnMe, who, onGoChat }: any) {
 
       {waitingOnMe && (
         <button onClick={onGoChat} className="w-full rounded-xl border border-human bg-human-bg p-3 text-left">
-          <div className="text-meta font-bold uppercase tracking-wide text-human">Needs your answer</div>
+          <div className="text-meta font-bold uppercase tracking-wide text-human">{t('needs_answer')}</div>
           <div className="mt-0.5 text-body">{s.awaiting?.what_for}</div>
         </button>
       )}
 
       <section>
-        <h2 className="text-meta font-semibold uppercase tracking-wide text-muted">Medicines</h2>
-        {meds.length === 0 && <p className="mt-1 text-body text-muted">Nothing on file.</p>}
+        <h2 className="text-meta font-semibold uppercase tracking-wide text-muted">{t('medicines')}</h2>
+        {meds.length === 0 && <p className="mt-1 text-body text-muted">{t('nothing_on_file')}</p>}
         {meds.map((m: any) => {
           const days = m.daily_dose ? Math.floor(m.pills_left / m.daily_dose) : null
           const low = days !== null && days <= 5
@@ -153,9 +149,9 @@ function Home({ s, me, meds, tests, isRP, waitingOnMe, who, onGoChat }: any) {
                 <div className="h-1.5 flex-1 overflow-hidden rounded bg-artifact-bg">
                   <div className="h-full rounded" style={{ width: Math.min(100, (m.pills_left / 30) * 100) + '%', background: low ? '#C0392B' : '#1E8449' }} />
                 </div>
-                <span className={`text-meta ${low ? 'font-semibold text-decision' : 'text-muted'}`}>{days !== null ? `${days}d left` : `${m.pills_left} left`}</span>
+                <span className={`text-meta ${low ? 'font-semibold text-decision' : 'text-muted'}`}>{days !== null ? t('days_left', { n: days }) : t('pills_left', { n: m.pills_left })}</span>
               </div>
-              {m.must_not_miss && <div className="mt-1 text-meta text-muted">Must not be missed</div>}
+              {m.must_not_miss && <div className="mt-1 text-meta text-muted">{t('must_not_miss')}</div>}
             </div>
           )
         })}
@@ -163,10 +159,10 @@ function Home({ s, me, meds, tests, isRP, waitingOnMe, who, onGoChat }: any) {
 
       {tests.length > 0 && (
         <section>
-          <h2 className="text-meta font-semibold uppercase tracking-wide text-muted">Tests</h2>
-          {tests.map((t: any) => (
-            <div key={t.id} className="mt-2 rounded-xl border border-line p-3 text-body">
-              {t.name}<span className="ml-2 text-meta text-muted">{t.every_days ? `every ${t.every_days}d` : 'one-off'}</span>
+          <h2 className="text-meta font-semibold uppercase tracking-wide text-muted">{t('tests')}</h2>
+          {tests.map((x: any) => (
+            <div key={x.id} className="mt-2 rounded-xl border border-line p-3 text-body">
+              {x.name}<span className="ml-2 text-meta text-muted">{x.every_days ? t('every_n_days', { n: x.every_days }) : t('one_off')}</span>
             </div>
           ))}
         </section>
@@ -174,23 +170,31 @@ function Home({ s, me, meds, tests, isRP, waitingOnMe, who, onGoChat }: any) {
 
       {last && (
         <section>
-          <h2 className="text-meta font-semibold uppercase tracking-wide text-muted">Latest from your agent</h2>
+          <h2 className="text-meta font-semibold uppercase tracking-wide text-muted">{t('latest')}</h2>
           <div className="mt-2 rounded-xl border-l-[3px] border-record bg-record-bg p-3 text-body text-stage">{last.text}</div>
         </section>
       )}
 
-      <button
-        disabled={sent}
-        onClick={() => { setSent(true); sendInput({ kind: 'sos', source: `${me.name}, SOS button in the app`, from: who }); setTimeout(() => setSent(false), 4000) }}
-        className="w-full rounded-xl bg-decision py-3.5 text-card text-white disabled:opacity-50"
-      >
-        {sent ? 'Sent. Your agent is on it.' : 'I need help now'}
-      </button>
+      {/* Cut from the Round 3 recording (plan 2.2). When enabled it takes two
+          taps and stays sent: one stray touch must never raise an SOS, and a
+          sent one must not re-arm itself and fire twice. */}
+      {SOS_ENABLED && (
+        <button
+          disabled={sos === 'sent'}
+          onClick={() => {
+            if (sos === 'idle') { setSos('armed'); setTimeout(() => setSos((v) => (v === 'armed' ? 'idle' : v)), 4000); return }
+            setSos('sent'); sendInput({ kind: 'sos', source: `${me.name}, SOS button in the app`, from: who })
+          }}
+          className={`w-full rounded-xl py-3.5 text-card text-white disabled:opacity-60 ${sos === 'armed' ? 'bg-[#8E2A1F] ring-4 ring-decision/30' : 'bg-decision'}`}
+        >
+          {sos === 'sent' ? t('help_sent') : sos === 'armed' ? t('help_confirm') : t('help')}
+        </button>
+      )}
     </div>
   )
 }
 
-function Chat({ who, me, messages, awaiting, thinking }: any) {
+function Chat({ who, me, messages, awaiting, thinking, t }: any) {
   const [text, setText] = useState('')
   const box = useRef<HTMLDivElement>(null)
   useEffect(() => { box.current?.scrollTo({ top: box.current.scrollHeight, behavior: 'smooth' }) }, [messages.length, thinking])
@@ -205,18 +209,18 @@ function Chat({ who, me, messages, awaiting, thinking }: any) {
   return (
     <div className="flex h-full flex-col">
       <div ref={box} className="scroll flex-1 overflow-y-auto bg-surface p-3">
-        {messages.length === 0 && <p className="mt-10 text-center text-body text-muted">No messages yet.</p>}
+        {messages.length === 0 && <p className="mt-10 text-center text-body text-muted">{t('no_messages')}</p>}
         {messages.map((m: Message) => <Bubble key={m.id} m={m} who={who} />)}
-        {thinking && <div className="shimmer mt-2 text-meta text-muted">your agent is working…</div>}
+        {thinking && <div className="shimmer mt-2 text-meta text-muted">{t('working')}</div>}
       </div>
-      {awaiting && <div className="shrink-0 border-t border-human/40 bg-human-bg px-3 py-1.5 text-meta text-human">Waiting on you: {awaiting.what_for}</div>}
+      {awaiting && <div className="shrink-0 border-t border-human/40 bg-human-bg px-3 py-1.5 text-meta text-human">{t('waiting_on_you')} {awaiting.what_for}</div>}
       <div className="flex shrink-0 gap-2 border-t border-line bg-white p-2.5">
         <input
           value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()}
-          placeholder={`Message in ${me.language}…`}
+          placeholder={t('message')}
           className="min-w-0 flex-1 rounded-full border border-line px-3 py-2 text-body"
         />
-        <button onClick={send} className="shrink-0 rounded-full bg-stage px-4 text-body font-semibold text-white">Send</button>
+        <button onClick={send} className="shrink-0 rounded-full bg-stage px-4 text-body font-semibold text-white">{t('send')}</button>
       </div>
     </div>
   )
@@ -291,9 +295,9 @@ function Wallet({ wallet, onboarding }: any) {
   )
 }
 
-function Nav({ tab, onTab, isRP, unread, nudge }: any) {
-  const items: Array<[Tab, string]> = [['home', 'Home'], ['chat', 'Chat'], ['family', 'Family']]
-  if (isRP) items.push(['wallet', 'Wallet'])
+function Nav({ tab, onTab, isRP, unread, nudge, t }: any) {
+  const items: Array<[Tab, string]> = [['home', t('home')], ['chat', t('chat')], ['family', t('family')]]
+  if (isRP) items.push(['wallet', t('wallet')])
   return (
     <nav className="grid shrink-0 border-t border-line bg-white" style={{ gridTemplateColumns: `repeat(${items.length},1fr)` }}>
       {items.map(([id, label]) => (

@@ -91,16 +91,19 @@ export function callFor(timeline: TimelineItem[], member: any, members: any[] = 
   return null
 }
 
-const PHASE_LINE: Record<CallState['phase'], (c: CallState) => string> = {
-  ringing: () => 'Incoming call',
-  connected: () => 'On the call',
-  missed: () => 'Missed call',
+type T = (key: string, vars?: Record<string, string | number>) => string
+const english: T = (k) => ({ incoming: 'Incoming call', answer: 'Answer', hide: 'Hide', close: 'Close', on_call: 'On the call', missed: 'Missed call', live_transcript: 'Live transcript', tap_to_return: 'tap to return' } as Record<string, string>)[k] || k
+
+const PHASE_LINE: Record<CallState['phase'], (c: CallState, t: T) => string> = {
+  ringing: (_, t) => t('incoming'),
+  connected: (_, t) => t('on_call'),
+  missed: (_, t) => t('missed'),
   holding: (c) => `Calling ${c.peer} for you. On hold`,
   handover: (c) => `Connected. You are speaking with ${c.peer}`,
   ended: (c) => `The agent finished the call with ${c.peer}`,
 }
 
-export function CallView({ call, onClose }: { call: CallState; onClose: () => void }) {
+export function CallView({ call, onClose, t = english }: { call: CallState; onClose: () => void; t?: T }) {
   const [answered, setAnswered] = useState(false)
   const handover = call.phase === 'handover'
   const live = call.phase === 'connected' || handover
@@ -112,7 +115,7 @@ export function CallView({ call, onClose }: { call: CallState; onClose: () => vo
         <Avatar name={call.peer} agent={!handover} size={76} />
         <div className="mt-3 text-pane">{handover ? call.peer : 'Family Health agent'}</div>
         <div className={`mt-1 text-body ${live ? 'text-[#7DCEA0]' : 'text-white/75'}`} aria-live="polite">
-          {ringing ? PHASE_LINE.ringing(call) : call.phase === 'ringing' ? 'Connecting…' : PHASE_LINE[call.phase](call)}
+          {ringing ? PHASE_LINE.ringing(call, t) : call.phase === 'ringing' ? 'Connecting…' : PHASE_LINE[call.phase](call, t)}
         </div>
         {handover && (
           <div className="mt-2 rounded-full bg-[#1E8449] px-3 py-1 text-meta font-semibold">Clinic connected · the agent has left the call</div>
@@ -124,7 +127,7 @@ export function CallView({ call, onClose }: { call: CallState; onClose: () => vo
 
       {call.phase === 'ringing' ? <div className="flex-1" /> : (
       <div className="scroll mx-4 mt-5 min-h-0 flex-1 space-y-2 overflow-y-auto rounded-2xl bg-white/[.07] p-3">
-        <div className="text-meta font-semibold uppercase tracking-wide text-white/60">Live transcript</div>
+        <div className="text-meta font-semibold uppercase tracking-wide text-white/60">{t('live_transcript')}</div>
         {!call.agentSaid && !call.transcript && !call.theySaid && (
           <p className="text-meta text-white/60">Nothing said yet.</p>
         )}
@@ -152,14 +155,14 @@ export function CallView({ call, onClose }: { call: CallState; onClose: () => vo
             onClick={() => setAnswered(true)}
             className="flex h-16 w-16 items-center justify-center rounded-full bg-[#1E8449] text-meta font-semibold shadow-lg"
           >
-            Answer
+            {t('answer')}
           </button>
         ) : (
           <button
             onClick={onClose}
             className={`flex h-16 min-w-16 items-center justify-center rounded-full px-4 text-meta font-semibold shadow-lg ${live || call.phase === 'holding' ? 'bg-[#C0392B]' : 'bg-white/20'}`}
           >
-            {live || call.phase === 'holding' ? 'Hide' : 'Close'}
+            {live || call.phase === 'holding' ? t('hide') : t('close')}
           </button>
         )}
       </div>
@@ -177,10 +180,10 @@ function Line({ who, text }: { who: string; text: string }) {
 }
 
 /** A thin bar while a call is hidden, so it is never lost. */
-export function CallBar({ call, onOpen }: { call: CallState; onOpen: () => void }) {
+export function CallBar({ call, onOpen, t = english }: { call: CallState; onOpen: () => void; t?: T }) {
   return (
     <button onClick={onOpen} className="w-full shrink-0 bg-[#1E8449] px-4 py-1.5 text-left text-meta font-semibold text-white">
-      {PHASE_LINE[call.phase](call)} · tap to return
+      {PHASE_LINE[call.phase](call, t)} · {t('tap_to_return')}
     </button>
   )
 }

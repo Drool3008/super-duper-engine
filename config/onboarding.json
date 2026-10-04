@@ -6,7 +6,7 @@
     "name": "Demo Family",
     "pincode": "560001",
     "members": [
-      { "id": "patient",  "name": "Demo Patient",  "role": "patient", "age": 68, "language": "hi-IN", "phone": "+91-90000-00001", "placeholder": true },
+      { "id": "patient",  "name": "Demo Patient",  "role": "patient", "age": 68, "language": "te-IN", "phone": "+91-90000-00001", "placeholder": true },
       { "id": "rp",       "name": "Demo RP",       "role": "responsible_person", "age": 41, "language": "en-IN", "phone": "+91-90000-00002", "placeholder": true },
       { "id": "member_3", "name": "Demo Member 3", "role": "family", "age": 38, "language": "en-IN", "phone": "+91-90000-00003", "placeholder": true },
       { "id": "member_4", "name": "Demo Member 4", "role": "family", "age": 22, "language": "hi-IN", "phone": "+91-90000-00004", "placeholder": true }
