@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { session, emit, addClient, advanceClock, audioStore, snapshot, chatKey, resetSession } from './state.js'
 import { respond, pendingList, resetPending } from './curtain.js'
 import { deliverReply, noAnswer, expireByClock, openWaits, resetWaits } from './humans.js'
-import { feed, isRunning, abortRun } from './agent.js'
+import { feed, isRunning, abortRun, selectScenario, rewindScript } from './agent.js'
 import { chainState, contactChain } from './contacts.js'
 import { accounts } from './accounts.js'
 import { assessments, openReversals, exerciseReversal, acceptReversal, expireReversals } from './assessment.js'
@@ -57,6 +57,7 @@ app.get('/api/session', (req, res) => {
     chats: session.chats,
     familyHistory: session.familyHistory,
     rpHistory: session.rpHistory,
+    triggerSamples: session.triggerSamples,
     pending: pendingList(),
     waits: openWaits(),
     running: isRunning(),
@@ -76,9 +77,17 @@ app.get('/api/session', (req, res) => {
 
 /** An external input arriving. Every one carries its own source label. */
 app.post('/api/input', async (req, res) => {
-  const { kind, source, ...rest } = req.body || {}
+  // `sample_id` is pulled out here and deliberately left off `input`. It says
+  // which canned sentence the UI offered, which is useful for picking a stub
+  // path and is exactly the kind of hint a real model must not see: `feed()`
+  // puts the whole input in the prompt, and the sample carries its expected
+  // severity. The agent sees the sentence and nothing else.
+  const { kind, source, sample_id, ...rest } = req.body || {}
   if (!kind || !source) return res.status(400).json({ error: 'kind and source are required; every input must say where it came from' })
   const input = { kind, source, at: session.clock.toISOString(), ...rest }
+
+  const band = selectScenario(sample_id)
+  if (band) emit('scenario_selected', { sample_id, band, note: 'stub only; the agent was told nothing about this' })
 
   // A person speaking is also a message in their own thread, so the phones and
   // the product view show what they actually sent, not just the agent's side.
@@ -300,6 +309,7 @@ app.post('/api/reset', (req, res) => {
   abortRun()
   resetPending()
   resetWaits()
+  rewindScript()
   const out = resetSession(req.body?.reason || 'operator reset')
   res.json(out)
 })

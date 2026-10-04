@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, Check, CheckCircle2, ChevronLeft, Clock3, Hand, Pause, SendHorizontal } from 'lucide-react'
+import { ArrowDown, Check, CheckCircle2, ChevronDown, ChevronLeft, Clock3, Hand, Lightbulb, Pause, SendHorizontal } from 'lucide-react'
 import { useSession } from '../lib/session'
 import { rupees, sendInput, sendReply } from '../lib/api'
 import type { Message } from '../lib/types'
@@ -13,6 +13,56 @@ import { cn } from '../lib/utils'
  */
 
 const hhmm = (iso: string) => new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })
+
+/**
+ * Sample sentences this person can raise, from config/trigger-samples.json.
+ *
+ * Tapping one fills the box rather than sending it: a sentence that books an
+ * ambulance should not be one stray touch away, and it lets whoever is holding
+ * the phone read it back before it goes.
+ *
+ * The expected severity is deliberately **not** shown here. This is the
+ * product surface, and a real patient's phone would not label their own
+ * sentence "critical". The Director's console shows the tier; the handset does
+ * not, the same way rule IDs never reach a phone.
+ */
+function Suggestions({ memberId, onPick }: {
+  memberId: string
+  onPick: (s: { id: string; text: string }) => void
+}) {
+  const s = useSession()
+  const [open, setOpen] = useState(false)
+  const mine: any[] = (s.triggerSamples?.samples || []).filter((x: any) => x.from === memberId)
+  if (mine.length === 0) return null
+
+  return (
+    <div className="shrink-0 border-t border-line bg-white px-3 py-2">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-1.5 text-meta font-semibold text-muted"
+      >
+        <Lightbulb className="h-4 w-4 text-ai" aria-hidden />
+        Something to tell the agent
+        <ChevronDown className={cn('ml-auto h-4 w-4 transition-transform', open && 'rotate-180')} aria-hidden />
+      </button>
+      {open && (
+        <ul className="scroll mt-2 max-h-44 space-y-1.5 overflow-y-auto">
+          {mine.map((x) => (
+            <li key={x.id}>
+              <button
+                onClick={() => { onPick({ id: x.id, text: x.text }); setOpen(false) }}
+                className="w-full rounded-xl border border-ai/20 bg-ai-bg/60 px-3 py-2 text-left text-body text-ink hover:border-ai/40"
+              >
+                {x.text}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
 
 /** Fallback buttons per card type, used when the agent does not name its own. */
 const DEFAULT_BUTTONS: Record<string, string[]> = {
@@ -77,13 +127,19 @@ export function AgentChat({ memberId, onBack, t = english, onAnswer }: {
   const unanswered = all.filter((m) => m.card && !m.answer && !(m as any).timed_out)
   const awaiting = s.awaiting?.from === memberId ? s.awaiting : null
 
+  // A sample sentence this person tapped, still sitting in the box unedited.
+  // Only then does its id travel, so an edited sentence counts as their own
+  // words and the agent is handed no scenario at all.
+  const [picked, setPicked] = useState<{ id: string; text: string } | null>(null)
+
   // Typing routes itself: an answer if the agent is waiting on this person,
   // otherwise a new message that starts its own run, labelled with its source.
   const send = () => {
     const v = text.trim(); if (!v) return
-    setText('')
+    const sample_id = picked && picked.text === v ? picked.id : undefined
+    setText(''); setPicked(null)
     if (awaiting) sendReply(memberId, v)
-    else sendInput({ kind: 'message', source: `${me?.name || memberId}, message in the app`, from: memberId, text: v })
+    else sendInput({ kind: 'message', source: `${me?.name || memberId}, message in the app`, from: memberId, text: v, sample_id })
   }
 
   useEffect(() => { box.current?.scrollTo({ top: box.current.scrollHeight, behavior: 'smooth' }) }, [all.length])
@@ -167,6 +223,12 @@ export function AgentChat({ memberId, onBack, t = english, onAnswer }: {
           <Hand className="h-4 w-4 shrink-0" aria-hidden />
           <span className="truncate">{t('waiting_on_you')} {awaiting.what_for}</span>
         </div>
+      )}
+      {!awaiting && unanswered.length === 0 && (
+        <Suggestions
+          memberId={memberId}
+          onPick={(s) => { setText(s.text); setPicked({ id: s.id, text: s.text }) }}
+        />
       )}
       <div className="flex shrink-0 items-center gap-2 border-t border-line bg-white px-3 py-2.5">
         <input

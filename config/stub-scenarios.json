@@ -1,0 +1,537 @@
+{
+  "_note": "Scripted paths for the sample triggers in config/trigger-samples.json, used only when MODEL_PROVIDER=stub. One script per severity band, plus per-sample overrides for sentences that exercise something their band does not. `bands` is matched on the sample's expected tier; `samples` wins when a key matches the sample id. config/stub-script.json is untouched and is still the default take (the clock-driven medication refill).",
+  "_limits": "A static script cannot quote words it has not seen, so these do not call record_account: the transcript has to be verbatim (R5) and only a real model has the sentence in front of it. They also avoid naming a provider, because provider names live in onboarding data that is all placeholder today. What these scripts do demonstrate is the routing the severity decides: critical acts and settles up afterwards, urgent and routine stop and ask the RP first.",
+  "_r19": "Every turn that calls a tool opens with log_decision. There is no exemption, not even for set_stage.",
+  "bands": {
+    "critical": [
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "A member described a severe symptom in the app",
+              "source": "Chat message from a named family member, in the app",
+              "decided": "Open an incident and tell them help is already moving",
+              "rule_id": "R2",
+              "why": "a real person sent this, so it is an input the agent may act on",
+              "action": "opened the incident and acknowledged it",
+              "recipient": "the person who wrote in",
+              "connector": "WhatsApp"
+            }
+          },
+          { "name": "set_stage", "args": { "stage": 2, "why": "a named person reported a severe symptom" } },
+          {
+            "name": "send_message",
+            "args": {
+              "to": "patient",
+              "text": "నేను చూసుకుంటున్నాను. ఇప్పుడే మీ కోసం ప్రయాణం ఏర్పాటు చేస్తున్నాను. ఫోన్ దగ్గరే ఉంచుకోండి.",
+              "language": "te-IN"
+            }
+          }
+        ]
+      },
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "The account of the symptom",
+              "source": "Agent's own weighing at stage 5",
+              "decided": "Critical",
+              "rule_id": "R7",
+              "why": "matches the family's red-flag list, is new for this patient, and nobody able to drive is at home",
+              "action": "assessed critical",
+              "recipient": "none",
+              "connector": "none"
+            }
+          },
+          { "name": "set_stage", "args": { "stage": 5, "why": "weighing the four factors before routing" } },
+          {
+            "name": "record_assessment",
+            "args": {
+              "about": "patient",
+              "tier": "critical",
+              "factors": "red flag matched; sudden change from baseline; touches a known condition; nobody at home can drive her",
+              "can_tell": true,
+              "unsure": false
+            }
+          }
+        ]
+      },
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "Assessment came back critical",
+              "source": "record_assessment at stage 5",
+              "decided": "Arrange transport now rather than ask first",
+              "rule_id": "R4",
+              "why": "at this tier the delay of waiting for an answer is the risk",
+              "action": "searching for a ride",
+              "recipient": "none",
+              "connector": "Beckn"
+            }
+          },
+          { "name": "set_stage", "args": { "stage": 6, "why": "acting: transport first" } },
+          {
+            "name": "beckn_search",
+            "args": { "from": "Home", "to": "The nearest clinic on file", "for_person": "patient" }
+          }
+        ]
+      },
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "Rides came back from the search",
+              "source": "Beckn on_search",
+              "decided": "Take the one that can reach her soonest",
+              "rule_id": "R10",
+              "why": "at a critical tier arrival time decides it, not fare",
+              "action": "booked the ride",
+              "recipient": "patient",
+              "connector": "Beckn"
+            }
+          },
+          {
+            "name": "beckn_confirm",
+            "args": { "item_id": "the soonest ride from on_search", "fare_inr": 420, "for_person": "patient" }
+          }
+        ]
+      },
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "Ride confirmed, fare known",
+              "source": "Beckn on_confirm",
+              "decided": "Pay it from the wallet now and let the RP overrule it afterwards",
+              "rule_id": "R10",
+              "why": "holding a critical booking unpaid to wait for an answer is the worse risk; the RP keeps the veto",
+              "action": "debited the fare and opened the reversal window",
+              "recipient": "rp",
+              "connector": "Pine Labs"
+            }
+          },
+          {
+            "name": "wallet_ledger_append",
+            "args": { "amount_inr": 420, "payee": "Ride to the clinic", "what": "Cab for the patient, critical", "rail": "beckn" }
+          },
+          {
+            "name": "send_message",
+            "args": {
+              "to": "rp",
+              "text": "I have booked a cab for Amma to the clinic and paid Rs 420 from the wallet. I did not wait to ask, because of how she described it. The clinic is expecting her. You can reverse this if you want to.",
+              "language": "en-IN",
+              "card": "{\"kind\":\"payment\",\"title\":\"Cab booked and paid\",\"amount_inr\":420,\"payee\":\"Ride to the clinic\",\"for\":\"Amma\",\"why\":\"She described it as severe, so I moved first and am telling you now.\",\"buttons\":[\"Fine\",\"Reverse it\"]}"
+            }
+          },
+          {
+            "name": "send_message",
+            "args": {
+              "to": "family_group",
+              "text": "Amma is on her way to the clinic and I am handling it. I will post again when she has been seen.",
+              "language": "en-IN"
+            }
+          },
+          {
+            "name": "open_reversal_window",
+            "args": {
+              "about": "patient",
+              "decided_by": "patient",
+              "decision": "Send her to the clinic by cab straight away",
+              "action_taken": "Cab booked and Rs 420 paid from the wallet; the clinic has been told to expect her",
+              "window_seconds": 30
+            }
+          }
+        ]
+      },
+      {
+        "text": "Transport is moving and the RP has been told what it cost. Waiting on the clinic now.",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "Everything for this step is done",
+              "source": "Agent's own check of the step",
+              "decided": "Move to checking in and wait on the clinic",
+              "rule_id": "R21",
+              "why": "the ride is booked, paid and the family told; nothing here is left silent",
+              "action": "moved to checking in",
+              "recipient": "none",
+              "connector": "none"
+            }
+          },
+          { "name": "set_stage", "args": { "stage": 7, "why": "ride booked and paid, now checking in" } }
+        ]
+      }
+    ],
+    "urgent": [
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "A member described a symptom in the app",
+              "source": "Chat message from a named family member, in the app",
+              "decided": "Open an incident and acknowledge it",
+              "rule_id": "R2",
+              "why": "a real person sent this, so it is an input the agent may act on",
+              "action": "opened the incident",
+              "recipient": "the person who wrote in",
+              "connector": "WhatsApp"
+            }
+          },
+          { "name": "set_stage", "args": { "stage": 2, "why": "a named person reported a symptom" } },
+          {
+            "name": "send_message",
+            "args": {
+              "to": "patient",
+              "text": "చెప్పినందుకు ధన్యవాదాలు. నేను దీన్ని నమోదు చేశాను, ఇంట్లో వాళ్ళతో మాట్లాడి తిరిగి చెబుతాను.",
+              "language": "te-IN"
+            }
+          }
+        ]
+      },
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "The account of the symptom",
+              "source": "Agent's own weighing at stage 5",
+              "decided": "Urgent, and not mine to act on alone",
+              "rule_id": "R7",
+              "why": "no red flag matched, but it is a change from baseline and it touches a current medicine",
+              "action": "assessed urgent",
+              "recipient": "none",
+              "connector": "none"
+            }
+          },
+          { "name": "set_stage", "args": { "stage": 5, "why": "weighing the four factors before routing" } },
+          {
+            "name": "record_assessment",
+            "args": {
+              "about": "patient",
+              "tier": "urgent",
+              "factors": "no red flag matched; a change from baseline over two days; touches a current medicine; a clinic is open today",
+              "can_tell": true,
+              "unsure": false
+            }
+          }
+        ]
+      },
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "Assessment came back urgent",
+              "source": "record_assessment at stage 5",
+              "decided": "Put it to the RP with the detail and wait for their answer",
+              "rule_id": "R17",
+              "why": "nothing here needs to happen this minute, so the choice is the RP's and not mine",
+              "action": "asked the RP and stopped",
+              "recipient": "rp",
+              "connector": "WhatsApp"
+            }
+          },
+          {
+            "name": "send_message",
+            "args": {
+              "to": "rp",
+              "text": "Amma has reported something I would call urgent, but not an emergency. I have not booked anything. Shall I get her a clinic slot today?",
+              "language": "en-IN",
+              "card": "{\"kind\":\"booking\",\"title\":\"Book a clinic slot today?\",\"detail\":\"What she described, in her words, is in your thread above. No red flag matched, but it is new for her and it touches one of her current medicines.\",\"for\":\"Amma\",\"why\":\"Nothing is booked and nothing is spent until you say so.\",\"buttons\":[\"Yes, book it\",\"Not yet\",\"Call me\"],\"on_timeout\":\"I will ask the next person on the list rather than book it myself.\"}"
+            }
+          },
+          {
+            "name": "wait_for_reply",
+            "args": { "from": "rp", "wait_seconds": 180, "what_for": "whether to book a clinic slot today" }
+          }
+        ]
+      },
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "The RP answered",
+              "source": "RP's tap in the app",
+              "decided": "Do what they said, and nothing beyond it",
+              "rule_id": "R10",
+              "why": "the RP holds this call and they have now made it",
+              "action": "acting on the RP's answer",
+              "recipient": "rp",
+              "connector": "WhatsApp"
+            }
+          },
+          { "name": "set_stage", "args": { "stage": 6, "why": "the RP said to go ahead" } },
+          { "name": "next_provider", "args": { "kind": "clinics", "why": "the RP asked for a slot today" } }
+        ]
+      },
+      {
+        "text": "Slot being arranged on the RP's instruction. The group has the status, without the detail.",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "A clinic to try",
+              "source": "next_provider",
+              "decided": "Tell the group the status only",
+              "rule_id": "R18",
+              "why": "the group gets what is happening and who is handling it, never the symptom and never the cost",
+              "action": "posted a status line",
+              "recipient": "family_group",
+              "connector": "WhatsApp"
+            }
+          },
+          {
+            "name": "send_message",
+            "args": {
+              "to": "family_group",
+              "text": "I am arranging a clinic visit for Amma today. Nothing to worry about, I will update here once it is fixed.",
+              "language": "en-IN"
+            }
+          },
+          { "name": "set_stage", "args": { "stage": 7, "why": "waiting on the clinic" } }
+        ]
+      }
+    ],
+    "routine": [
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "A member described something minor in the app",
+              "source": "Chat message from a named family member, in the app",
+              "decided": "Open an incident and acknowledge it",
+              "rule_id": "R2",
+              "why": "a real person sent this, so it is an input the agent may act on",
+              "action": "opened the incident",
+              "recipient": "the person who wrote in",
+              "connector": "WhatsApp"
+            }
+          },
+          { "name": "set_stage", "args": { "stage": 2, "why": "a named person reported something minor" } },
+          {
+            "name": "send_message",
+            "args": {
+              "to": "patient",
+              "text": "చెప్పినందుకు ధన్యవాదాలు. పెద్ద విషయం కాదు. నేను నమోదు చేసి ఇంట్లో వాళ్ళతో మాట్లాడుతాను.",
+              "language": "te-IN"
+            }
+          }
+        ]
+      },
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "The account of the complaint",
+              "source": "Agent's own weighing at stage 5",
+              "decided": "Routine",
+              "rule_id": "R7",
+              "why": "no red flag, no change from baseline worth calling one, and nothing touching a current medicine",
+              "action": "assessed routine",
+              "recipient": "none",
+              "connector": "none"
+            }
+          },
+          { "name": "set_stage", "args": { "stage": 5, "why": "weighing the four factors before routing" } },
+          {
+            "name": "record_assessment",
+            "args": {
+              "about": "patient",
+              "tier": "routine",
+              "factors": "no red flag; settles on its own and has before; no link to a current medicine; a clinic is open tomorrow",
+              "can_tell": true,
+              "unsure": false
+            }
+          }
+        ]
+      },
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "Assessment came back routine",
+              "source": "record_assessment at stage 5",
+              "decided": "Tell the RP what it is and let them pick what happens next",
+              "rule_id": "R17",
+              "why": "a routine complaint is the RP's call, and I will not name a medicine for it (R1)",
+              "action": "asked the RP and stopped",
+              "recipient": "rp",
+              "connector": "WhatsApp"
+            }
+          },
+          {
+            "name": "send_message",
+            "args": {
+              "to": "rp",
+              "text": "Amma has reported something minor. I would not call it urgent. It may well be covered by something she already has at home, but I am not going to name a medicine for it. Do you want a clinic slot, or shall I leave it?",
+              "language": "en-IN",
+              "card": "{\"kind\":\"booking\",\"title\":\"Anything to do here?\",\"detail\":\"Her own words are in your thread above. No red flag, nothing new for her, and no link to her current medicines.\",\"for\":\"Amma\",\"why\":\"Your call entirely. I will not pick a medicine, and nothing is spent unless you ask for it.\",\"buttons\":[\"Book a slot\",\"Leave it for now\",\"Call me\"],\"on_timeout\":\"I will leave it and keep it on her record.\"}"
+            }
+          },
+          {
+            "name": "wait_for_reply",
+            "args": { "from": "rp", "wait_seconds": 900, "what_for": "whether to do anything about a routine complaint" }
+          }
+        ]
+      },
+      {
+        "text": "Logged on her record, with the RP's answer against it. Nothing booked and nothing spent.",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "The RP answered",
+              "source": "RP's tap in the app",
+              "decided": "Do what they said and close the incident",
+              "rule_id": "R10",
+              "why": "the RP holds a routine call and they have made it",
+              "action": "acted on the RP's answer and closed",
+              "recipient": "rp",
+              "connector": "WhatsApp"
+            }
+          },
+          { "name": "set_stage", "args": { "stage": 9, "why": "the RP has decided and nothing is outstanding" } }
+        ]
+      }
+    ]
+  },
+  "samples": {
+    "crit_unreachable": [
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "A member says the patient reported chest tightness and the line then cut, with nobody at the house answering",
+              "source": "Chat message from a named family member, in the app",
+              "decided": "Treat it as critical on a secondhand account and start calling",
+              "rule_id": "R2",
+              "why": "a real person sent this; the account being secondhand does not make it less of an input",
+              "action": "opened the incident",
+              "recipient": "the member who wrote in",
+              "connector": "WhatsApp"
+            }
+          },
+          { "name": "set_stage", "args": { "stage": 2, "why": "a severe symptom reported secondhand, nobody reachable at home" } }
+        ]
+      },
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "A secondhand account of chest tightness and a dropped call",
+              "source": "Agent's own weighing at stage 5",
+              "decided": "Critical",
+              "rule_id": "R7",
+              "why": "red flag matched, and not being able to reach her makes it worse rather than better",
+              "action": "assessed critical",
+              "recipient": "none",
+              "connector": "none"
+            }
+          },
+          { "name": "set_stage", "args": { "stage": 5, "why": "weighing the four factors" } },
+          {
+            "name": "record_assessment",
+            "args": {
+              "about": "patient",
+              "tier": "critical",
+              "factors": "red flag matched; call dropped mid-sentence; nobody at the house picking up; the nearest member is two hours away",
+              "can_tell": true,
+              "unsure": false
+            }
+          }
+        ]
+      },
+      {
+        "text": "Ambulance sent without waiting for anyone to pick up. Still calling down the list.",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "Critical, and nobody reachable",
+              "source": "record_assessment plus the failed calls",
+              "decided": "Dispatch anyway, then keep calling down the contact list",
+              "rule_id": "R9",
+              "why": "waiting for somebody to answer is not a plan at this tier; the dispatch happens and the calling continues",
+              "action": "dispatched and still calling",
+              "recipient": "family_group",
+              "connector": "phone"
+            }
+          },
+          { "name": "set_stage", "args": { "stage": 6, "why": "dispatching with nobody reachable" } },
+          {
+            "name": "record_dispatch",
+            "args": {
+              "transport": "Ambulance on 108, sent to the house for the patient",
+              "clinic_notified": "The nearest clinic on file has been told to expect her",
+              "family_alerted": "Posted to the family group that an ambulance is on its way and that I am still calling round",
+              "still_calling": true,
+              "why": "critical with nobody reachable, so all four parts happen at once (R9)"
+            }
+          }
+        ]
+      },
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "Dispatch recorded with all four parts",
+              "source": "record_dispatch",
+              "decided": "Keep working down the contact list and tell the group the status",
+              "rule_id": "R18",
+              "why": "the group hears what is happening and who is handling it, never the symptom",
+              "action": "posted the status and carried on calling",
+              "recipient": "family_group",
+              "connector": "WhatsApp"
+            }
+          },
+          {
+            "name": "send_message",
+            "args": {
+              "to": "family_group",
+              "text": "An ambulance is on its way to Amma and the clinic is expecting her. I could not reach anyone at the house, so I am still calling round. I will update here.",
+              "language": "en-IN"
+            }
+          },
+          {
+            "name": "next_contact",
+            "args": {
+              "affected": "patient",
+              "tier": "critical",
+              "why": "nobody at the house answered, so I am working down the chain while the ambulance is on its way"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

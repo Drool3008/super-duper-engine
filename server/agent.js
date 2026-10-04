@@ -36,6 +36,19 @@ function systemPrompt() {
 
 // ---------------------------------------------------------------- LIVE tools
 
+/**
+ * A figure of money in a line of text, in the forms this demo actually writes:
+ * a rupee sign, or Rs/INR, next to a number. Deliberately narrow -- it is here
+ * to catch "paid Rs 420", not to police every sentence containing a digit, so a
+ * status line like "the 2 o'clock slot" goes through untouched.
+ */
+const MONEY_PATTERNS = [
+  /₹\s*\d/,
+  /\b(?:rs|inr)\b\.?\s*\d/i,
+  /\d\s*(?:rupees|rs\b|inr\b)/i,
+]
+const mentionsMoney = (text) => MONEY_PATTERNS.some((re) => re.test(String(text || '')))
+
 async function runLive(name, args) {
   switch (name) {
     case 'log_decision': {
@@ -57,6 +70,22 @@ async function runLive(name, args) {
     case 'send_message': {
       let card = null
       if (args.card) { try { card = JSON.parse(args.card) } catch { card = { parse_error: args.card } } }
+
+      // R18, enforced rather than asked for. The family group hears what is
+      // happening and who is handling it; what it cost is the RP's business and
+      // nobody else's. This is the half of R18 that can be checked mechanically,
+      // so it is checked. The refusal goes back to the model, which can resend
+      // the same status line without the figure.
+      if (args.to === 'family_group') {
+        const inCard = card && (card.amount_inr !== undefined || card.wallet_left_inr !== undefined)
+        if (inCard || mentionsMoney(args.text)) {
+          return {
+            ok: false,
+            error: 'R18: the family group gets status only, never a cost. Send the amount to the RP and post the group a status line with no figure in it.',
+          }
+        }
+      }
+
       const msg = { id: randomUUID(), from: 'agent', to: args.to, text: args.text, language: args.language, card, at: session.clock.toISOString() }
       ;(session.messages[args.to] ||= []).push(msg)
       emit('message', { message: msg })
@@ -158,6 +187,26 @@ let epoch = 0
 export function isRunning() { return running }
 
 export function abortRun() { epoch++; running = false }
+
+const usingStub = () => (process.env.MODEL_PROVIDER || 'gemini').toLowerCase() === 'stub'
+
+/**
+ * A sample trigger was raised from the UI. Under the stub this points the
+ * script at the path that sentence is meant to exercise; under a real model it
+ * does nothing at all, because a real model reads the sentence and decides for
+ * itself. Returns the band picked, or null when nothing was scripted.
+ *
+ * The sample id stops here. It is never put on the input, because `feed()`
+ * hands the whole input to the model and the expected tier would be a hint.
+ */
+export function selectScenario(sampleId) {
+  return usingStub() ? stubProvider.select(sampleId) : null
+}
+
+/** Put the stub back to the top of its default script. Called on a reset. */
+export function rewindScript() {
+  if (usingStub()) stubProvider.rewind()
+}
 
 export async function feed(input, images = []) {
   // `input` is a real external event. It carries its own source label and the

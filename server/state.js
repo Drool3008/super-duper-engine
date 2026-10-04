@@ -9,6 +9,9 @@ const loadOptional = (path, fallback) => {
 // never sees these unless a member forwards one.
 const familyHistory = loadOptional('config/family-history.json', { chats: [] })
 const rpHistory = loadOptional('config/rp-history.json', { messages: [] })
+// Sample trigger sentences offered in the UI. Static: only the sentence is ever
+// sent to the agent, never the tier it is expected to land on.
+const triggerSamples = loadOptional('config/trigger-samples.json', { samples: [] })
 
 export const session = {
   startedAt: new Date().toISOString(),
@@ -37,6 +40,7 @@ export const session = {
   refillCycles: [],// run-out dates, set from what was dispensed (see acting.js)
   familyHistory,
   rpHistory,
+  triggerSamples,
   history: [],     // provider-agnostic conversation history
   pending: [],     // curtain calls waiting on a teammate
 }
@@ -109,6 +113,8 @@ export function resetSession(reason = 'operator reset') {
   const fresh = JSON.parse(readFileSync('config/onboarding.json', 'utf8'))
 
   session.onboarding = fresh
+  // Re-read from disk too, so an edited sample list lands without a restart.
+  session.triggerSamples = loadOptional('config/trigger-samples.json', { samples: [] })
   session.clock = new Date(fresh.sim_clock.start)
   session.stage = 1
   session.startedAt = new Date().toISOString()

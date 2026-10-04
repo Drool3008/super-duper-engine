@@ -23,13 +23,15 @@ export interface SessionView {
   lastMessage: Message | null
   familyHistory: any
   rpHistory: any
+  /** Static sample trigger sentences offered in the UI, from config. */
+  triggerSamples: any
 }
 
 const EMPTY: SessionView = {
   model: '', stage: 1, clock: '', wallet: { limit: 0, spent: 0, ledger: [] },
   rails: { gnani: false, sheets: false }, onboarding: null,
   decisions: [], messages: {}, chats: {}, reversals: [], pending: [], timeline: [], thinking: false,
-  awaiting: null, lastMessage: null, familyHistory: null, rpHistory: null,
+  awaiting: null, lastMessage: null, familyHistory: null, rpHistory: null, triggerSamples: null,
 }
 
 const Ctx = createContext<SessionView>(EMPTY)
@@ -51,7 +53,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setView((v) => ({
         ...v, model: s.model, stage: s.stage, clock: s.clock,
         wallet: s.wallet, rails: s.rails, onboarding: s.onboarding,
-        familyHistory: s.familyHistory, rpHistory: s.rpHistory,
+        familyHistory: s.familyHistory, rpHistory: s.rpHistory, triggerSamples: s.triggerSamples,
       }))
     }).catch(() => {})
 
@@ -85,7 +87,7 @@ function reduce(v: SessionView, ev: AgentEvent, nextId: () => string): SessionVi
     // Everything this view holds came from the event log, and the log is now
     // empty. Keep only what the next fetch would give us back anyway.
     case 'reset':
-      return { ...EMPTY, model: v.model, onboarding: v.onboarding, familyHistory: v.familyHistory, rpHistory: v.rpHistory, clock: ev.clock }
+      return { ...EMPTY, model: v.model, onboarding: v.onboarding, familyHistory: v.familyHistory, rpHistory: v.rpHistory, triggerSamples: v.triggerSamples, clock: ev.clock }
     case 'sync': {
       // Sent once, to this client, after the replay. The replayed log can leave
       // `thinking` stuck on when a run ended without a terminal event, so the

@@ -376,5 +376,82 @@ assert.equal(session.events.length, 1)
 assert.equal(session.events[0].type, 'reset')
 console.log('ok  reset cleared the session and re-read onboarding from disk')
 
+// ---------------------------------------------------------------- triggers
+
+// The sample sentences and their scripted paths are data, and data this file
+// can be wrong in silently: loadOptional swallows a parse error and leaves an
+// empty list, and a mistyped tool name in a scripted turn only shows up
+// mid-take. Both are checked here instead.
+const { TOOL_BY_NAME, RULE_IDS } = await import('./tools.js')
+
+const samples = JSON.parse(readFileSync('config/trigger-samples.json', 'utf8')).samples
+assert.ok(samples.length >= 10, 'there should be a usable spread of sample triggers')
+// Derived from the data, not written down here: a sample addressed to somebody
+// who left the family would never appear on a handset and would arrive from an
+// id nobody recognises. Swapping in a different family is supposed to be safe.
+const whoCanSpeak = session.onboarding.family.members.map((m) => m.id)
+for (const x of samples) {
+  assert.ok(x.id && x.text && x.from, `sample ${x.id} needs an id, a sentence and a sender`)
+  assert.ok(['routine', 'urgent', 'critical'].includes(x.expect?.tier), `sample ${x.id} has no expected tier`)
+  assert.ok(whoCanSpeak.includes(x.from), `sample ${x.id} comes from ${x.from}, who is not in this family`)
+}
+const tiers = samples.reduce((a, x) => ({ ...a, [x.expect.tier]: (a[x.expect.tier] || 0) + 1 }), {})
+assert.ok(tiers.critical && tiers.urgent && tiers.routine, 'all three tiers need a sample')
+console.log(`ok  ${samples.length} sample triggers, every one with a sender and an expected tier`)
+
+const scenarios = JSON.parse(readFileSync('config/stub-scenarios.json', 'utf8'))
+const scripts = { ...scenarios.bands, ...scenarios.samples }
+for (const [which, turns] of Object.entries(scripts)) {
+  turns.forEach((t, i) => {
+    const calls = t.toolCalls || []
+    if (calls.length) {
+      assert.equal(calls[0].name, 'log_decision', `${which} turn ${i} must open with log_decision (R19)`)
+    }
+    for (const c of calls) {
+      const tool = TOOL_BY_NAME[c.name]
+      assert.ok(tool, `${which} turn ${i}: no such tool as ${c.name}`)
+      for (const r of tool.parameters?.required || []) {
+        assert.ok(r in (c.args || {}), `${which} turn ${i}: ${c.name} is missing ${r}`)
+      }
+      if (c.name === 'log_decision') {
+        assert.ok(RULE_IDS.includes(c.args.rule_id), `${which} turn ${i}: ${c.args.rule_id} is not a rule`)
+      }
+      if (c.name === 'send_message' && c.args.card) JSON.parse(c.args.card)
+    }
+  })
+}
+console.log('ok  every scripted turn opens with log_decision and calls tools that exist')
+
+// A sample's expected tier must never reach the model. It travels as sample_id
+// on the request, is stripped at /api/input, and resolves to a stub band here.
+const band = stub.select('crit_chest')
+assert.equal(band, 'critical', 'a critical sample should select the critical band')
+assert.equal(stub.select('nonsense_id'), null, 'an unknown sample leaves the default script alone')
+stub.rewind()
+console.log('ok  a sample id picks its band, and an unknown one changes nothing')
+
+// R18, the half of it that can be checked mechanically: no cost reaches the
+// family group. Driven through the real loop rather than the guard directly, so
+// the wiring is covered and not just the regex.
+stub.reset([
+  { text: '', toolCalls: [
+    { name: 'log_decision', args: { received: 'cab booked', source: 'Beckn on_confirm', decided: 'tell the group the status and the RP the cost', rule_id: 'R18', why: 'the group never hears what something cost', action: 'posting', recipient: 'family_group', connector: 'WhatsApp' } },
+    { name: 'send_message', args: { to: 'family_group', text: 'Booked her cab, paid Rs 420 from the wallet.', language: 'en-IN' } },
+    { name: 'send_message', args: { to: 'family_group', text: 'Amma is on her way to the clinic and I am handling it.', language: 'en-IN' } },
+    { name: 'send_message', args: { to: 'rp', text: 'Paid Rs 420 for the cab to the clinic.', language: 'en-IN' } },
+  ] },
+  { text: 'done', toolCalls: [] },
+])
+await feed({ kind: 'test', source: 'selfcheck R18' })
+
+const sends = session.events.filter((e) => e.type === 'tool_result' && e.name === 'send_message').map((e) => e.result)
+assert.equal(sends.length, 3, 'three sends were attempted')
+assert.equal(sends[0].ok, false, 'a cost sent to the family group must be refused')
+assert.match(sends[0].error, /R18/)
+assert.equal(sends[1].ok, true, 'a status line with no figure in it goes through')
+assert.equal(sends[2].ok, true, 'the same figure is fine for the RP, who is the one entitled to see it')
+assert.equal(session.messages.family_group.length, 1, 'only the status line reached the group')
+console.log('ok  R18 kept the cost out of the family group and let the status line through')
+
 console.log('\nall checks passed')
 process.exit(0)

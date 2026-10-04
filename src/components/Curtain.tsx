@@ -4,6 +4,8 @@ import { RunBadge, Json, PaneHeader } from './ui'
 import { RAIL_COLOUR } from '../lib/types'
 import { advanceClock, resetSession, sendCurtain, sendInput, sendNoAnswer, uploadAudio } from '../lib/api'
 import { SOS_ENABLED } from '../lib/config'
+import { useSession } from '../lib/session'
+import { cn } from '../lib/utils'
 import { Clock, Inbox, Mic, MessageSquareText, RotateCcw, Send, Theater, UserRoundSearch } from 'lucide-react'
 
 export function Curtain({ pending, awaiting, onboarding, present }: {
@@ -23,6 +25,7 @@ export function Curtain({ pending, awaiting, onboarding, present }: {
         {awaiting && <Awaiting awaiting={awaiting} />}
         <PendingQueue pending={pending} present={present} />
         <Inputs onboarding={onboarding} />
+        <SampleTriggers onboarding={onboarding} present={present} />
         {!present && <ResetTake />}
       </div>
     </aside>
@@ -170,6 +173,89 @@ function Inputs({ onboarding }: { onboarding: any }) {
           Advance clock
         </button>
       </div>
+    </section>
+  )
+}
+
+/**
+ * The sample trigger sentences, grouped by the tier each one is meant to land
+ * on. Unlike the copies on the handsets, this list shows the tier and the path
+ * expected of it: the Director needs to know what they are firing, and whether
+ * what came back was the right answer or a lucky one.
+ *
+ * The expectation is never sent. Only the sentence goes, as an ordinary message
+ * from the named person, exactly as if they had typed it on their phone — the
+ * sample id rides alongside for the stub's benefit and is stripped before the
+ * agent sees anything (see /api/input).
+ */
+const TIER_STYLE: Record<string, { label: string; cls: string }> = {
+  critical: { label: 'CRITICAL', cls: 'border-decision/40 bg-decision-bg text-decision' },
+  urgent: { label: 'URGENT', cls: 'border-human/40 bg-human-bg text-human' },
+  routine: { label: 'ROUTINE', cls: 'border-ok/40 bg-ok-bg text-ok' },
+}
+
+function SampleTriggers({ onboarding, present }: { onboarding: any; present: boolean }) {
+  const s = useSession()
+  const samples: any[] = s.triggerSamples?.samples || []
+  const [sent, setSent] = useState<string | null>(null)
+  if (samples.length === 0) return null
+
+  const members: any[] = onboarding?.family?.members || []
+  const nameOf = (id: string) => members.find((m) => m.id === id)?.name || id
+  const order = ['critical', 'urgent', 'routine']
+
+  const fire = (x: any) => {
+    sendInput({
+      kind: 'message',
+      source: `${nameOf(x.from)}, message in the app`,
+      from: x.from,
+      text: x.text,
+      sample_id: x.id,
+    })
+    setSent(x.id)
+  }
+
+  return (
+    <section className="border-b border-line p-4">
+      <h3 className="flex items-center gap-2 text-card">
+        <MessageSquareText className="h-4 w-4 text-ai" aria-hidden /> Sample triggers
+      </h3>
+      <p className="mt-0.5 text-meta text-muted">
+        Anyone raises one of these by chatting. There is no emergency button: the sentence is the trigger.
+      </p>
+
+      {order.map((tier) => {
+        const group = samples.filter((x) => x.expect?.tier === tier)
+        if (group.length === 0) return null
+        const style = TIER_STYLE[tier]
+        return (
+          <div key={tier} className="mt-3">
+            <div className="flex items-center gap-2">
+              <span className={cn('rounded-full border px-1.5 py-0.5 text-badge', style.cls)}>{style.label}</span>
+              <span className="text-meta text-muted">
+                {tier === 'critical' ? 'acts, then tells the RP' : 'asks the RP first'}
+              </span>
+            </div>
+            <ul className="mt-1.5 space-y-1.5">
+              {group.map((x) => (
+                <li key={x.id} className="rounded border border-line bg-white p-2">
+                  <div className="text-[12px] font-semibold text-muted">{nameOf(x.from)}</div>
+                  <div className="mt-0.5 text-body text-ink">{x.text}</div>
+                  {!present && x.expect?.path && (
+                    <div className="mt-1 text-[12px] leading-[16px] text-muted">{x.expect.path}</div>
+                  )}
+                  <button
+                    onClick={() => fire(x)}
+                    className="mt-1.5 w-full rounded bg-ai px-3 py-1.5 text-meta font-semibold text-white hover:brightness-110"
+                  >
+                    {sent === x.id ? 'Sent — send again' : 'Send as this person'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      })}
     </section>
   )
 }
