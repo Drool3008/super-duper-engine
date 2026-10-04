@@ -1,8 +1,0 @@
-{
-  "_source": "IMAGINED CAPABILITY. No such endpoint exists today.",
-  "_confirmed": "imagined",
-  "_note": "Imagined capability 2 of 3. Pine Labs in-store machines at chemists already know merchant category and location, and billing integrations hold item-level sales. This turns 'out of stock, try the next chemist' into a lookup instead of blind phone calls.",
-  "success_in_stock": { "pin": "560001", "sku": "Placeholder Chronic Medicine 1 10mg", "merchants": [ { "name": "Placeholder Chemist 1", "distance_km": 1.2, "units_in_stock": 30, "mrp_inr": 320 }, { "name": "Placeholder Chemist 2", "distance_km": 4.8, "units_in_stock": 12, "mrp_inr": 320 } ] },
-  "failure_out_of_stock_nearby": { "pin": "560001", "sku": "Placeholder Chronic Medicine 1 10mg", "merchants": [] },
-  "failure_only_far_stock": { "pin": "560001", "sku": "Placeholder Chronic Medicine 1 10mg", "merchants": [ { "name": "Placeholder Chemist 2", "distance_km": 14.6, "units_in_stock": 8, "mrp_inr": 340 } ] }
-}

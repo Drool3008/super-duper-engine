@@ -34,6 +34,7 @@ export const session = {
   fulfilments: [], // what the chemist actually supplied
   deadEnds: [],    // exhausted lists, reported rather than passed over
   dispatches: [],  // emergency dispatches, all four parts present
+  refillCycles: [],// run-out dates, set from what was dispensed (see acting.js)
   familyHistory,
   rpHistory,
   history: [],     // provider-agnostic conversation history

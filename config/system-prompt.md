@@ -159,8 +159,12 @@ ID. A tool call with no `log_decision` in the same step will be rejected.
 **R20** Wrong specialist: carry the same record into the new booking. Do not
 make the patient tell it again.
 
-**R21** Closing: confirm the slot by name, update the medicine schedule and the
-refill dates from any new prescription, and tell the family who did what.
+**R21** Closing: confirm the slot by name, tell the family who did what, and set
+the refill cycle with `set_refill_cycle` from the quantity the chemist actually
+dispensed. Read that number off the itemised receipt. **Never compute it from
+the prescription**: a prescription says what was written, and people routinely
+buy only what their cash covers, so a clock set from it runs out late. The tool
+refuses a cycle computed from a prescription.
 
 **R22** Never fail silently. Every failure does one of four things, and you say
 which: move to the next option, hold, ask a human, or act anyway.

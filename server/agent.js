@@ -7,7 +7,7 @@ import { awaitReply } from './humans.js'
 import { nextContact, startChain } from './contacts.js'
 import { recordAccount } from './accounts.js'
 import { recordAssessment, openReversal } from './assessment.js'
-import { nextProvider, recordProviderOutcome, reportDeadEnd, recordFulfilment, recordDispatch } from './acting.js'
+import { nextProvider, recordProviderOutcome, reportDeadEnd, recordFulfilment, recordDispatch, setRefillCycle } from './acting.js'
 import { loadFixtures } from './fixtures.js'
 import * as sheets from './rails/sheets.js'
 import * as gnani from './rails/gnani.js'
@@ -82,6 +82,8 @@ async function runLive(name, args) {
       return recordFulfilment(args)
     case 'record_dispatch':
       return recordDispatch(args)
+    case 'set_refill_cycle':
+      return setRefillCycle(args)
     case 'record_update': {
       let changes
       try { changes = JSON.parse(args.changes) } catch { return { ok: false, error: 'changes must be a JSON object encoded as a string' } }

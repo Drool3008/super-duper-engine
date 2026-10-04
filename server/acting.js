@@ -120,7 +120,7 @@ export function reportDeadEnd({ kind, why } = {}) {
  * refused. R1 says never substitute and never accept a substitute offered to
  * you, so there is no shape of this call that records one as fulfilled.
  */
-export function recordFulfilment({ prescribed, supplied, chemist, substitute_offered, why } = {}) {
+export function recordFulfilment({ prescribed, supplied, chemist, substitute_offered, why, quantity_dispensed } = {}) {
   if (!String(prescribed || '').trim()) return { ok: false, error: 'prescribed is required: the medicine on the prescription.' }
   if (!String(supplied || '').trim()) return { ok: false, error: 'supplied is required: what the chemist is actually giving you.' }
 
@@ -134,7 +134,8 @@ export function recordFulfilment({ prescribed, supplied, chemist, substitute_off
 
   const row = {
     prescribed: String(prescribed), supplied: String(supplied), chemist: chemist || null,
-    substitute_offered: substitute_offered || null, why: why || null, at: session.clock.toISOString(),
+    substitute_offered: substitute_offered || null, why: why || null,
+    quantity_dispensed: quantity_dispensed ?? null, at: session.clock.toISOString(),
   }
   ;(session.fulfilments ||= []).push(row)
   emit('fulfilment', row)
@@ -147,7 +148,12 @@ export function recordFulfilment({ prescribed, supplied, chemist, substitute_off
       note: `R1: ${chemist || 'the chemist'} offered ${substitute_offered}. You did not take it. Hand the offer to a human and say why.`,
     }
   }
-  return { ok: true, ...row, must_ask_human: false }
+  return {
+    ok: true, ...row, must_ask_human: false,
+    next_step: quantity_dispensed
+      ? `Set the refill cycle from ${quantity_dispensed} units with set_refill_cycle, not from the prescription (R21).`
+      : 'Read the quantity actually dispensed off the itemised receipt, then set the refill cycle from it (R21).',
+  }
 }
 
 // ---------------------------------------------------------------- emergency
@@ -180,6 +186,73 @@ export function recordDispatch({ transport, clinic_notified, family_alerted, sti
   emit('dispatch', row)
   return { ok: true, ...row, note: 'Keep calling down the chain. Acting does not wait for permission when the tier is critical (R9).' }
 }
+
+// ---------------------------------------------------------------- the loop
+
+/**
+ * When this medicine runs out, and so when the next cycle starts.
+ *
+ * Computed from the quantity the counter actually dispensed, never from the
+ * prescription. A prescription records what was written; families are routinely
+ * handed part of one because that is what the cash in hand covered. A refill
+ * clock set from the prescription is therefore wrong in exactly the cases that
+ * matter, and wrong late, which is the worst time to find out.
+ *
+ * This is why the itemised receipt is worth an imagined capability: only the
+ * counter knows the real number.
+ */
+export function setRefillCycle({ medicine_id, quantity_dispensed, source, receipt_ref, from_date } = {}) {
+  const meds = session.onboarding?.current_medicines || []
+  const med = meds.find((m) => m.id === medicine_id)
+  if (!med) {
+    return { ok: false, error: `no medicine with id ${medicine_id}. Known: ${meds.map((m) => m.id).join(', ')}.` }
+  }
+
+  if (source === 'prescription' || source === 'assumed') {
+    return {
+      ok: false,
+      error: 'R21: the refill clock is set from what was dispensed, not from what was prescribed. A prescription says what was written; the counter says what was handed over, and those differ whenever somebody buys what their cash covers. Read the quantity off the itemised receipt.',
+    }
+  }
+  if (source !== 'dispensing_receipt') {
+    return { ok: false, error: "source must be 'dispensing_receipt'." }
+  }
+
+  const qty = Number(quantity_dispensed)
+  if (!Number.isFinite(qty) || qty <= 0) {
+    return { ok: false, error: 'quantity_dispensed must be a positive number of units, taken from the receipt.' }
+  }
+  const dose = Number(med.daily_dose) || 0
+  if (dose <= 0) {
+    return { ok: false, error: `${med.name} has no daily_dose on file, so the run-out date cannot be worked out. Update the record first.` }
+  }
+
+  const start = from_date ? new Date(from_date) : new Date(session.clock)
+  if (Number.isNaN(start.getTime())) return { ok: false, error: 'from_date must be an ISO date.' }
+
+  const days = Math.floor(qty / dose)
+  const runsOut = new Date(start.getTime() + days * 86400000)
+
+  const before = { pills_left: med.pills_left, next_refill_date: med.next_refill_date || null }
+  med.pills_left = qty
+  med.next_refill_date = runsOut.toISOString()
+  med.refill_source = { source, receipt_ref: receipt_ref || null, quantity_dispensed: qty, set_at: session.clock.toISOString() }
+
+  const row = {
+    medicine_id, medicine: med.name, quantity_dispensed: qty, daily_dose: dose,
+    days_of_cover: days, runs_out: med.next_refill_date, receipt_ref: receipt_ref || null,
+    before, at: session.clock.toISOString(),
+  }
+  ;(session.refillCycles ||= []).push(row)
+  emit('refill_cycle', row)
+
+  return {
+    ok: true, ...row,
+    note: `${qty} units at ${dose} a day is ${days} days. Next cycle triggers on ${med.next_refill_date.slice(0, 10)} with nobody having to remember it.`,
+  }
+}
+
+export const refillCycles = () => session.refillCycles || []
 
 export const providerLog = () => session.providerLog || []
 export const fulfilments = () => session.fulfilments || []

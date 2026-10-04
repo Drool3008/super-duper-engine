@@ -169,6 +169,38 @@ Covered by five checks: the redial order, the dead end gate, the missing R12
 reason, the refused substitution with its escalated offer, and the partial
 dispatch.
 
+### Imagined capabilities, and the loop that closes itself
+
+Aligned with `Vantari — Round 3 Simulation Plan.pdf`, which is the filming plan
+and carries the brief's budget: **exactly three** imagined capabilities.
+
+The three we had were the wrong three. `gnani_speaker_check`,
+`pinelabs_chemist_stock` and `delhivery_same_day` were all invented here with no
+evidence behind them, and they spent the whole budget. They are gone, replaced
+by the plan's three, each of which arrives with an argument:
+
+| Capability | Rail | Why it earns a slot |
+|---|---|---|
+| `gnani_call_session` | Gnani | Dial out, hear that a human rather than hold music answered, hand the live leg to a second number. Twelve of twenty-five people surveyed said their parent no longer phones a clinic. Gnani has the speech; what is missing is call control. |
+| `pinelabs_dispensing_receipt` | Pine Labs | Line items with the quantity actually dispensed. Pine Labs holds the merchant relationship and the authorisation record; the data passes through them and is simply not returned. |
+| `delhivery_named_recipient` | Delhivery | Which named person took the parcel. Delhivery already establishes identity at the door with OTP; it is not returned to the party who ordered. An episode closes on medicine reaching the patient, not a parcel reaching an address. |
+
+A check asserts there are exactly three and that they are these three, so the
+budget cannot quietly grow again.
+
+**The loop closes on what was dispensed, not what was prescribed.**
+`set_refill_cycle` computes the run-out date from the quantity on the itemised
+receipt and **refuses** a cycle computed from the prescription or assumed. A
+prescription records what was written; people routinely buy only what their cash
+covers. The seeded case makes the size of it plain: 20 units dispensed at two a
+day is 10 days of cover, where the 60 on the prescription would have implied 30.
+A clock set from the prescription runs out twenty days late, which is the worst
+possible direction to be wrong in.
+
+This is why the itemised receipt is worth a slot: only the counter knows the
+real number. The medicine record keeps `refill_source` saying where its number
+came from, so a clock can always be traced back.
+
 ## Spend
 
 Every operation costs money, so the RP sets a spend limit. The running total is

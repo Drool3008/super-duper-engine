@@ -1,0 +1,9 @@
+{
+  "_source": "IMAGINED CAPABILITY. No such endpoint exists today.",
+  "_confirmed": "imagined",
+  "_note": "Imagined capability 1 of 3. Gnani already runs production speech recognition and synthesis tuned for 8kHz telephony across ten Indian languages, deployed in enterprise call automation. What is missing is agent-initiated call control: dialling out, knowing a human rather than hold music has answered, and handing the live leg to a second number.",
+  "success_human_answered": { "call_id": "CS-DEMO-0001", "status": "ANSWERED_HUMAN", "hold_seconds": 42, "answered_by": "human", "transfer": { "status": "TRANSFERRED", "to_name": "Lakshmi", "leg_id": "CS-DEMO-0001-B" } },
+  "success_no_transfer": { "call_id": "CS-DEMO-0002", "status": "ANSWERED_HUMAN", "hold_seconds": 18, "answered_by": "human", "transfer": null },
+  "failure_no_answer": { "call_id": "CS-DEMO-0003", "status": "NO_ANSWER", "rings": 9, "hold_seconds": 0, "answered_by": null },
+  "failure_ivr_loop": { "call_id": "CS-DEMO-0004", "status": "IVR_ONLY", "hold_seconds": 150, "answered_by": "machine", "message": "never reached a human" }
+}

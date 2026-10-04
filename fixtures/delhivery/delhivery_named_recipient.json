@@ -1,0 +1,8 @@
+{
+  "_source": "IMAGINED CAPABILITY. No such endpoint exists today.",
+  "_confirmed": "imagined",
+  "_note": "Imagined capability 3 of 3. Delhivery already does OTP-based delivery confirmation and keeps a complete event trail per waybill, so identity is established at the door. It is just not returned to the party who ordered. An episode closes on medicine reaching the patient, not a parcel reaching an address.",
+  "success_patient_received": { "waybill": "DL-DEMO-0001", "status": "DELIVERED", "received_by": "Lakshmi", "matched_expected": true, "verified_by": "OTP", "at": "2026-10-04T11:42:00+05:30" },
+  "failure_neighbour_took_it": { "waybill": "DL-DEMO-0002", "status": "DELIVERED", "received_by": "neighbour, flat 3B", "matched_expected": false, "verified_by": "signature", "at": "2026-10-04T11:51:00+05:30" },
+  "failure_nobody_home": { "waybill": "DL-DEMO-0003", "status": "UNDELIVERED", "received_by": null, "matched_expected": false, "reason": "nobody at the address" }
+}

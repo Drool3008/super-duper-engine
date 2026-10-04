@@ -1,0 +1,8 @@
+{
+  "_source": "IMAGINED CAPABILITY. No such endpoint exists today.",
+  "_confirmed": "imagined",
+  "_note": "Imagined capability 2 of 3. Pine Labs holds the merchant relationship with the pharmacy and the authorisation record for every transaction at that counter. The line-item data passes through them; it is simply not returned. Without it the refill clock is computed from the prescription, which is wrong whenever somebody buys only what their cash covers.",
+  "success_partial_fill": { "transaction_id": "TX-DEMO-0001", "amount_inr": 320, "line_items": [ { "drug": "Placeholder Chronic Medicine 1", "strength": "10mg", "quantity_dispensed": 20, "quantity_on_prescription": 60, "unit_price_inr": 16 } ] },
+  "success_full_fill": { "transaction_id": "TX-DEMO-0002", "amount_inr": 960, "line_items": [ { "drug": "Placeholder Chronic Medicine 1", "strength": "10mg", "quantity_dispensed": 60, "quantity_on_prescription": 60, "unit_price_inr": 16 } ] },
+  "failure_no_itemisation": { "transaction_id": "TX-DEMO-0003", "amount_inr": 320, "line_items": [], "message": "this merchant terminal did not send line items" }
+}

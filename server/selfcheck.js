@@ -290,5 +290,42 @@ const whole = recordDispatch({
 assert.equal(whole.ok, true)
 console.log('ok  emergency dispatch required all four parts')
 
+// ------------------------------------------------- the loop closes on itself
+
+const { setRefillCycle } = await import('./acting.js')
+const { TOOLS } = await import('./tools.js')
+
+// The brief allows exactly three imagined capabilities, and these are the three.
+const imagined = TOOLS.filter((x) => x.mode === 'IMAGINED').map((x) => x.name).sort()
+assert.equal(imagined.length, 3, 'exactly three imagined capabilities, no more')
+assert.deepEqual(imagined, ['delhivery_named_recipient', 'gnani_call_session', 'pinelabs_dispensing_receipt'])
+console.log('ok  exactly three imagined capabilities, and they are the planned three')
+
+const fromScript = setRefillCycle({ medicine_id: 'med_chronic_1', quantity_dispensed: 60, source: 'prescription' })
+assert.equal(fromScript.ok, false, 'a refill clock computed from the prescription must be refused')
+assert.match(fromScript.error, /R21/)
+
+const guessed = setRefillCycle({ medicine_id: 'med_chronic_1', quantity_dispensed: 60, source: 'assumed' })
+assert.equal(guessed.ok, false, 'and so must a guessed one')
+console.log('ok  R21 refused a refill clock taken from the prescription')
+
+// 20 units at 2 a day is 10 days of cover, not the 30 the prescription implies.
+session.clock = new Date('2026-10-04T09:12:00.000Z')
+const real = setRefillCycle({
+  medicine_id: 'med_chronic_1', quantity_dispensed: 20,
+  source: 'dispensing_receipt', receipt_ref: 'TX-DEMO-0001',
+})
+assert.equal(real.ok, true)
+assert.equal(real.days_of_cover, 10, '20 units at 2 a day is 10 days')
+assert.equal(real.runs_out.slice(0, 10), '2026-10-14')
+
+const med = session.onboarding.current_medicines.find((m) => m.id === 'med_chronic_1')
+assert.equal(med.pills_left, 20, 'the record now holds what was dispensed')
+assert.equal(med.refill_source.source, 'dispensing_receipt', 'and where that number came from')
+console.log('ok  refill cycle set from the dispensed quantity, and the record says so')
+
+const unknown = setRefillCycle({ medicine_id: 'med_nope', quantity_dispensed: 10, source: 'dispensing_receipt' })
+assert.equal(unknown.ok, false, 'an unknown medicine is refused')
+
 console.log('\nall checks passed')
 process.exit(0)

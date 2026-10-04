@@ -127,6 +127,19 @@ export const TOOLS = [
     }, ['kind', 'why']),
   },
   {
+    name: 'set_refill_cycle',
+    mode: 'LIVE', rail: null,
+    description:
+      'Set when this medicine runs out, and the next refill date, from the quantity the chemist actually dispensed (R21). Refused if you compute it from the prescription: a prescription says what was written, not what was handed over, and families are routinely given part of one. Take the number from the itemised receipt.',
+    parameters: obj('Refill cycle', {
+      medicine_id: str('Which medicine, e.g. med_chronic_1'),
+      quantity_dispensed: num('How many units the counter actually gave, from the itemised receipt'),
+      source: { type: 'STRING', description: 'Where that number came from', enum: ['dispensing_receipt', 'prescription', 'assumed'] },
+      receipt_ref: str('The receipt or transaction this came from'),
+      from_date: str('ISO date the course starts. Defaults to the simulated clock.'),
+    }, ['medicine_id', 'quantity_dispensed', 'source']),
+  },
+  {
     name: 'record_fulfilment',
     mode: 'LIVE', rail: null,
     description:
@@ -240,15 +253,21 @@ export const TOOLS = [
       to: str('Who hears it'),
     }, ['text', 'language_code', 'to']),
   },
+
   {
-    name: 'gnani_speaker_check',
+    name: 'gnani_call_session',
     mode: 'IMAGINED', rail: 'gnani',
-    endpoint: 'POST /voice/v1/speaker-verify',
-    description: 'IMAGINED CAPABILITY. Check whether the voice on a call is the enrolled patient. Returns {match, confidence}. Use it to decide the secondhand flag (R6) instead of guessing.',
-    parameters: obj('Speaker check', {
-      audio_ref: str('The audio to check'),
-      enrolled_member: str('Which family member to compare against'),
-    }, ['audio_ref', 'enrolled_member']),
+    endpoint: 'POST /voice/v1/call-session  // imagined: dial out, hold detection, warm transfer',
+    description:
+      'IMAGINED CAPABILITY. Place a call yourself: dial a number, speak through synthesis, detect that a human rather than hold music has answered, and transfer the live leg to a second number so a person takes over the call you started. Use it to reach a clinic and then hand the line to the patient.',
+    parameters: obj('An agent-placed call', {
+      to_number: str('The number to dial, from the onboarding data'),
+      to_name: str('Who that number belongs to'),
+      say: str('What you say once a human answers, in their language'),
+      purpose: str('Why you are calling, in one line'),
+      transfer_to_number: str('Optional. Where to hand the live call once a human answers.'),
+      transfer_to_name: str('Optional. Who that second number belongs to.'),
+    }, ['to_number', 'to_name', 'say', 'purpose']),
   },
 
   // ---------------------------------------------------------------- Pine Labs
@@ -299,12 +318,16 @@ export const TOOLS = [
     description: 'Resend the link once. After one resend, ask the RP (R15).',
     parameters: obj('Resend', { payment_link_id: str('Link id') }, ['payment_link_id']),
   },
+
   {
-    name: 'pinelabs_chemist_stock',
+    name: 'pinelabs_dispensing_receipt',
     mode: 'IMAGINED', rail: 'pinelabs',
-    endpoint: 'GET /merchants/v1/pharmacy/stock?pin={pin}&sku={sku}',
-    description: 'IMAGINED CAPABILITY. Which chemists near a pincode hold a medicine, so you do not have to ring round blind (R13).',
-    parameters: obj('Stock', { pin: str('Pincode'), sku: str('Medicine name and strength') }, ['pin', 'sku']),
+    endpoint: 'GET /ps/api/v1/public/transactions/{transaction_id}/receipt?itemised=true',
+    description:
+      'IMAGINED CAPABILITY. The itemised receipt for a chemist payment: drug name, strength and the quantity actually dispensed, alongside the amount. The counter is the only place that knows how much was really handed over, and the refill clock has to be set from this rather than from the prescription (R21).',
+    parameters: obj('Itemised receipt', {
+      transaction_id: str('The payment this receipt belongs to'),
+    }, ['transaction_id']),
   },
 
   // ---------------------------------------------------------------- Delhivery
@@ -341,17 +364,17 @@ export const TOOLS = [
     description: 'Where the medicine is. Used at Closing to confirm delivery (R21).',
     parameters: obj('Track', { waybill: str('Waybill number') }, ['waybill']),
   },
+
   {
-    name: 'delhivery_same_day',
+    name: 'delhivery_named_recipient',
     mode: 'IMAGINED', rail: 'delhivery',
-    endpoint: 'POST /hyperlocal/v1/orders',
-    description: 'IMAGINED CAPABILITY. Same-day chemist-to-home pickup with a four hour promise, because the express network is next-day and that is too slow for an urgent refill.',
-    parameters: obj('Same day', {
-      chemist: str('Pickup location'),
-      to_name: str('Who receives it'),
-      to_pin: str('Destination pincode'),
-      what: str('What is being sent'),
-    }, ['chemist', 'to_name', 'to_pin', 'what']),
+    endpoint: 'GET /api/v1/packages/json/?waybill={waybill}&recipient_identity=true',
+    description:
+      'IMAGINED CAPABILITY. Which named person actually took the parcel, checked against the list you supplied. An episode closes on the medicine reaching the patient, not on a parcel reaching an address; prescription medicine left with a neighbour is not a finished episode.',
+    parameters: obj('Named recipient', {
+      waybill: str('The waybill to check'),
+      expected_recipients: arr('Who is allowed to receive it, by name', { type: 'STRING' }),
+    }, ['waybill', 'expected_recipients']),
   },
 
   // ---------------------------------------------------------------- Beckn
