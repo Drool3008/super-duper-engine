@@ -94,6 +94,17 @@ export const TOOLS = [
     }, ['from', 'wait_seconds', 'what_for']),
   },
   {
+    name: 'next_contact',
+    mode: 'LIVE', rail: null,
+    description:
+      'Who to try next when you need a human, and how long to wait on them. The order is the affected person, then the responsible person, then the rest of the family (R3). Ask before you move down the chain rather than choosing yourself. Nobody comes back twice in one incident; when it runs out, it says so. For a critical tier the first step hands back the patient and the responsible person together (R4).',
+    parameters: obj('Next in the call chain', {
+      affected: str('Who the incident is about, e.g. patient'),
+      tier: { type: 'STRING', description: 'How urgent, which sets the wait time', enum: ['critical', 'urgent', 'routine'] },
+      why: str('One line: why you are moving down the chain'),
+    }, ['affected', 'tier', 'why']),
+  },
+  {
     name: 'place_call',
     mode: 'CURTAIN_PERSON', rail: 'phone',
     description: 'Place a phone call to a person or an organisation: a family member, a clinic, a lab, a chemist, or 108. The reply comes back as audio or text. Audio goes through Gnani STT.',

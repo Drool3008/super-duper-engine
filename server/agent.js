@@ -4,6 +4,7 @@ import { session, emit, audioStore } from './state.js'
 import { TOOLS, TOOL_BY_NAME, CURTAIN_MODES, RULE_IDS } from './tools.js'
 import { enqueue } from './curtain.js'
 import { awaitReply } from './humans.js'
+import { nextContact, startChain } from './contacts.js'
 import { loadFixtures } from './fixtures.js'
 import * as sheets from './rails/sheets.js'
 import * as gnani from './rails/gnani.js'
@@ -44,6 +45,10 @@ async function runLive(name, args) {
     case 'set_stage': {
       session.stage = args.stage
       emit('stage', { stage: args.stage, why: args.why })
+      // Triggered is where the flowchart starts an incident, so the chain walk
+      // starts over there. Idle ends one.
+      if (args.stage === 2) startChain(session.chain?.affected || 'patient', args.why)
+      if (args.stage === 1) session.chain = null
       return { ok: true, stage: args.stage }
     }
     case 'send_message': {
@@ -56,6 +61,8 @@ async function runLive(name, args) {
     }
     case 'wait_for_reply':
       return awaitReply({ from: args.from, waitSeconds: args.wait_seconds, whatFor: args.what_for })
+    case 'next_contact':
+      return nextContact({ affected: args.affected, tier: args.tier })
     case 'record_update': {
       let changes
       try { changes = JSON.parse(args.changes) } catch { return { ok: false, error: 'changes must be a JSON object encoded as a string' } }

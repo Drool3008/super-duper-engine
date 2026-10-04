@@ -5,6 +5,7 @@ import { session, emit, addClient, advanceClock, audioStore, snapshot, chatKey }
 import { respond, pendingList } from './curtain.js'
 import { deliverReply, noAnswer, expireByClock, openWaits } from './humans.js'
 import { feed, isRunning } from './agent.js'
+import { chainState, contactChain } from './contacts.js'
 import { readFileSync } from 'node:fs'
 import { TOOLS } from './tools.js'
 import { gnaniOn } from './rails/gnani.js'
@@ -55,6 +56,8 @@ app.get('/api/session', (req, res) => {
     pending: pendingList(),
     waits: openWaits(),
     running: isRunning(),
+    chain: chainState(),
+    contactOrder: contactChain(),
     rails: { gnani: gnaniOn(), sheets: sheetsOn() },
     tools: TOOLS.map(({ name, mode, rail, endpoint }) => ({ name, mode, rail, endpoint: endpoint || null })),
   })

@@ -60,6 +60,34 @@ These were open questions. They are settled; do not re-derive them.
    arrival is expected, and alert the family group — then keep calling down the
    contact list.
 
+## Built so far
+
+### The contact chain (decision 2) — done
+
+`server/contacts.js` derives the order instead of trusting a list: the affected
+person, then the responsible person, then everyone else in `onboarding.json`
+order. Adding a family member to the data puts them in the chain in the right
+place without touching code.
+
+`onboarding.call_chain.order` existed before this and **nothing read it**, so a
+mistake in that list was invisible. It is now a cross-check: when it disagrees
+with the role order, a `contact_chain_mismatch` event says so and the derived
+order wins. Today the two agree.
+
+The agent no longer chooses the order itself. `next_contact` hands back the next
+person and the wait time for the tier, refuses to return anyone twice in the same
+incident, and reports `exhausted` rather than looping. For a critical tier the
+first step returns the patient and the RP together, which is R4. The walk resets
+when the agent enters Triggered and clears when it returns to Idle.
+
+R3's "do not wait twice on the same person" is enforced **in the chain walk, not
+in `wait_for_reply`**. Asking one person two different questions over the course
+of an incident is normal and the stub script does it; blocking that would have
+broken the demo for no good reason.
+
+Covered by three checks in `npm run check`: the order, the full walk to
+exhaustion, and the critical parallel case.
+
 ## Spend
 
 Every operation costs money, so the RP sets a spend limit. The running total is

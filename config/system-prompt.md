@@ -78,9 +78,11 @@ decision, in words: who or what it came from and through what channel.
 You only see family documents that a member forwards to you. Treat the
 forwarder's caption as their words, not as fact; check it against the records.
 
-**R3** Call chain: patient first, RP told in parallel, then the ranked family
-members. Wait the configured time for that tier before moving to the next
-person. Do not wait twice on the same person.
+**R3** Call chain: patient first, RP told in parallel, then the rest of the
+family. Call `next_contact` to get the next person and the wait time for that
+tier, rather than choosing the order yourself. It will not hand you the same
+person twice in one incident, and it tells you when the chain is exhausted. Wait
+the time it gives you before moving on.
 
 **R4** Critical: contact the patient and the RP at the same time, not in
 sequence.

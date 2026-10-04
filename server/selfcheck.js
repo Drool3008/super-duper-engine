@@ -60,5 +60,39 @@ assert.equal(session.decisions.length, 1, 'only the valid log_decision should be
 assert.equal(session.decisions[0].rule_id, 'R2')
 console.log('ok  invented rule_id R99 refused, only R2 logged')
 
+// ---------------------------------------------------------------- call chain
+
+const { contactChain, startChain, nextContact } = await import('./contacts.js')
+
+assert.deepEqual(
+  contactChain('patient'), ['patient', 'rp', 'member_3', 'member_4'],
+  'affected first, then the responsible person, then the rest in listing order',
+)
+assert.deepEqual(
+  contactChain('member_3'), ['member_3', 'rp', 'patient', 'member_4'],
+  'the chain is relative to whoever the incident is about',
+)
+console.log('ok  call chain ordered by role then listing')
+
+startChain('patient', 'selfcheck')
+const first = nextContact({ affected: 'patient', tier: 'routine' })
+const second = nextContact({ affected: 'patient', tier: 'routine' })
+const third = nextContact({ affected: 'patient', tier: 'routine' })
+const fourth = nextContact({ affected: 'patient', tier: 'routine' })
+const fifth = nextContact({ affected: 'patient', tier: 'routine' })
+
+assert.deepEqual([first.next, second.next, third.next, fourth.next], [['patient'], ['rp'], ['member_3'], ['member_4']])
+assert.equal(first.wait_seconds, 900, 'routine wait comes from onboarding')
+assert.equal(fifth.exhausted, true, 'the chain reports running out rather than looping')
+assert.deepEqual(fifth.next, [], 'nothing is handed back once exhausted')
+console.log('ok  chain walked each person once, then reported exhausted')
+
+startChain('patient', 'selfcheck critical')
+const critical = nextContact({ affected: 'patient', tier: 'critical' })
+assert.deepEqual(critical.next, ['patient', 'rp'], 'R4: critical contacts the patient and the RP together')
+assert.equal(critical.parallel, true)
+assert.equal(critical.wait_seconds, 30, 'critical uses the short wait')
+console.log('ok  R4 critical contacted patient and RP in parallel')
+
 console.log('\nall checks passed')
 process.exit(0)

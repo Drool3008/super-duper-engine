@@ -25,6 +25,7 @@ export const session = {
   events: [],      // everything, replayed to a client that joins late
   messages: { patient: [], rp: [], family_group: [], doctor: [] },
   chats: {},       // live family-chat messages, keyed by chatKey() below
+  chain: null,     // the current walk down the call chain, see contacts.js
   familyHistory,
   rpHistory,
   history: [],     // provider-agnostic conversation history
