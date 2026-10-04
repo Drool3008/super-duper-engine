@@ -233,12 +233,9 @@ function Home({ s, me, meds, tests, isRP, waitingOnMe, who, t, onGoChat, onProfi
                 className="mt-2 w-full rounded-2xl bg-white p-3.5 shadow-card text-left transition-shadow hover:shadow-md active:shadow-sm"
                 onClick={() => {
                   sendInput({
-                    kind: 'refill_request',
+                    kind: 'message',
                     source: `${me.name}, tapped ${m.name} in the app`,
                     from: who,
-                    medicine_id: m.id,
-                    medicine_name: m.name,
-                    for_member: m.member,
                     text: `Please refill ${m.name} ${m.strength} for ${ownerName}`,
                   })
                   onGoChat()
