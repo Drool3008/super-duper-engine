@@ -30,13 +30,13 @@ export function TopBar({ model, stage, clock, wallet, rails, present, onPresent 
             Wallet <b>{rupees(left)}</b> <span className="text-muted">of {rupees(wallet.limit)}</span>
           </span>
           <a
-            href="#/app"
+            href="/stage"
             target="_blank"
             rel="noreferrer"
             className="rounded border border-line px-2 py-0.5 text-meta hover:bg-artifact-bg"
-            title="Open the product view in a second window"
+            title="Console plus phone simulators, for recording"
           >
-            Product view ↗
+            Stage ↗
           </a>
           <label className="flex cursor-pointer items-center gap-1.5 text-meta">
             <input type="checkbox" checked={present} onChange={(e) => onPresent(e.target.checked)} />

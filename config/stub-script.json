@@ -1,71 +1,433 @@
 [
-  { "text": "", "toolCalls": [
-    { "name": "log_decision", "args": { "received": "Refill date reached for a must-not-miss medicine, 3 days of pills left", "source": "Clock, refill date from RX-PLACEHOLDER-4412", "decided": "Treat as a medication trigger, first severity urgent", "rule_id": "R2", "why": "must_not_miss is true on this medicine, so a miss is not recoverable", "action": "tagged trigger medication, severity urgent", "recipient": "none", "connector": "none" } },
-    { "name": "set_stage", "args": { "stage": 2, "why": "a real source produced this: the clock reached a date from the prescription" } }
-  ]},
-
-  { "text": "", "toolCalls": [
-    { "name": "log_decision", "args": { "received": "Trigger tagged medication, urgent", "source": "Agent's own tagging in stage 2", "decided": "Contact the patient first and tell the RP in parallel", "rule_id": "R3", "why": "patient first, RP kept in the loop", "action": "messaged both", "recipient": "patient and rp", "connector": "WhatsApp" } },
-    { "name": "set_stage", "args": { "stage": 3, "why": "reaching the patient" } },
-    { "name": "send_message", "args": { "to": "patient", "text": "नमस्ते, आपकी रोज़ वाली दवाई तीन दिन में खत्म हो रही है। मैं अभी आपको फ़ोन कर रहा हूँ।", "language": "hi-IN" } },
-    { "name": "send_message", "args": { "to": "rp", "text": "Heads up: the must-not-miss medicine runs out in 3 days. I am calling the patient now. I will handle the refill and tell you before any spend.", "language": "en-IN" } }
-  ]},
-
-  { "text": "", "toolCalls": [
-    { "name": "log_decision", "args": { "received": "No reply to the message", "source": "Agent, no reply within the urgent wait time", "decided": "Call the patient", "rule_id": "R3", "why": "urgent tier, wait time elapsed on the message", "action": "placed a call to the patient", "recipient": "patient", "connector": "Phone" } },
-    { "name": "place_call", "args": { "to": "Demo Patient", "phone": "+91-90000-00001", "purpose": "ask how many pills are left and whether anything else is wrong", "say": "नमस्ते, मैं आपका हेल्थ असिस्टेंट हूँ। आपकी दवाई कितनी बची है?" } }
-  ]},
-
-  { "text": "", "toolCalls": [
-    { "name": "log_decision", "args": { "received": "Patient said on the call that the strip is nearly empty and nothing else is wrong", "source": "Patient, phone call transcribed by Gnani", "decided": "Severity stays urgent, do not escalate", "rule_id": "R7", "why": "medicine link yes, red flags no, no change from baseline, context is daytime and the chemist is near", "action": "assessed tier urgent, cited medicine link and context", "recipient": "none", "connector": "Gnani" } },
-    { "name": "set_stage", "args": { "stage": 5, "why": "assessing against known conditions and current medicines" } },
-    { "name": "send_message", "args": { "to": "patient", "text": "ठीक है। मैं आज ही दवाई मँगवा देता हूँ। क्या मैं आगे बढ़ूँ?", "language": "hi-IN", "card": "{\"kind\":\"booking\",\"title\":\"Order the refill today\",\"detail\":\"Placeholder Chronic Medicine 1, 10mg\",\"buttons\":[\"Yes\",\"No\"]}" } }
-  ]},
-
-  { "text": "", "toolCalls": [
-    { "name": "log_decision", "args": { "received": "Patient said yes", "source": "Patient, button press in the app", "decided": "Find a chemist that actually holds this medicine before calling anyone", "rule_id": "R13", "why": "checking stock first avoids a blind ring-round and keeps the ranked list honest", "action": "looked up chemist stock near the pincode", "recipient": "none", "connector": "Pine Labs" } },
-    { "name": "set_stage", "args": { "stage": 6, "why": "acting: sourcing the medicine" } },
-    { "name": "pinelabs_chemist_stock", "args": { "pin": "560001", "sku": "Placeholder Chronic Medicine 1 10mg" } }
-  ]},
-
-  { "text": "", "toolCalls": [
-    { "name": "log_decision", "args": { "received": "Chemist 1 has no stock, Chemist 2 has 12 units", "source": "Pine Labs chemist stock lookup", "decided": "Go to Chemist 2, the next in the ranked list. No substitute.", "rule_id": "R13", "why": "out of stock moves down the ranked list; substituting is never mine to do", "action": "chose Placeholder Chemist 2", "recipient": "none", "connector": "Pine Labs" } },
-    { "name": "delhivery_pincode", "args": { "pin": "560001" } }
-  ]},
-
-  { "text": "", "toolCalls": [
-    { "name": "log_decision", "args": { "received": "Pincode serviceable, medicine total ₹6,400", "source": "Delhivery serviceability check and the chemist's price", "decided": "Stop and ask the RP before paying", "rule_id": "R15", "why": "₹6,400 is above the ₹5,000 major-spend threshold", "action": "sent the RP an approval card for ₹6,400", "recipient": "rp", "connector": "WhatsApp" } },
-    { "name": "send_message", "args": { "to": "rp", "text": "This refill comes to ₹6,400, which is over your ₹5,000 threshold. Approve, or I hold the order unpaid. I will not cancel it either way.", "language": "en-IN", "card": "{\"kind\":\"payment\",\"amount_inr\":6400,\"payee\":\"Placeholder Chemist 2\",\"detail\":\"Placeholder Chronic Medicine 1, 10mg, 30 units\",\"buttons\":[\"Approve\",\"Hold\"]}" } },
-    { "name": "wait_for_reply", "args": { "from": "rp", "wait_seconds": 180, "what_for": "approve or hold the ₹6,400 refill" } }
-  ]},
-
-  { "text": "", "toolCalls": [
-    { "name": "log_decision", "args": { "received": "RP approved the spend", "source": "RP, button press in the app", "decided": "Debit ₹6,400 from the blocked wallet and ship it", "rule_id": "R15", "why": "the RP approved above-threshold spend, so it may proceed", "action": "debited ₹6,400 and created the shipment", "recipient": "Placeholder Chemist 2", "connector": "Pine Labs" } },
-    { "name": "pinelabs_reserve_debit", "args": { "reserve_pay_sub_id": "TODO-CONFIRM-SUB-0001", "amount_inr": 6400, "payee": "Placeholder Chemist 2", "what": "Placeholder Chronic Medicine 1 10mg, 30 units" } },
-    { "name": "wallet_ledger_append", "args": { "amount_inr": 6400, "payee": "Placeholder Chemist 2", "what": "refill, Placeholder Chronic Medicine 1 10mg", "rail": "Pine Labs UPI Reserve Pay" } }
-  ]},
-
-  { "text": "", "toolCalls": [
-    { "name": "log_decision", "args": { "received": "Payment done, shipment needed", "source": "Pine Labs debit response", "decided": "Create the shipment from Chemist 2 to the patient", "rule_id": "R22", "why": "the order must land somewhere real, not stop at payment", "action": "created the shipment", "recipient": "Delhivery", "connector": "Delhivery" } },
-    { "name": "delhivery_create_shipment", "args": { "chemist": "Placeholder Chemist 2", "to_name": "Demo Patient", "to_pin": "560001", "what": "Placeholder Chronic Medicine 1 10mg, 30 units" } }
-  ]},
-
-  { "text": "", "toolCalls": [
-    { "name": "log_decision", "args": { "received": "Shipment created with a waybill", "source": "Delhivery order creation response", "decided": "Tell the family group status only, and give the RP the detail", "rule_id": "R18", "why": "the group never gets medicine names or symptoms; the RP gets everything", "action": "posted a status line to the group and the full detail to the RP", "recipient": "family_group and rp", "connector": "WhatsApp" } },
-    { "name": "send_message", "args": { "to": "family_group", "text": "Appa's monthly medicine is sorted and on its way today. Nothing needed from anyone.", "language": "en-IN" } },
-    { "name": "send_message", "args": { "to": "rp", "text": "Paid ₹6,400 to Placeholder Chemist 2 for the 10mg refill, 30 units. Out for delivery today. Wallet left ₹43,600. Chemist 1 had no stock, so I moved to Chemist 2 and did not substitute anything.", "language": "en-IN" } }
-  ]},
-
-  { "text": "", "toolCalls": [
-    { "name": "log_decision", "args": { "received": "Delivery confirmed", "source": "Delhivery tracking", "decided": "Update the refill date and go back to watching", "rule_id": "R21", "why": "30 units at 2 a day moves the next refill out by 15 days", "action": "updated the medicine schedule and closed the log", "recipient": "none", "connector": "none" } },
-    { "name": "record_update", "args": { "target": "medicine", "id": "med_chronic_1", "changes": "{\"pills_left\": 30}", "why": "30 units delivered" } },
-    { "name": "set_stage", "args": { "stage": 9, "why": "closing: delivered, family told, schedule updated" } }
-  ]},
-
-  { "text": "Back to watching refill and test dates.", "toolCalls": [
-    { "name": "log_decision", "args": { "received": "Everything closed", "source": "Agent, end of the run", "decided": "Return to Idle", "rule_id": "R21", "why": "slot confirmed, medicine delivered, family told who did what", "action": "returned to Idle", "recipient": "none", "connector": "none" } },
-    { "name": "set_stage", "args": { "stage": 1, "why": "back to watching" } }
-  ]},
-
-  { "text": "Idle.", "toolCalls": [] }
+  {
+    "text": "",
+    "toolCalls": [
+      {
+        "name": "log_decision",
+        "args": {
+          "received": "Refill date reached for a must-not-miss medicine, 3 days of pills left",
+          "source": "Clock, refill date from RX-PLACEHOLDER-4412",
+          "decided": "Treat as a medication trigger, first severity urgent",
+          "rule_id": "R2",
+          "why": "must_not_miss is true on this medicine, so a miss is not recoverable",
+          "action": "tagged trigger medication, severity urgent",
+          "recipient": "none",
+          "connector": "none"
+        }
+      },
+      {
+        "name": "set_stage",
+        "args": {
+          "stage": 2,
+          "why": "a real source produced this: the clock reached a date from the prescription"
+        }
+      }
+    ]
+  },
+  {
+    "text": "",
+    "toolCalls": [
+      {
+        "name": "log_decision",
+        "args": {
+          "received": "Trigger tagged medication, urgent",
+          "source": "Agent's own tagging in stage 2",
+          "decided": "Contact the patient first and tell the RP in parallel",
+          "rule_id": "R3",
+          "why": "patient first, RP kept in the loop",
+          "action": "messaged both",
+          "recipient": "patient and rp",
+          "connector": "WhatsApp"
+        }
+      },
+      {
+        "name": "set_stage",
+        "args": {
+          "stage": 3,
+          "why": "reaching the patient"
+        }
+      },
+      {
+        "name": "send_message",
+        "args": {
+          "to": "patient",
+          "text": "नमस्ते, आपकी रोज़ वाली दवाई तीन दिन में खत्म हो रही है। मैं अभी आपको फ़ोन कर रहा हूँ।",
+          "language": "hi-IN"
+        }
+      },
+      {
+        "name": "send_message",
+        "args": {
+          "to": "rp",
+          "text": "Heads up: the must-not-miss medicine runs out in 3 days. I am calling the patient now. I will handle the refill and tell you before any spend.",
+          "language": "en-IN"
+        }
+      }
+    ]
+  },
+  {
+    "text": "",
+    "toolCalls": [
+      {
+        "name": "log_decision",
+        "args": {
+          "received": "No reply to the message",
+          "source": "Agent, no reply within the urgent wait time",
+          "decided": "Call the patient",
+          "rule_id": "R3",
+          "why": "urgent tier, wait time elapsed on the message",
+          "action": "placed a call to the patient",
+          "recipient": "patient",
+          "connector": "Phone"
+        }
+      },
+      {
+        "name": "place_call",
+        "args": {
+          "to": "Demo Patient",
+          "phone": "+91-90000-00001",
+          "purpose": "ask how many pills are left and whether anything else is wrong",
+          "say": "नमस्ते, मैं आपका हेल्थ असिस्टेंट हूँ। आपकी दवाई कितनी बची है?"
+        }
+      }
+    ]
+  },
+  {
+    "text": "",
+    "toolCalls": [
+      {
+        "name": "log_decision",
+        "args": {
+          "received": "Patient said on the call that the strip is nearly empty and nothing else is wrong",
+          "source": "Patient, phone call transcribed by Gnani",
+          "decided": "Severity stays urgent, do not escalate",
+          "rule_id": "R7",
+          "why": "medicine link yes, red flags no, no change from baseline, context is daytime and the chemist is near",
+          "action": "assessed tier urgent, cited medicine link and context",
+          "recipient": "none",
+          "connector": "Gnani"
+        }
+      },
+      {
+        "name": "set_stage",
+        "args": {
+          "stage": 5,
+          "why": "assessing against known conditions and current medicines"
+        }
+      },
+      {
+        "name": "send_message",
+        "args": {
+          "to": "patient",
+          "text": "ठीक है। मैं आज ही दवाई मँगवा देता हूँ। क्या मैं आगे बढ़ूँ?",
+          "language": "hi-IN",
+          "card": "{\"kind\":\"booking\",\"title\":\"Order the refill today\",\"detail\":\"Placeholder Chronic Medicine 1, 10mg\",\"buttons\":[\"Yes\",\"No\"]}"
+        }
+      }
+    ]
+  },
+  {
+    "text": "",
+    "toolCalls": [
+      {
+        "name": "log_decision",
+        "args": {
+          "received": "Patient said yes",
+          "source": "Patient, button press in the app",
+          "decided": "Find a chemist that actually holds this medicine before calling anyone",
+          "rule_id": "R13",
+          "why": "checking stock first avoids a blind ring-round and keeps the ranked list honest",
+          "action": "looked up chemist stock near the pincode",
+          "recipient": "none",
+          "connector": "Pine Labs"
+        }
+      },
+      {
+        "name": "set_stage",
+        "args": {
+          "stage": 6,
+          "why": "acting: sourcing the medicine"
+        }
+      },
+      {
+        "name": "pinelabs_chemist_stock",
+        "args": {
+          "pin": "560001",
+          "sku": "Placeholder Chronic Medicine 1 10mg"
+        }
+      }
+    ]
+  },
+  {
+    "text": "",
+    "toolCalls": [
+      {
+        "name": "log_decision",
+        "args": {
+          "received": "Chemist 1 has no stock, Chemist 2 has 12 units",
+          "source": "Pine Labs chemist stock lookup",
+          "decided": "Go to Chemist 2, the next in the ranked list. No substitute.",
+          "rule_id": "R13",
+          "why": "out of stock moves down the ranked list; substituting is never mine to do",
+          "action": "chose Placeholder Chemist 2",
+          "recipient": "none",
+          "connector": "Pine Labs"
+        }
+      },
+      {
+        "name": "delhivery_pincode",
+        "args": {
+          "pin": "560001"
+        }
+      }
+    ]
+  },
+  {
+    "text": "",
+    "toolCalls": [
+      {
+        "name": "log_decision",
+        "args": {
+          "received": "Chemist 2 says the clinic added a second item to the same prescription",
+          "source": "Placeholder Chemist 2, phone call transcribed by Gnani",
+          "decided": "Do not add a medicine the family has never used without the RP",
+          "rule_id": "R17",
+          "why": "a new medicine is one of the few things I must hand to a human",
+          "action": "sent the RP a new-medicine card",
+          "recipient": "rp",
+          "connector": "WhatsApp"
+        }
+      },
+      {
+        "name": "send_message",
+        "args": {
+          "to": "rp",
+          "language": "en-IN",
+          "text": "The chemist says the clinic added a second item to this prescription. It is not on your list, so I am not ordering it on my own.",
+          "card": "{\"kind\": \"new_medicine\", \"title\": \"A medicine not on the list\", \"detail\": \"Placeholder New Medicine 2, 5mg \\u2014 added by Placeholder Clinic 1\", \"amount_inr\": 480, \"payee\": \"Placeholder Chemist 2\", \"why\": \"I have never ordered this one for your family before.\", \"on_timeout\": \"left it out and ordered only the known medicine\"}"
+        }
+      },
+      {
+        "name": "wait_for_reply",
+        "args": {
+          "from": "rp",
+          "wait_seconds": 180,
+          "what_for": "approve the new medicine, pick another, or ask me to call"
+        }
+      }
+    ]
+  },
+  {
+    "text": "",
+    "toolCalls": [
+      {
+        "name": "log_decision",
+        "args": {
+          "received": "RP approved the new medicine",
+          "source": "RP, button press in the app",
+          "decided": "Include it in the same order",
+          "rule_id": "R17",
+          "why": "the human who must approve a new medicine approved it",
+          "action": "added it to the order and moved on to payment",
+          "recipient": "none",
+          "connector": "none"
+        }
+      }
+    ]
+  },
+  {
+    "text": "",
+    "toolCalls": [
+      {
+        "name": "log_decision",
+        "args": {
+          "received": "Pincode serviceable, medicine total ₹6,400",
+          "source": "Delhivery serviceability check and the chemist's price",
+          "decided": "Stop and ask the RP before paying",
+          "rule_id": "R15",
+          "why": "₹6,400 is above the ₹5,000 major-spend threshold",
+          "action": "sent the RP an approval card for ₹6,400",
+          "recipient": "rp",
+          "connector": "WhatsApp"
+        }
+      },
+      {
+        "name": "send_message",
+        "args": {
+          "to": "rp",
+          "text": "This refill comes to ₹6,400, which is over your ₹5,000 threshold. Approve, or I hold the order unpaid. I will not cancel it either way.",
+          "language": "en-IN",
+          "card": "{\"kind\": \"spend_above_threshold\", \"amount_inr\": 6400, \"payee\": \"Placeholder Chemist 2\", \"detail\": \"Placeholder Chronic Medicine 1, 10mg, 30 units\", \"wallet_left_inr\": 43600, \"why\": \"Over your \\u20b95,000 limit, so I stopped before paying.\", \"on_timeout\": \"held the booking unpaid\"}"
+        }
+      },
+      {
+        "name": "wait_for_reply",
+        "args": {
+          "from": "rp",
+          "wait_seconds": 180,
+          "what_for": "approve or hold the ₹6,400 refill"
+        }
+      }
+    ]
+  },
+  {
+    "text": "",
+    "toolCalls": [
+      {
+        "name": "log_decision",
+        "args": {
+          "received": "RP approved the spend",
+          "source": "RP, button press in the app",
+          "decided": "Debit ₹6,400 from the blocked wallet and ship it",
+          "rule_id": "R15",
+          "why": "the RP approved above-threshold spend, so it may proceed",
+          "action": "debited ₹6,400 and created the shipment",
+          "recipient": "Placeholder Chemist 2",
+          "connector": "Pine Labs"
+        }
+      },
+      {
+        "name": "pinelabs_reserve_debit",
+        "args": {
+          "reserve_pay_sub_id": "TODO-CONFIRM-SUB-0001",
+          "amount_inr": 6400,
+          "payee": "Placeholder Chemist 2",
+          "what": "Placeholder Chronic Medicine 1 10mg, 30 units"
+        }
+      },
+      {
+        "name": "wallet_ledger_append",
+        "args": {
+          "amount_inr": 6400,
+          "payee": "Placeholder Chemist 2",
+          "what": "refill, Placeholder Chronic Medicine 1 10mg",
+          "rail": "Pine Labs UPI Reserve Pay"
+        }
+      }
+    ]
+  },
+  {
+    "text": "",
+    "toolCalls": [
+      {
+        "name": "log_decision",
+        "args": {
+          "received": "Payment done, shipment needed",
+          "source": "Pine Labs debit response",
+          "decided": "Create the shipment from Chemist 2 to the patient",
+          "rule_id": "R22",
+          "why": "the order must land somewhere real, not stop at payment",
+          "action": "created the shipment",
+          "recipient": "Delhivery",
+          "connector": "Delhivery"
+        }
+      },
+      {
+        "name": "delhivery_create_shipment",
+        "args": {
+          "chemist": "Placeholder Chemist 2",
+          "to_name": "Demo Patient",
+          "to_pin": "560001",
+          "what": "Placeholder Chronic Medicine 1 10mg, 30 units"
+        }
+      }
+    ]
+  },
+  {
+    "text": "",
+    "toolCalls": [
+      {
+        "name": "log_decision",
+        "args": {
+          "received": "Shipment created with a waybill",
+          "source": "Delhivery order creation response",
+          "decided": "Tell the family group status only, and give the RP the detail",
+          "rule_id": "R18",
+          "why": "the group never gets medicine names or symptoms; the RP gets everything",
+          "action": "posted a status line to the group and the full detail to the RP",
+          "recipient": "family_group and rp",
+          "connector": "WhatsApp"
+        }
+      },
+      {
+        "name": "send_message",
+        "args": {
+          "to": "family_group",
+          "text": "Appa's monthly medicine is sorted and on its way today. Nothing needed from anyone.",
+          "language": "en-IN"
+        }
+      },
+      {
+        "name": "send_message",
+        "args": {
+          "to": "rp",
+          "text": "Paid ₹6,400 to Placeholder Chemist 2 for the 10mg refill, 30 units. Out for delivery today. Wallet left ₹43,600. Chemist 1 had no stock, so I moved to Chemist 2 and did not substitute anything.",
+          "language": "en-IN"
+        }
+      }
+    ]
+  },
+  {
+    "text": "",
+    "toolCalls": [
+      {
+        "name": "log_decision",
+        "args": {
+          "received": "Delivery confirmed",
+          "source": "Delhivery tracking",
+          "decided": "Update the refill date and go back to watching",
+          "rule_id": "R21",
+          "why": "30 units at 2 a day moves the next refill out by 15 days",
+          "action": "updated the medicine schedule and closed the log",
+          "recipient": "none",
+          "connector": "none"
+        }
+      },
+      {
+        "name": "record_update",
+        "args": {
+          "target": "medicine",
+          "id": "med_chronic_1",
+          "changes": "{\"pills_left\": 30}",
+          "why": "30 units delivered"
+        }
+      },
+      {
+        "name": "set_stage",
+        "args": {
+          "stage": 9,
+          "why": "closing: delivered, family told, schedule updated"
+        }
+      }
+    ]
+  },
+  {
+    "text": "Back to watching refill and test dates.",
+    "toolCalls": [
+      {
+        "name": "log_decision",
+        "args": {
+          "received": "Everything closed",
+          "source": "Agent, end of the run",
+          "decided": "Return to Idle",
+          "rule_id": "R21",
+          "why": "slot confirmed, medicine delivered, family told who did what",
+          "action": "returned to Idle",
+          "recipient": "none",
+          "connector": "none"
+        }
+      },
+      {
+        "name": "set_stage",
+        "args": {
+          "stage": 1,
+          "why": "back to watching"
+        }
+      }
+    ]
+  },
+  {
+    "text": "Idle.",
+    "toolCalls": []
+  }
 ]

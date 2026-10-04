@@ -125,12 +125,14 @@ let running = false
 
 export function isRunning() { return running }
 
-export async function feed(input) {
+export async function feed(input, images = []) {
   // `input` is a real external event. It carries its own source label and the
-  // backend adds nothing else to it.
+  // backend adds nothing else to it. `images` are files a member chose to
+  // forward; the agent sees nothing it was not given (R2).
   session.history.push({
     role: 'user',
     text: `Simulated clock: ${session.clock.toISOString()}\n\n${JSON.stringify(input, null, 2)}`,
+    images,
   })
   if (running) return
   running = true

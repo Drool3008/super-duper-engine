@@ -1,0 +1,80 @@
+{
+  "_note": "Past, already-resolved escalations so the RP chat opens with a history. Placeholder data derived from config/onboarding.json.",
+  "messages": [
+    {
+      "id": "rph1",
+      "from": "agent",
+      "to": "rp",
+      "at": "2026-08-19T09:40:00+05:30",
+      "text": "Quick one before I spend anything."
+    },
+    {
+      "id": "rph2",
+      "from": "agent",
+      "to": "rp",
+      "at": "2026-08-19T09:41:00+05:30",
+      "card": {
+        "kind": "spend_above_threshold",
+        "amount_inr": 5400,
+        "payee": "Placeholder Chemist 1",
+        "detail": "Placeholder Chronic Medicine 1 10mg, 30 units",
+        "wallet_left_inr": 44600,
+        "why": "Over your \u20b95,000 limit, so I stopped and asked.",
+        "on_timeout": "held the booking unpaid"
+      },
+      "answer": "Approve",
+      "answered_at": "2026-08-19T09:52:00+05:30"
+    },
+    {
+      "id": "rph3",
+      "from": "agent",
+      "to": "rp",
+      "at": "2026-08-19T09:53:00+05:30",
+      "text": "Paid and delivered the same evening. Wallet left \u20b944,600."
+    },
+    {
+      "id": "rph4",
+      "from": "agent",
+      "to": "rp",
+      "at": "2026-09-11T18:05:00+05:30",
+      "card": {
+        "kind": "dead_end",
+        "title": "I hit a dead end",
+        "detail": "Called both clinics twice. No answer at either after 6 pm.",
+        "why": "I did not want to keep redialling without telling you.",
+        "on_timeout": "kept trying in the morning"
+      },
+      "answer": "Try something else",
+      "answered_at": "2026-09-11T18:20:00+05:30"
+    },
+    {
+      "id": "rph5",
+      "from": "agent",
+      "to": "rp",
+      "at": "2026-09-11T18:21:00+05:30",
+      "text": "Understood. Booked the morning walk-in slot instead and told Demo Patient."
+    },
+    {
+      "id": "rph6",
+      "from": "agent",
+      "to": "rp",
+      "at": "2026-09-25T11:02:00+05:30",
+      "card": {
+        "kind": "substitute_offered",
+        "title": "A chemist offered a substitute",
+        "detail": "Placeholder Chemist 1 is out of Placeholder Chronic Medicine 1 and offered a different brand.",
+        "why": "Swapping a medicine is not mine to decide.",
+        "on_timeout": "declined and tried the next chemist"
+      },
+      "answer": "Ask the doctor",
+      "answered_at": "2026-09-25T11:30:00+05:30"
+    },
+    {
+      "id": "rph7",
+      "from": "agent",
+      "to": "rp",
+      "at": "2026-09-25T12:10:00+05:30",
+      "text": "Asked the clinic. They said stay on the same brand, so I sourced it from the second chemist."
+    }
+  ]
+}

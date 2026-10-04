@@ -42,3 +42,11 @@ body {
 .scroll::-webkit-scrollbar { width: 10px; height: 10px; }
 .scroll::-webkit-scrollbar-thumb { background: #D6DDE3; border-radius: 6px; }
 .scroll::-webkit-scrollbar-track { background: transparent; }
+
+@keyframes notifyIn  { from { transform: translateY(-120%); opacity: 0 } to { transform: none; opacity: 1 } }
+@keyframes notifyOut { to { transform: translateY(-120%); opacity: 0 } }
+@keyframes slideIn   { from { transform: translateX(100%) } to { transform: none } }
+@keyframes sheetUp   { from { transform: translateY(100%) } to { transform: none } }
+.slide-in { animation: slideIn .24s cubic-bezier(.2,.8,.3,1); }
+.sheet-up { animation: sheetUp .24s cubic-bezier(.2,.8,.3,1); }
+.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

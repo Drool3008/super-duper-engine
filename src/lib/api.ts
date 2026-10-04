@@ -3,7 +3,8 @@ const post = (url: string, body: any) =>
 
 export const sendInput = (body: any) => post('/api/input', body)
 export const sendCurtain = (id: string, response: any, variant?: string) => post(`/api/curtain/${id}`, { response, variant })
-export const sendReply = (from: string, text?: string, action?: string) => post('/api/reply', { from, text, action })
+export const sendReply = (from: string, text?: string, action?: string, message_id?: string) =>
+  post('/api/reply', { from, text, action, message_id })
 export const sendNoAnswer = (from: string) => post('/api/no-answer', { from })
 export const advanceClock = (to: string, source: string) => post('/api/clock', { to, source })
 
@@ -16,3 +17,5 @@ export async function uploadAudio(file: File, source: string) {
 }
 
 export const rupees = (n: number) => '₹' + n.toLocaleString('en-IN')
+
+export const forwardToAgent = (body: any) => post('/api/forward', body)

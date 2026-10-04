@@ -71,7 +71,16 @@ export const TOOLS = [
       to: { type: 'STRING', description: 'Recipient', enum: ['patient', 'rp', 'family_group', 'doctor', 'member_3', 'member_4'] },
       text: str('The message, in the recipient\'s language'),
       language: str('BCP-47 code you wrote it in, e.g. hi-IN'),
-      card: str('Optional. JSON string for a card: {"kind":"payment|booking|delivery|ride","...":"..."} with buttons the person can press.'),
+      card: str(
+        'Optional. JSON string for an interactive card the person taps to answer. ' +
+        'kind is one of: spend_above_threshold, new_doctor, new_medicine, disagreement, ' +
+        'cant_tell, low_wallet, dead_end, substitute_offered, incident_summary, payment, booking. ' +
+        'Optional fields: title, detail, amount_inr, payee, wallet_left_inr, why (one line in plain ' +
+        'language, no rule IDs, the person never sees those), options (array of {label,value} for ' +
+        'side-by-side views such as a disagreement), buttons (array of labels; sensible defaults are ' +
+        'used if you omit it), on_timeout (what you will do if nobody answers). ' +
+        'incident_summary takes no buttons.'
+      ),
     }, ['to', 'text', 'language']),
   },
   {

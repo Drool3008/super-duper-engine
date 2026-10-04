@@ -1,0 +1,245 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSession } from './lib/session'
+import { rupees, sendInput, sendReply } from './lib/api'
+import type { Message } from './lib/types'
+import { ChatsTab } from './components/FamilyChats'
+
+const STAGE_LINE: Record<number, string> = {
+  0: 'Setting things up', 1: 'Watching your medicines and test dates',
+  2: 'Something needs attention', 3: 'Trying to reach someone', 4: 'Listening',
+  5: 'Working out how urgent this is', 6: 'Sorting it out now',
+  7: 'Keeping everyone posted', 8: 'Sharing your record with the doctor', 9: 'Wrapping up',
+}
+
+export type Tab = 'home' | 'chat' | 'family' | 'wallet'
+
+/** The member app for exactly one person. No persona switcher: this is their phone. */
+export default function PhoneApp({ memberId }: { memberId: string }) {
+  const s = useSession()
+  const [tab, setTab] = useState<Tab>('home')
+  const [inThread, setInThread] = useState(false)
+
+  const members = s.onboarding?.family?.members || []
+  const me = members.find((m: any) => m.id === memberId)
+  const isRP = me?.role === 'responsible_person'
+  const meds = (s.onboarding?.current_medicines || []).filter((m: any) => m.member === memberId || isRP)
+  const tests = (s.onboarding?.recurring_tests || []).filter((t: any) => t.member === memberId || isRP)
+  const mine = s.messages[memberId] || []
+  const waitingOnMe = s.awaiting?.from === memberId
+
+  useEffect(() => { if (tab === 'wallet' && !isRP) setTab('home') }, [isRP, tab])
+  useEffect(() => { if (tab !== 'family') setInThread(false) }, [tab])
+
+  if (!me) return <div className="p-6 text-body text-muted">No member for “{memberId}”.</div>
+
+  return (
+    <div className="flex h-full flex-col bg-white">
+      {!inThread && <Header me={me} stage={s.stage} thinking={s.thinking} />}
+      <div className="min-h-0 flex-1 overflow-hidden">
+        {tab === 'home' && <Home s={s} me={me} meds={meds} tests={tests} isRP={isRP} waitingOnMe={waitingOnMe} who={memberId} onGoChat={() => setTab('chat')} />}
+        {tab === 'chat' && <Chat who={memberId} me={me} messages={mine} awaiting={waitingOnMe ? s.awaiting : null} thinking={s.thinking} />}
+        {tab === 'family' && <ChatsTab memberId={memberId} onOpenChange={setInThread} />}
+        {tab === 'wallet' && isRP && <Wallet wallet={s.wallet} onboarding={s.onboarding} />}
+      </div>
+      {!inThread && <Nav tab={tab} onTab={setTab} isRP={isRP} unread={mine.length} nudge={waitingOnMe} />}
+    </div>
+  )
+}
+
+function Header({ me, stage, thinking }: any) {
+  return (
+    <div className="shrink-0 border-b border-line bg-stage-bg px-4 py-2.5">
+      <div className="flex items-baseline justify-between">
+        <h1 className="text-card text-stage">Family Health</h1>
+        <span className="text-meta text-stage/70">{me.name}</span>
+      </div>
+      <div className="mt-0.5 flex items-center gap-1.5 text-meta text-stage/80">
+        <span className={`inline-block h-2 w-2 rounded-full bg-stage ${thinking ? 'shimmer' : ''}`} />
+        {thinking ? 'Working on it…' : STAGE_LINE[stage] || 'Here if you need me'}
+      </div>
+    </div>
+  )
+}
+
+function Home({ s, me, meds, tests, isRP, waitingOnMe, who, onGoChat }: any) {
+  const [sent, setSent] = useState(false)
+  const last = (s.messages[who] || []).filter((m: Message) => m.from === 'agent').slice(-1)[0]
+  return (
+    <div className="scroll h-full space-y-3 overflow-y-auto p-4">
+      {waitingOnMe && (
+        <button onClick={onGoChat} className="w-full rounded-xl border border-human bg-human-bg p-3 text-left">
+          <div className="text-meta font-bold uppercase tracking-wide text-human">Needs your answer</div>
+          <div className="mt-0.5 text-body">{s.awaiting?.what_for}</div>
+        </button>
+      )}
+
+      <section>
+        <h2 className="text-meta font-semibold uppercase tracking-wide text-muted">Medicines</h2>
+        {meds.length === 0 && <p className="mt-1 text-body text-muted">Nothing on file.</p>}
+        {meds.map((m: any) => {
+          const days = m.daily_dose ? Math.floor(m.pills_left / m.daily_dose) : null
+          const low = days !== null && days <= 5
+          return (
+            <div key={m.id} className="mt-2 rounded-xl border border-line p-3">
+              <div className="flex items-baseline justify-between">
+                <span className="text-body font-semibold">{m.name}</span>
+                <span className="text-meta text-muted">{m.strength}</span>
+              </div>
+              <div className="mt-1.5 flex items-center gap-2">
+                <div className="h-1.5 flex-1 overflow-hidden rounded bg-artifact-bg">
+                  <div className="h-full rounded" style={{ width: Math.min(100, (m.pills_left / 30) * 100) + '%', background: low ? '#C0392B' : '#1E8449' }} />
+                </div>
+                <span className={`text-meta ${low ? 'font-semibold text-decision' : 'text-muted'}`}>{days !== null ? `${days}d left` : `${m.pills_left} left`}</span>
+              </div>
+              {m.must_not_miss && <div className="mt-1 text-meta text-muted">Must not be missed</div>}
+            </div>
+          )
+        })}
+      </section>
+
+      {tests.length > 0 && (
+        <section>
+          <h2 className="text-meta font-semibold uppercase tracking-wide text-muted">Tests</h2>
+          {tests.map((t: any) => (
+            <div key={t.id} className="mt-2 rounded-xl border border-line p-3 text-body">
+              {t.name}<span className="ml-2 text-meta text-muted">{t.every_days ? `every ${t.every_days}d` : 'one-off'}</span>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {last && (
+        <section>
+          <h2 className="text-meta font-semibold uppercase tracking-wide text-muted">Latest from your agent</h2>
+          <div className="mt-2 rounded-xl border-l-[3px] border-record bg-record-bg p-3 text-body text-stage">{last.text}</div>
+        </section>
+      )}
+
+      <button
+        disabled={sent}
+        onClick={() => { setSent(true); sendInput({ kind: 'sos', source: `${me.name}, SOS button in the app`, from: who }); setTimeout(() => setSent(false), 4000) }}
+        className="w-full rounded-xl bg-decision py-3.5 text-card text-white disabled:opacity-50"
+      >
+        {sent ? 'Sent. Your agent is on it.' : 'I need help now'}
+      </button>
+    </div>
+  )
+}
+
+function Chat({ who, me, messages, awaiting, thinking }: any) {
+  const [text, setText] = useState('')
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => { box.current?.scrollTo({ top: box.current.scrollHeight, behavior: 'smooth' }) }, [messages.length, thinking])
+
+  const send = () => {
+    const t = text.trim(); if (!t) return
+    setText('')
+    if (awaiting) sendReply(who, t)
+    else sendInput({ kind: 'message', source: `${me.name}, message in the app`, from: who, text: t })
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      <div ref={box} className="scroll flex-1 overflow-y-auto bg-surface p-3">
+        {messages.length === 0 && <p className="mt-10 text-center text-body text-muted">No messages yet.</p>}
+        {messages.map((m: Message) => <Bubble key={m.id} m={m} who={who} />)}
+        {thinking && <div className="shimmer mt-2 text-meta text-muted">your agent is working…</div>}
+      </div>
+      {awaiting && <div className="shrink-0 border-t border-human/40 bg-human-bg px-3 py-1.5 text-meta text-human">Waiting on you: {awaiting.what_for}</div>}
+      <div className="flex shrink-0 gap-2 border-t border-line bg-white p-2.5">
+        <input
+          value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()}
+          placeholder={`Message in ${me.language}…`}
+          className="min-w-0 flex-1 rounded-full border border-line px-3 py-2 text-body"
+        />
+        <button onClick={send} className="shrink-0 rounded-full bg-stage px-4 text-body font-semibold text-white">Send</button>
+      </div>
+    </div>
+  )
+}
+
+export function Bubble({ m, who }: { m: Message; who: string }) {
+  const fromAgent = m.from === 'agent'
+  return (
+    <div className={`fadein mt-2 flex ${fromAgent ? 'justify-start' : 'justify-end'}`}>
+      <div className={`max-w-[84%] rounded-2xl px-3 py-2 text-body ${fromAgent ? 'rounded-tl-sm border-l-[3px] border-record bg-record-bg text-stage' : 'rounded-tr-sm bg-artifact-bg text-ink'}`}>
+        {m.text && <div className="whitespace-pre-wrap">{m.text}</div>}
+        {m.action && <div className="italic text-muted">you pressed {m.action}</div>}
+        {m.card && <ActionCard card={m.card} who={who} message={m} />}
+        <div className="mt-0.5 text-right text-[11px] text-muted">
+          {new Date(m.at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}
+          {!fromAgent && <span className="ml-1 text-record">✓✓</span>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function ActionCard({ card, who, message }: { card: any; who: string; message?: Message }) {
+  const [done, setDone] = useState<string | null>(message?.answer ?? null)
+  const buttons: string[] = card.buttons || (card.kind === 'payment' ? ['Approve', 'Hold'] : ['Yes', 'No'])
+  return (
+    <div className="mt-2 rounded-xl border border-human/50 bg-human-bg p-2.5">
+      <div className="text-[11px] font-bold uppercase tracking-wide text-human">{card.kind}</div>
+      {card.amount_inr !== undefined && <div className="text-card text-ink">{rupees(card.amount_inr)}</div>}
+      {card.title && <div className="text-body font-semibold text-ink">{card.title}</div>}
+      {card.payee && <div className="text-meta text-muted">{card.payee}</div>}
+      {card.detail && <div className="text-meta text-ink">{card.detail}</div>}
+      {done ? (
+        <div className="mt-1.5 text-meta font-semibold text-human">You chose {done}.</div>
+      ) : (
+        <div className="mt-2 flex gap-1.5">
+          {buttons.map((b) => (
+            <button key={b} onClick={() => { setDone(b); sendReply(who, undefined, b) }}
+              className="flex-1 rounded-lg border border-human bg-white py-2 text-meta font-semibold text-human">{b}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Wallet({ wallet, onboarding }: any) {
+  const left = wallet.limit - wallet.spent
+  const pct = wallet.limit ? Math.max(0, (left / wallet.limit) * 100) : 0
+  const low = pct < (onboarding?.wallet?.low_wallet_pct ?? 20)
+  return (
+    <div className="scroll h-full overflow-y-auto p-4">
+      <h2 className="text-card">Wallet</h2>
+      <p className="mt-0.5 text-meta text-muted">Only you can see this.</p>
+      <div className="mt-3 rounded-xl border border-line p-4">
+        <div className="text-app">{rupees(left)}</div>
+        <div className="text-meta text-muted">left of {rupees(wallet.limit)} · spent {rupees(wallet.spent)}</div>
+        <div className="mt-2 h-2 overflow-hidden rounded bg-artifact-bg">
+          <div className="h-full rounded" style={{ width: pct + '%', background: low ? '#C0392B' : '#1E8449' }} />
+        </div>
+        {low && <div className="mt-2 text-meta text-decision">Running low. Your agent will ask you to top up.</div>}
+      </div>
+      <h3 className="mt-4 text-meta font-semibold uppercase tracking-wide text-muted">Recent spend</h3>
+      {(wallet.ledger || []).length === 0 && <p className="mt-1 text-body text-muted">Nothing spent yet.</p>}
+      {(wallet.ledger || []).filter(Boolean).slice(-5).reverse().map((r: any, i: number) => (
+        <div key={i} className="mt-2 flex items-baseline justify-between rounded-lg border border-line px-3 py-2">
+          <div><div className="text-body">{r.payee}</div><div className="text-meta text-muted">{r.what}</div></div>
+          <div className="text-body font-semibold">{rupees(r.amount_inr)}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function Nav({ tab, onTab, isRP, unread, nudge }: any) {
+  const items: Array<[Tab, string]> = [['home', 'Home'], ['chat', 'Chat'], ['family', 'Family']]
+  if (isRP) items.push(['wallet', 'Wallet'])
+  return (
+    <nav className="grid shrink-0 border-t border-line bg-white" style={{ gridTemplateColumns: `repeat(${items.length},1fr)` }}>
+      {items.map(([id, label]) => (
+        <button key={id} onClick={() => onTab(id)}
+          className={`relative py-3 text-meta ${tab === id ? 'bg-stage-bg font-semibold text-stage' : 'text-muted'}`}>
+          {label}
+          {id === 'chat' && unread > 0 && <span className="ml-1 opacity-60">{unread}</span>}
+          {id === 'chat' && nudge && <span className="absolute right-5 top-2 h-2 w-2 rounded-full bg-human" />}
+        </button>
+      ))}
+    </nav>
+  )
+}

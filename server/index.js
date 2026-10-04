@@ -5,6 +5,7 @@ import { session, emit, addClient, advanceClock, audioStore, snapshot } from './
 import { respond, pendingList } from './curtain.js'
 import { deliverReply, noAnswer, expireByClock, openWaits } from './humans.js'
 import { feed, isRunning } from './agent.js'
+import { readFileSync } from 'node:fs'
 import { TOOLS } from './tools.js'
 import { gnaniOn } from './rails/gnani.js'
 import { sheetsOn } from './rails/sheets.js'
@@ -28,6 +29,8 @@ app.get('/api/session', (req, res) => {
     wallet: session.wallet,
     decisions: session.decisions,
     messages: session.messages,
+    familyHistory: session.familyHistory,
+    rpHistory: session.rpHistory,
     pending: pendingList(),
     waits: openWaits(),
     running: isRunning(),
@@ -68,6 +71,42 @@ app.post('/api/input/audio', upload.single('audio'), (req, res) => {
   res.json({ audio_ref: id })
 })
 
+/**
+ * A member forwards a record from a family chat to the agent.
+ * This is a real input from a real person. The agent only ever sees documents
+ * that someone chose to forward; it never reads the family chats itself (R2).
+ */
+app.post('/api/forward', async (req, res) => {
+  const { from, chat_id, chat_name, message_id, caption, note, media, original_at } = req.body || {}
+  if (!from || !media) return res.status(400).json({ error: 'from and media are required' })
+
+  const type = media.type === 'pdf' ? 'PDF' : 'photo'
+  const source = `Forwarded by ${from} from ${chat_name || chat_id} · ${type} · original date ${new Date(original_at).toISOString().slice(0, 10)}`
+
+  // For a PDF we forward the page-1 image, since that is what the model can read.
+  const imgPath = media.type === 'pdf' ? media.thumb : media.src
+  const images = []
+  try {
+    const buf = readFileSync('public' + imgPath)
+    images.push({ mime: 'image/png', data: buf.toString('base64'), name: media.name })
+  } catch (err) {
+    emit('error', { error: `could not read forwarded file ${imgPath}: ${err.message}` })
+  }
+
+  const input = {
+    kind: 'forwarded_record', source, from,
+    document: { type: media.type, name: media.name, pages: media.pages ?? 1 },
+    caption_from_forwarder: caption || null,
+    note_from_forwarder: note || null,
+    original_date: original_at,
+    at: session.clock.toISOString(),
+  }
+
+  emit('input', { input, attachment: { ...media, caption, note, from } })
+  res.json({ ok: true })
+  feed(input, images).catch((err) => emit('error', { error: err.message }))
+})
+
 app.get('/api/curtain', (req, res) => res.json({ pending: pendingList() }))
 
 app.post('/api/curtain/:id', (req, res) => {
@@ -77,7 +116,22 @@ app.post('/api/curtain/:id', (req, res) => {
 
 /** A person pressed a button or typed in their phone frame. A human checkpoint. */
 app.post('/api/reply', (req, res) => {
-  const { from, text, action } = req.body || {}
+  const { from, text, action, message_id } = req.body || {}
+
+  // Lock the card that was answered, so it survives a reload and the console
+  // shows the same thing the phone does.
+  if (message_id) {
+    for (const list of Object.values(session.messages)) {
+      const card = list.find((m) => m.id === message_id)
+      if (card) {
+        card.answer = action || text
+        card.answered_at = session.clock.toISOString()
+        emit('card_answered', { message_id, answer: card.answer })
+        break
+      }
+    }
+  }
+
   const msg = { id: randomUUID(), from, to: 'agent', text, action, at: session.clock.toISOString() }
   ;(session.messages[from] ||= []).push(msg)
   emit('message', { message: msg, human_checkpoint: true })

@@ -48,6 +48,24 @@ export function Timeline({ items, thinking, present }: { items: TimelineItem[]; 
   )
 }
 
+/** A record a member chose to forward. The agent sees only this, never the chat. */
+function ForwardedRecord({ a }: { a: any }) {
+  const thumb = a.type === 'pdf' ? a.thumb : a.src
+  return (
+    <div className="mt-2 flex gap-3 rounded border border-input/40 bg-white p-2">
+      <img src={thumb} alt="" className="h-24 w-20 shrink-0 rounded border border-line object-cover object-top" />
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="rounded bg-input-bg px-1.5 text-badge uppercase text-input">{a.type}</span>
+          <span className="truncate font-mono text-meta">{a.name}</span>
+        </div>
+        <div className="mt-1 text-body">{a.caption}</div>
+        {a.note && <div className="mt-1 text-meta text-muted">Forwarder's note: “{a.note}”</div>}
+      </div>
+    </div>
+  )
+}
+
 function Item({ item, present }: { item: TimelineItem; present: boolean }) {
   const time = item.at ? new Date(item.at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Kolkata' }) : ''
 
@@ -70,6 +88,7 @@ function Item({ item, present }: { item: TimelineItem; present: boolean }) {
           <span className="ml-auto font-mono text-meta text-muted">{time}</span>
         </div>
         {item.input.text && <div className="mt-1 text-body">{item.input.text}</div>}
+        {item.attachment && <ForwardedRecord a={item.attachment} />}
         {!present && <Json label="payload" value={item.input} />}
       </div>
     )

@@ -14,7 +14,9 @@ function toContents(history) {
   const contents = []
   for (const turn of history) {
     if (turn.role === 'user') {
-      contents.push({ role: 'user', parts: [{ text: turn.text }] })
+      const parts = [{ text: turn.text }]
+      for (const img of turn.images || []) parts.push({ inlineData: { mimeType: img.mime, data: img.data } })
+      contents.push({ role: 'user', parts })
     } else if (turn.role === 'model') {
       const parts = []
       if (turn.text) parts.push({ text: turn.text })

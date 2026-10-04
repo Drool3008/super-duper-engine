@@ -22,6 +22,17 @@ function settle(id, result) {
   const entry = waiting.get(id)
   if (!entry) return false
   waiting.delete(id)
+
+  // Nobody answered: the agent falls back to its own rule, and the card on the
+  // phone has to say so rather than sit there looking live.
+  if (result.answered === false) {
+    for (const m of session.messages[entry.from] || []) {
+      if (m.card && !m.answer && !m.timed_out) {
+        m.timed_out = session.clock.toISOString()
+        emit('card_timed_out', { message_id: m.id, at: m.timed_out, reason: result.reason })
+      }
+    }
+  }
   emit('reply_settled', { id, from: entry.from, result })
   entry.resolve(result)
   return true

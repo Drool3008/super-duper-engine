@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { AgentEvent, Decision, Message, PendingCall, TimelineItem } from './types'
 
 export interface SessionView {
   model: string
   stage: number
   clock: string
-  wallet: { limit: number; spent: number }
+  wallet: { limit: number; spent: number; ledger?: any[] }
   rails: { gnani: boolean; sheets: boolean }
   onboarding: any
   decisions: Decision[]
@@ -14,25 +14,37 @@ export interface SessionView {
   timeline: TimelineItem[]
   thinking: boolean
   awaiting: { id: string; from: string; what_for: string } | null
+  /** Bumped whenever a message lands, so a phone can fire a notification. */
+  lastMessage: Message | null
+  familyHistory: any
+  rpHistory: any
 }
 
 const EMPTY: SessionView = {
-  model: '', stage: 1, clock: '', wallet: { limit: 0, spent: 0 },
+  model: '', stage: 1, clock: '', wallet: { limit: 0, spent: 0, ledger: [] },
   rails: { gnani: false, sheets: false }, onboarding: null,
-  decisions: [], messages: {}, pending: [], timeline: [], thinking: false, awaiting: null,
+  decisions: [], messages: {}, pending: [], timeline: [], thinking: false,
+  awaiting: null, lastMessage: null, familyHistory: null, rpHistory: null,
 }
 
+const Ctx = createContext<SessionView>(EMPTY)
+
 /**
- * One reducer over the SSE stream. The server replays every past event to a
- * client that joins late, so a reconnect mid-take rebuilds the whole screen.
+ * One EventSource for the whole page. The stage view renders the console plus
+ * three phones; without this each would open its own stream and replay the
+ * entire event log separately.
  */
-export function useSession() {
+export function SessionProvider({ children }: { children: ReactNode }) {
   const [view, setView] = useState<SessionView>(EMPTY)
   const seq = useRef(0)
 
   useEffect(() => {
     fetch('/api/session').then((r) => r.json()).then((s) => {
-      setView((v) => ({ ...v, model: s.model, stage: s.stage, clock: s.clock, wallet: s.wallet, rails: s.rails, onboarding: s.onboarding }))
+      setView((v) => ({
+        ...v, model: s.model, stage: s.stage, clock: s.clock,
+        wallet: s.wallet, rails: s.rails, onboarding: s.onboarding,
+        familyHistory: s.familyHistory, rpHistory: s.rpHistory,
+      }))
     }).catch(() => {})
 
     const es = new EventSource('/events')
@@ -43,8 +55,10 @@ export function useSession() {
     return () => es.close()
   }, [])
 
-  return view
+  return <Ctx.Provider value={view}>{children}</Ctx.Provider>
 }
+
+export const useSession = () => useContext(Ctx)
 
 function reduce(v: SessionView, ev: AgentEvent, nextId: () => string): SessionView {
   const push = (item: TimelineItem) => ({ ...v, timeline: [...v.timeline, item] })
@@ -59,7 +73,7 @@ function reduce(v: SessionView, ev: AgentEvent, nextId: () => string): SessionVi
     case 'idle':
       return { ...v, thinking: false }
     case 'input':
-      return { ...push({ kind: 'input', id: nextId(), at: ev.clock, input: ev.input }), thinking: true }
+      return { ...push({ kind: 'input', id: nextId(), at: ev.clock, input: ev.input, attachment: ev.attachment }), thinking: true }
     case 'decision':
       return { ...push({ kind: 'decision', id: nextId(), at: ev.clock, decision: ev.decision }), decisions: [...v.decisions, ev.decision] }
     case 'tool_call':
@@ -75,10 +89,24 @@ function reduce(v: SessionView, ev: AgentEvent, nextId: () => string): SessionVi
     case 'message': {
       const m: Message = ev.message
       const box = m.from === 'agent' ? m.to : m.from
-      return { ...v, messages: { ...v.messages, [box]: [...(v.messages[box] || []), m] } }
+      return { ...v, lastMessage: m, messages: { ...v.messages, [box]: [...(v.messages[box] || []), m] } }
     }
+    case 'card_timed_out':
+      return {
+        ...v,
+        messages: Object.fromEntries(Object.entries(v.messages).map(([k, list]) => [
+          k, list.map((m) => (m.id === ev.message_id ? { ...m, timed_out: ev.at } : m)),
+        ])),
+      }
+    case 'card_answered':
+      return {
+        ...v,
+        messages: Object.fromEntries(Object.entries(v.messages).map(([k, list]) => [
+          k, list.map((m) => (m.id === ev.message_id ? { ...m, answer: ev.answer, answered_at: ev.at } : m)),
+        ])),
+      }
     case 'wallet':
-      return { ...v, wallet: { limit: ev.wallet.limit, spent: ev.wallet.spent } }
+      return { ...v, wallet: { ...v.wallet, limit: ev.wallet.limit, spent: ev.wallet.spent, ledger: [...(v.wallet.ledger || []), ev.row] } }
     case 'awaiting_reply':
       return { ...v, thinking: false, awaiting: { id: ev.id, from: ev.from, what_for: ev.what_for } }
     case 'reply_settled':

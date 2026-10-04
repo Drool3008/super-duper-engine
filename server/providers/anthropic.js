@@ -16,7 +16,12 @@ function toMessages(history) {
   const messages = []
   for (const turn of history) {
     if (turn.role === 'user') {
-      messages.push({ role: 'user', content: [{ type: 'text', text: turn.text }] })
+      const content = []
+      for (const img of turn.images || []) {
+        content.push({ type: 'image', source: { type: 'base64', media_type: img.mime, data: img.data } })
+      }
+      content.push({ type: 'text', text: turn.text })
+      messages.push({ role: 'user', content })
     } else if (turn.role === 'model') {
       const content = []
       if (turn.text) content.push({ type: 'text', text: turn.text })

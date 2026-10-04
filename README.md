@@ -20,10 +20,17 @@ Two screens, one session, kept in step over SSE:
 
 | URL | What it is |
 |---|---|
-| <http://localhost:5173> | **Operator console.** Curtain, agent timeline, phone frames, decision log. This is what gets screen-recorded. |
-| <http://localhost:5173/#/app> | **Product view.** The app as a family member sees it. Open it in a second window. |
+| <http://localhost:5173> | **Operator console.** Curtain, agent timeline, phone frames, decision log. |
+| <http://localhost:5173/stage> | **Stage.** The recording surface: console plus phone simulators, or three phones. |
+| <http://localhost:5173/phone/rp> | **One member's phone**, at a 390x844 device frame. Accepts the onboarding id (`rp`) or a slug of the name (`demo-rp`). |
 
-The console's top bar has a **Product view ↗** link; the product view links back.
+Everything reads one shared SSE session, so the console and every phone move in
+the same instant. Taps on a phone go back to the agent and show up in the
+console log as human checkpoints.
+
+**For the recording, use `/stage` on "Console + 2 phones".** Three phones look
+better but show none of the rail calls or the decision log, which the rules
+require on screen.
 
 ```bash
 npm run check            # self-check: R19 gate, curtain pause, fixture passthrough
@@ -44,15 +51,38 @@ model. It costs nothing and needs no key, which makes it right for UI work and
 dry runs — and wrong for a real take, since the brief requires a real model
 making every decision.
 
-## The product view
+## Regenerating the seeded records
+
+```bash
+npm run gen:media
+```
+
+Reads `config/onboarding.json` and rewrites `config/family-history.json` plus
+every file in `public/media/`: handwritten prescriptions and notes rendered with
+a handwriting font on tinted paper, a medicine-strip photo, and 1-page PDFs with
+a page-1 thumbnail for the chat card. Swap in the real scenario and rerun it.
+
+Every document is fictional, drawn from the placeholder names in
+`onboarding.json`, and carries a small DEMO mark. No real doctor, clinic,
+hospital or registration number appears anywhere.
+
+## The member app
 
 `#/app` is the product itself, not a preview of it. It reads the same session,
 so anything the agent does shows up here as it happens, and anything done here
 goes back into the agent loop.
 
-- **Persona switcher** at the top. Patient, RP and other members see different
-  things: only the RP gets the Wallet tab, and the family group thread is status
-  only for everyone.
+- **One phone, one person.** No persona switcher inside the frame; pick the
+  member in the URL, or from the dropdowns on `/stage`.
+- **Family** is a chat list then a thread: the agent pinned at the top, the
+  family group, and a 1:1 per member. Seeded with months of past records.
+  Long-press or the `⋯` menu opens **Forward to Family Health agent**, which
+  sends the file and your note to the agent as a labelled external input. The
+  agent sees only what someone forwards; it never reads the chats itself (R2).
+- **The RP's agent chat is the decision room.** Every escalation arrives as a
+  tap-to-answer card with a one-line plain-language reason. Rule IDs stay in the
+  console and never appear on a phone. If nobody answers in time, the agent
+  applies its own rule and the card says what it did.
 - **Home** — medicines with days left (pills ÷ daily dose), tests, the latest
   word from the agent, and an *I need help now* button that raises a real SOS.
 - **Chat** — two-way. Typing routes itself: if the agent is waiting on that
@@ -121,3 +151,8 @@ data/       session.json snapshot, so a crash does not lose a take
 - Pine Labs per-endpoint schemas sit behind individual pages / an OpenAPI
   download. Endpoints and status values are confirmed; field names are not.
 - Twilio WhatsApp sending is not built. Phones are rendered in-page.
+- **Multimodal forwarding is unverified.** The image goes into the conversation
+  (Gemini `inlineData`, Anthropic image blocks; a PDF is sent as its page-1
+  image), but with no API key yet nothing has actually been sent to a model.
+- **Real-phone mode was cut** by agreement: no LAN host flag, no PWA manifest,
+  no scrcpy/QuickTime notes. None of it appears in the recording.

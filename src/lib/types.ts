@@ -37,6 +37,10 @@ export interface Message {
   action?: string
   language?: string
   card?: any
+  kind?: string
+  answer?: string
+  answered_at?: string
+  timed_out?: string | boolean
   at: string
 }
 
@@ -45,7 +49,7 @@ export type TimelineItem =
   | { kind: 'decision'; id: string; at: string; decision: Decision }
   | { kind: 'tool'; id: string; at: string; name: string; args: any; mode?: RunMode; rail?: Rail; endpoint?: string | null; result?: any; rejected?: string }
   | { kind: 'error'; id: string; at: string; error: string }
-  | { kind: 'input'; id: string; at: string; input: any }
+  | { kind: 'input'; id: string; at: string; input: any; attachment?: any }
 
 export const STAGE_NAMES = [
   'Onboarding', 'Idle', 'Triggered', 'Reaching', 'Listening',
