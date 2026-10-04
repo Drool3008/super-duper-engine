@@ -5,6 +5,7 @@
  * Uses the stub provider, so it needs no API key.  Run: npm run check
  */
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 
 process.env.MODEL_PROVIDER = 'stub'
 
@@ -64,27 +65,33 @@ console.log('ok  invented rule_id R99 refused, only R2 logged')
 
 const { contactChain, startChain, nextContact } = await import('./contacts.js')
 
+// Expected orders come from the onboarding data, so swapping in a different
+// family never breaks the check: affected first, then the responsible person,
+// then everyone else in listing order.
+const ob = session.onboarding
+const ids = ob.family.members.map((m) => m.id)
+const rpId = ob.family.members.find((m) => m.role === 'responsible_person').id
+const chainFrom = (affected) => [affected, ...(affected === rpId ? [] : [rpId]), ...ids.filter((x) => x !== affected && x !== rpId)]
+const otherMember = ids.find((x) => x !== 'patient' && x !== rpId)
+
 assert.deepEqual(
-  contactChain('patient'), ['patient', 'rp', 'member_3', 'member_4'],
+  contactChain('patient'), chainFrom('patient'),
   'affected first, then the responsible person, then the rest in listing order',
 )
 assert.deepEqual(
-  contactChain('member_3'), ['member_3', 'rp', 'patient', 'member_4'],
+  contactChain(otherMember), chainFrom(otherMember),
   'the chain is relative to whoever the incident is about',
 )
 console.log('ok  call chain ordered by role then listing')
 
 startChain('patient', 'selfcheck')
-const first = nextContact({ affected: 'patient', tier: 'routine' })
-const second = nextContact({ affected: 'patient', tier: 'routine' })
-const third = nextContact({ affected: 'patient', tier: 'routine' })
-const fourth = nextContact({ affected: 'patient', tier: 'routine' })
-const fifth = nextContact({ affected: 'patient', tier: 'routine' })
+const walked = chainFrom('patient').map(() => nextContact({ affected: 'patient', tier: 'routine' }))
+const past = nextContact({ affected: 'patient', tier: 'routine' })
 
-assert.deepEqual([first.next, second.next, third.next, fourth.next], [['patient'], ['rp'], ['member_3'], ['member_4']])
-assert.equal(first.wait_seconds, 900, 'routine wait comes from onboarding')
-assert.equal(fifth.exhausted, true, 'the chain reports running out rather than looping')
-assert.deepEqual(fifth.next, [], 'nothing is handed back once exhausted')
+assert.deepEqual(walked.map((w) => w.next), chainFrom('patient').map((x) => [x]))
+assert.equal(walked[0].wait_seconds, ob.wait_times_seconds.routine, 'routine wait comes from onboarding')
+assert.equal(past.exhausted, true, 'the chain reports running out rather than looping')
+assert.deepEqual(past.next, [], 'nothing is handed back once exhausted')
 console.log('ok  chain walked each person once, then reported exhausted')
 
 startChain('patient', 'selfcheck critical')
@@ -224,23 +231,31 @@ console.log('ok  reversal window closed on the sim clock, not a real timer')
 const { nextProvider, recordProviderOutcome, reportDeadEnd, recordFulfilment, recordDispatch } =
   await import('./acting.js')
 
+// Provider and medicine names from the onboarding data, not hardcoded.
+const [clinic1, clinic2] = ob.providers.clinics.map((c) => c.name)
+const lab1 = ob.providers.labs[0].name
+const chemist1 = ob.providers.chemists[0].name
+const med1 = ob.current_medicines.find((m) => m.id === 'med_chronic_1')
+const medName = `${med1.name} ${med1.strength}`
+const patientName = ob.family.members.find((m) => m.id === 'patient').name
+
 // R11: you cannot call it a dead end while there is anyone left to ring.
 const tooEarly = reportDeadEnd({ kind: 'clinics', why: 'nobody picked up' })
 assert.equal(tooEarly.ok, false, 'a dead end with untried clinics must be refused')
 assert.match(tooEarly.error, /Still untried/)
 
 const c1 = nextProvider({ kind: 'clinics' })
-assert.equal(c1.provider.name, 'Placeholder Clinic 1', 'ranked order, best first')
-recordProviderOutcome({ kind: 'clinics', provider: 'Placeholder Clinic 1', outcome: 'no_answer' })
+assert.equal(c1.provider.name, clinic1, 'ranked order, best first')
+recordProviderOutcome({ kind: 'clinics', provider: clinic1, outcome: 'no_answer' })
 
 const owed = nextProvider({ kind: 'clinics' })
 assert.equal(owed.redial, true, 'R11: the first clinic is owed a redial before anyone else')
-assert.equal(owed.provider.name, 'Placeholder Clinic 1')
-recordProviderOutcome({ kind: 'clinics', provider: 'Placeholder Clinic 1', outcome: 'no_answer' })
+assert.equal(owed.provider.name, clinic1)
+recordProviderOutcome({ kind: 'clinics', provider: clinic1, outcome: 'no_answer' })
 
 const c2 = nextProvider({ kind: 'clinics' })
-assert.equal(c2.provider.name, 'Placeholder Clinic 2', 'only then does the second clinic get a go')
-recordProviderOutcome({ kind: 'clinics', provider: 'Placeholder Clinic 2', outcome: 'no_answer' })
+assert.equal(c2.provider.name, clinic2, 'only then does the second clinic get a go')
+recordProviderOutcome({ kind: 'clinics', provider: clinic2, outcome: 'no_answer' })
 console.log('ok  R11 redialled the first clinic before trying the second')
 
 const nowDead = reportDeadEnd({ kind: 'clinics', why: 'both clinics rang out twice' })
@@ -251,25 +266,25 @@ const inventedClinic = recordProviderOutcome({ kind: 'clinics', provider: 'Clini
 assert.equal(inventedClinic.ok, false, 'a provider not in the data must be refused')
 assert.match(inventedClinic.error, /Never invent a provider/)
 
-const noReason = recordProviderOutcome({ kind: 'labs', provider: 'Placeholder Lab 1', outcome: 'no_slot' })
+const noReason = recordProviderOutcome({ kind: 'labs', provider: lab1, outcome: 'no_slot' })
 assert.equal(noReason.ok, false, 'R12: no slot needs to say what you took instead')
 assert.match(noReason.error, /R12/)
 console.log('ok  R12 refused "no slot" with no choice and no reason')
 
 // R1/R13: a substitution is refused, not flagged.
 const sub = recordFulfilment({
-  prescribed: 'Placeholder Chronic Medicine 1 10mg',
+  prescribed: medName,
   supplied: 'Generic Equivalent 10mg',
-  chemist: 'Placeholder Chemist 1',
+  chemist: chemist1,
 })
 assert.equal(sub.ok, false, 'a substitution must be refused outright')
 assert.match(sub.error, /R1/)
 assert.equal(sub.must_ask_human, true)
 
 const declined = recordFulfilment({
-  prescribed: 'Placeholder Chronic Medicine 1 10mg',
-  supplied: 'Placeholder Chronic Medicine 1 10mg',
-  chemist: 'Placeholder Chemist 1',
+  prescribed: medName,
+  supplied: medName,
+  chemist: chemist1,
   substitute_offered: 'Generic Equivalent 10mg',
 })
 assert.equal(declined.ok, true, 'the right medicine is recorded even when a substitute was offered')
@@ -282,8 +297,8 @@ assert.equal(half.ok, false, 'a partial dispatch must be refused')
 assert.match(half.error, /clinic_notified/)
 
 const whole = recordDispatch({
-  transport: 'Auto booked for Demo Patient to Placeholder Clinic 1',
-  clinic_notified: 'Placeholder Clinic 1 told to expect her',
+  transport: `Auto booked for ${patientName} to ${clinic1}`,
+  clinic_notified: `${clinic1} told to expect her`,
   family_alerted: 'Told the family group she is on her way, no detail',
   still_calling: true,
 })
@@ -353,7 +368,7 @@ assert.equal(session.history.length, 0)
 // carrying those edits into the next take is the kind of thing that only shows
 // up halfway through a recording.
 const after = session.onboarding.current_medicines.find((m) => m.id === 'med_chronic_1')
-assert.equal(after.pills_left, 6, 'onboarding came back from disk, not from memory')
+assert.equal(after.pills_left, JSON.parse(readFileSync('config/onboarding.json', 'utf8')).current_medicines.find((m) => m.id === 'med_chronic_1').pills_left, 'onboarding came back from disk, not from memory')
 assert.equal(after.refill_source, undefined, 'and the refill source the agent wrote is gone')
 
 // One event, so a client connecting after the reset lands on an empty session.

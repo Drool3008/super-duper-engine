@@ -75,7 +75,7 @@ export function callFor(timeline: TimelineItem[], member: any, members: any[] = 
       const answered = r && (r.outcome === 'ANSWERED' || r.status === 'ANSWERED_HUMAN')
       const missed = r && !answered
       return {
-        id: c.id, peer: 'Family Health agent', agentSaid: a.say,
+        id: c.id, peer: 'Vantari', agentSaid: a.say,
         phase: r === undefined ? 'ringing' : missed ? 'missed' : 'connected',
         theySaid: r?.said || undefined, ...extras,
       }

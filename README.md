@@ -129,11 +129,19 @@ npm run gen:media
 Reads `config/onboarding.json` and rewrites `config/family-history.json` plus
 every file in `public/media/`: handwritten prescriptions and notes rendered with
 a handwriting font on tinted paper, a medicine-strip photo, and 1-page PDFs with
-a page-1 thumbnail for the chat card. Swap in the real scenario and rerun it.
+a page-1 thumbnail for the chat card. Rerun it after any change to the profile.
 
-Every document is fictional, drawn from the placeholder names in
-`onboarding.json`, and carries a small DEMO mark. No real doctor, clinic,
-hospital or registration number appears anywhere.
+`onboarding.json` now holds the Round 3 scenario: Lakshmi (67, Warangal,
+Telugu, hypertension, two tablets a day, last BP check four months ago), her
+son Arun (29, Hyderabad, the responsible person) and his sister Kavya. The
+sister's name, Dr. S. Rao, the clinics, chemists, lab, phone numbers, the
+medicine (Metoprolol 25mg) and the wallet numbers are fictional fill-ins the
+plan left open; change them there. `config/stub-script.json` replays the
+filmed flow with these names for a no-key dry run.
+
+Every document is fictional, drawn from the names in `onboarding.json`, and
+carries a small DEMO mark. No real doctor, clinic, hospital or registration
+number appears anywhere.
 
 ## The member app
 

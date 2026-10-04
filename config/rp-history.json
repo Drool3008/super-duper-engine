@@ -1,5 +1,5 @@
 {
-  "_note": "Past, already-resolved escalations so the RP chat opens with a history. Placeholder data derived from config/onboarding.json.",
+  "_note": "Past, already-resolved escalations so Arun's chat opens with a history. Derived from config/onboarding.json; fictional.",
   "messages": [
     {
       "id": "rph1",
@@ -15,12 +15,15 @@
       "at": "2026-08-19T09:41:00+05:30",
       "card": {
         "kind": "spend_above_threshold",
-        "amount_inr": 5400,
-        "payee": "Placeholder Chemist 1",
-        "detail": "Placeholder Chronic Medicine 1 10mg, 30 units",
-        "wallet_left_inr": 44600,
-        "why": "Over your \u20b95,000 limit, so I stopped and asked.",
-        "on_timeout": "held the booking unpaid"
+        "amount_inr": 240,
+        "payee": "Pillar Road Medicals, Hanamkonda",
+        "wallet_left_inr": 4760,
+        "why": "Above the ₹200 you set for asking first, so I stopped and asked.",
+        "on_timeout": "held the booking unpaid",
+        "medicine": "Metoprolol",
+        "strength": "25mg",
+        "quantity": "60 tablets",
+        "for": "Lakshmi"
       },
       "answer": "Approve",
       "answered_at": "2026-08-19T09:52:00+05:30"
@@ -30,7 +33,7 @@
       "from": "agent",
       "to": "rp",
       "at": "2026-08-19T09:53:00+05:30",
-      "text": "Paid and delivered the same evening. Wallet left \u20b944,600."
+      "text": "Paid and delivered the same evening. Lakshmi took it at the door. Wallet left ₹4,760."
     },
     {
       "id": "rph4",
@@ -40,7 +43,7 @@
       "card": {
         "kind": "dead_end",
         "title": "I hit a dead end",
-        "detail": "Called both clinics twice. No answer at either after 6 pm.",
+        "detail": "Called Dr. S. Rao's clinic and Warangal Family Health Centre twice. No answer at either after 6 pm.",
         "why": "I did not want to keep redialling without telling you.",
         "on_timeout": "kept trying in the morning"
       },
@@ -52,7 +55,7 @@
       "from": "agent",
       "to": "rp",
       "at": "2026-09-11T18:21:00+05:30",
-      "text": "Understood. Booked the morning walk-in slot instead and told Demo Patient."
+      "text": "Understood. Booked the morning walk-in slot instead and told Lakshmi."
     },
     {
       "id": "rph6",
@@ -62,7 +65,7 @@
       "card": {
         "kind": "substitute_offered",
         "title": "A chemist offered a substitute",
-        "detail": "Placeholder Chemist 1 is out of Placeholder Chronic Medicine 1 and offered a different brand.",
+        "detail": "Pillar Road Medicals is out of Metoprolol 25mg and offered a different brand.",
         "why": "Swapping a medicine is not mine to decide.",
         "on_timeout": "declined and tried the next chemist"
       },
@@ -74,7 +77,7 @@
       "from": "agent",
       "to": "rp",
       "at": "2026-09-25T12:10:00+05:30",
-      "text": "Asked the clinic. They said stay on the same brand, so I sourced it from the second chemist."
+      "text": "Asked Dr. S. Rao's clinic. They said stay on the same brand, so I got it from Kazipet Pharmacy."
     }
   ]
 }

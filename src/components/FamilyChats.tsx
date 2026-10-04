@@ -89,7 +89,7 @@ export function ChatsTab({ memberId, onOpenChange, t, onAnswer }: { memberId: st
   const seeded: any[] = s.familyHistory?.chats || []
   const chats = useMemo(() => {
     const list = [
-      { id: '__agent', name: 'Family Health agent', kind: 'agent', pinned: true, messages: [] as any[] },
+      { id: '__agent', name: 'Vantari', kind: 'agent', pinned: true, messages: [] as any[] },
       ...seeded.filter((c) => c.kind === 'group'),
       ...seeded.filter((c) => c.kind !== 'group' && c.id !== memberId),
     ]
@@ -183,7 +183,7 @@ function ChatScreen({ chat, memberId, nameOf, onBack }: any) {
           <div className="truncate text-body font-bold">{chat.name}</div>
           {isGroup && (
             <div className="truncate text-meta text-muted">
-              {groupMembers(s.onboarding?.family?.members || [], memberId)}, Family Health agent
+              {groupMembers(s.onboarding?.family?.members || [], memberId)}, Vantari (AI)
             </div>
           )}
         </div>

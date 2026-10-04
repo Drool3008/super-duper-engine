@@ -23,7 +23,6 @@ const clinic = ob.providers.clinics[0]?.name ?? 'Placeholder Clinic'
 const lab = ob.providers.labs[0]?.name ?? 'Placeholder Lab'
 const doctor = ob.red_flags?.set_by ?? 'Dr. Placeholder'
 const med0 = ob.current_medicines[0]
-const med1 = ob.current_medicines[1] ?? med0
 const test0 = ob.recurring_tests[0]
 
 rmSync(OUT, { recursive: true, force: true })
@@ -73,21 +72,21 @@ function paper(inner: string, opts: { w?: number; h?: number; rotate?: number; t
 function prescription(forName: string, file: string) {
   // Each medicine is a name line with its dose indented underneath, the way a
   // real Rx reads. A single row overran into the dose column.
-  const meds = [
-    { m: med0, note: 'after food' },
-    { m: med1, note: 'only if needed' },
-  ]
+  // One line per distinct medicine for this person, with its own schedule.
+  const meds = (ob.current_medicines as any[])
+    .filter((m) => m.member === 'patient')
+    .map((m) => ({ m, note: m.schedule ?? 'after food' }))
   let y = 330
   const body = meds.map(({ m, note }) => {
     const block = `<text x="105" y="${y}" font-family="Kalam" font-size="31" fill="#1F3A52">${esc(m.name)}</text>
-      <text x="135" y="${y + 40}" font-family="Kalam" font-size="26" fill="#3C5468">${esc(m.strength)}  —  ${m.daily_dose} per day, ${note}</text>`
+      <text x="135" y="${y + 40}" font-family="Kalam" font-size="26" fill="#3C5468">${esc(m.strength)}  —  ${m.daily_dose} a day, ${esc(note)}</text>`
     y += 104
     return block
   }).join('')
 
   return png(file, paper(`
     <text x="90" y="118" font-family="Kalam" font-size="37" fill="#24455F">${esc(clinic)}</text>
-    <text x="90" y="156" font-family="Kalam" font-size="23" fill="#5A6B75">Consulting room · placeholder address</text>
+    <text x="90" y="156" font-family="Kalam" font-size="23" fill="#5A6B75">Consulting room · demo record</text>
     <line x1="90" y1="178" x2="710" y2="178" stroke="#A8B4BE" stroke-width="2"/>
     <text x="90" y="226" font-family="Kalam" font-size="27" fill="#3C5468">Name: ${esc(forName)}</text>
     <text x="500" y="226" font-family="Kalam" font-size="27" fill="#3C5468">Date: ${esc(pretty(daysAgo(96)))}</text>
@@ -99,7 +98,7 @@ function prescription(forName: string, file: string) {
     <text x="105" y="${y + 154}" font-family="Kalam" font-size="27" fill="#3C5468">Review after 1 month</text>
     <line x1="430" y1="880" x2="700" y2="880" stroke="#A8B4BE" stroke-width="2"/>
     <text x="470" y="872" font-family="Kalam" font-size="30" fill="#24455F">${esc(doctor)}</text>
-    <text x="470" y="912" font-family="Kalam" font-size="21" fill="#5A6B75">Reg. no. PLACEHOLDER</text>
+    <text x="470" y="912" font-family="Kalam" font-size="21" fill="#5A6B75">Reg. no. DEMO (not real)</text>
     ${DEMO_MARK(92, 960)}
   `), 760)
 }
@@ -145,7 +144,7 @@ function reportPdf(file: string, title: string, subject: string, rows: Array<[st
   }))
 
   doc.fontSize(17).fillColor('#1F4E79').text(lab)
-  doc.fontSize(9).fillColor('#5A6B75').text('Placeholder address · placeholder contact')
+  doc.fontSize(9).fillColor('#5A6B75').text(`${clinic} · demo record, not a real document`)
   doc.moveTo(54, 108).lineTo(541, 108).strokeColor('#D5DCE2').stroke()
   doc.moveDown(1.4)
   doc.fontSize(14).fillColor('#1B2A33').text(title)
@@ -197,34 +196,52 @@ const add = (id: string, name: string, kind: string, messages: Msg[]) => chats.p
 let mid = 0
 const M = (from: string, at: string, extra: any = {}): Msg => ({ id: `h${++mid}`, from, at, ...extra })
 
+/** What the family calls the patient in chat ("Amma"), falling back to her name. */
+const pet = patient.family_calls_her ?? patient.name
+/** The patient's own lines, in her language where we have them. */
+const SAYS: Record<string, Record<string, string>> = {
+  te: {
+    low: 'ఈ మాత్రలు తక్కువగా ఉన్నాయి, ఇంకో వారానికే సరిపోతాయి.',
+    fine: 'ఈ వారం బాగానే ఉన్నాను, ఏ ఇబ్బందీ లేదు.',
+    good: 'మంచి ఆలోచన.',
+  },
+}
+const says = (key: string, english: string) => SAYS[(patient.language || 'en').split('-')[0]]?.[key] ?? english
+
+/** The last recurring check lands on its recorded date, so chat and profile agree. */
+const lastDoneDays = test0?.last_done
+  ? Math.max(1, Math.round((NOW.getTime() - new Date(test0.last_done).getTime()) / 86400000))
+  : 118
+
 async function build() {
   // --- patient 1:1 -----------------------------------------------------------
   const rx = prescription(patient.name, 'rx-patient.png')
   const nt = note('note-timings.png')
   const strip = medicineStrip('strip-patient.png')
-  const labWhen = daysAgo(118)
-  const labBytes = await reportPdf('report-patient-bloods.pdf', 'Routine panel', patient.name,
-    [['Marker A', '— placeholder —', 'ref range'], ['Marker B', '— placeholder —', 'ref range'],
-     ['Marker C', '— placeholder —', 'ref range'], ['Marker D', '— placeholder —', 'ref range']], labWhen)
-  const labThumb = pdfThumb('report-patient-bloods-thumb.png', 'Routine panel', patient.name, labWhen)
+  const labWhen = daysAgo(lastDoneDays)
+  const labTitle = test0?.name ?? 'Routine panel'
+  const labBytes = await reportPdf('report-patient-bloods.pdf', labTitle, patient.name,
+    [['Blood pressure', '148/92 mmHg', 'below 140/90'], ['Pulse', '78 /min', '60–100'],
+     ['Weight', '61 kg', ''], ['Advice', 'continue tablets, recheck in 3 months', '']], labWhen)
+  const labThumb = pdfThumb('report-patient-bloods-thumb.png', labTitle, patient.name, labWhen)
 
   add(patient.id, patient.name, 'direct', [
-    M(rp.id, daysAgo(124), { text: `Took ${patient.name} to ${clinic} today. Will send the papers here so everyone has them.` }),
-    M(rp.id, daysAgo(118), {
+    M(rp.id, daysAgo(lastDoneDays + 2), { text: `Took ${pet} to ${clinic}. Will send the papers here so everyone has them.` }),
+    M(rp.id, daysAgo(lastDoneDays), {
       media: { type: 'pdf', src: '/media/report-patient-bloods.pdf', thumb: labThumb.file, name: 'report-patient-bloods.pdf', pages: 1, size_kb: Math.round(labBytes / 1024) },
-      caption: `${patient.name}'s ${test0?.name ?? 'routine test'} from ${pretty(labWhen)}. ${doctor} wants it repeated in three months.`,
+      caption: `${pet}'s ${test0?.name ?? 'routine test'} from ${pretty(labWhen)}. ${doctor} wants it repeated in three months.`,
     }),
     M(rp.id, daysAgo(96), {
       media: { type: 'image', src: rx.file, name: 'rx-patient.png' },
-      caption: `${patient.name}'s new prescription from ${doctor}, for the chronic medicine. Keep this for refills.`,
+      caption: `${pet}'s new prescription from ${doctor}, for ${med0.name} ${med0.strength}. Keep this for refills.`,
     }),
     M(rp.id, daysAgo(95), {
       media: { type: 'image', src: nt.file, name: 'note-timings.png' },
-      caption: `${doctor}'s note on timings, before food. ${patient.name} keeps forgetting the morning one.`,
+      caption: `${doctor}'s note on timings. ${pet} keeps forgetting the morning one.`,
     }),
     M(patient.id, daysAgo(12), {
       media: { type: 'image', src: strip.file, name: 'strip-patient.png' },
-      caption: `Running low on this one, about a week left.`,
+      caption: says('low', `Running low on this one, about a week left.`),
     }),
     M(rp.id, daysAgo(11), { text: `Noted. I will get it refilled before it runs out.` }),
   ])
@@ -232,14 +249,14 @@ async function build() {
   // --- other members ---------------------------------------------------------
   for (const [i, m] of others.entries()) {
     const when = daysAgo(150 + i * 30)
-    const bytes = await reportPdf(`report-${m.id}.pdf`, 'Discharge summary', m.name,
-      [['Admitted', '— placeholder —', ''], ['Discharged', '— placeholder —', ''], ['Advice', '— placeholder —', '']], when)
-    const thumb = pdfThumb(`report-${m.id}-thumb.png`, 'Discharge summary', m.name, when)
+    const bytes = await reportPdf(`report-${m.id}.pdf`, 'Blood test', m.name,
+      [['Haemoglobin', '12.6 g/dL', '12–15.5'], ['Vitamin D', '18 ng/mL', '30–100'], ['TSH', '2.1 mIU/L', '0.4–4.0']], when)
+    const thumb = pdfThumb(`report-${m.id}-thumb.png`, 'Blood test', m.name, when)
     add(m.id, m.name, 'direct', [
       M(m.id, daysAgo(152 + i * 30), { text: `Adding my papers here so they are not lost.` }),
       M(m.id, when, {
         media: { type: 'pdf', src: `/media/report-${m.id}.pdf`, thumb: thumb.file, name: `report-${m.id}.pdf`, pages: 1, size_kb: Math.round(bytes / 1024) },
-        caption: `${m.name}'s discharge summary from last year, for the hospital file.`,
+        caption: `My blood test from ${pretty(when)}, for the family file.`,
       }),
       M(rp.id, daysAgo(140 + i * 30), { text: `Got it, thanks. Filed.` }),
     ])
@@ -248,15 +265,17 @@ async function build() {
   // --- RP 1:1 ----------------------------------------------------------------
   add(rp.id, rp.name, 'direct', [
     M(rp.id, daysAgo(60), { text: `I am keeping all the prescriptions in this app now, easier than the drawer.` }),
-    M(patient.id, daysAgo(59), { text: `Good idea.` }),
+    M(patient.id, daysAgo(59), { text: says('good', `Good idea.`) }),
   ])
 
   // --- family group ----------------------------------------------------------
   add('family_group', `${ob.family.name} group`, 'group', [
     M(rp.id, daysAgo(130), { text: `Starting a group for health things so nobody has to repeat themselves.` }),
-    M(others[0]?.id ?? rp.id, daysAgo(74), { text: `Did anyone book the eye check for ${others[0]?.name ?? 'the kids'}?` }),
+    M(others[0]?.id ?? rp.id, daysAgo(74), { text: test0?.every_days && test0?.last_done
+      ? `Did anyone book ${pet}'s next ${test0.name}? It is due on ${pretty(new Date(new Date(test0.last_done).getTime() + test0.every_days * 86400000).toISOString())}.`
+      : `Did anyone book ${pet}'s next check-up?` }),
     M(rp.id, daysAgo(73), { text: `Not yet. Putting it on the list.` }),
-    M(patient.id, daysAgo(30), { text: `Feeling fine this week, no problems.` }),
+    M(patient.id, daysAgo(30), { text: says('fine', `Feeling fine this week, no problems.`) }),
   ])
 
   const manifest = {

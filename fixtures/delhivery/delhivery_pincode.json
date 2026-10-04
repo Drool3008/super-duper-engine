@@ -4,7 +4,7 @@
   "_note": "Response shape confirmed from the docs: delivery_codes[].postal_code{pin, pre_paid, cash, pickup}.",
   "success": {
     "delivery_codes": [
-      { "postal_code": { "pin": 560001, "pre_paid": "Y", "cash": "Y", "pickup": "Y" } }
+      { "postal_code": { "pin": 506002, "pre_paid": "Y", "cash": "Y", "pickup": "Y" } }
     ]
   },
   "failure_not_serviceable": {

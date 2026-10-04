@@ -1,92 +1,84 @@
 {
-  "placeholder": true,
-  "_note": "Every value here is a placeholder and will be replaced with the real demo scenario. Nothing in the code may depend on these specific values.",
+  "placeholder": false,
+  "_note": "The Round 3 scenario from 'Vantari — Round 3 Simulation Plan'. Lakshmi, Arun and the facts about her come from the plan; the sister's name, the doctor, clinics, chemists, lab, phone numbers and the medicine are fictional fill-ins chosen by the team and can be changed here. No real person, clinic or registration number. Nothing in the code may depend on these specific values. After editing, run `npm run gen:media` to rebuild the seeded records.",
 
   "family": {
-    "name": "Demo Family",
-    "pincode": "560001",
+    "name": "Lakshmi's family",
+    "pincode": "506002",
+    "city": "Warangal",
     "members": [
-      { "id": "patient",  "name": "Demo Patient",  "role": "patient", "age": 68, "language": "te-IN", "phone": "+91-90000-00001", "placeholder": true },
-      { "id": "rp",       "name": "Demo RP",       "role": "responsible_person", "age": 41, "language": "en-IN", "phone": "+91-90000-00002", "placeholder": true },
-      { "id": "member_3", "name": "Demo Member 3", "role": "family", "age": 38, "language": "en-IN", "phone": "+91-90000-00003", "placeholder": true },
-      { "id": "member_4", "name": "Demo Member 4", "role": "family", "age": 22, "language": "hi-IN", "phone": "+91-90000-00004", "placeholder": true }
+      { "id": "patient",  "name": "Lakshmi", "role": "patient",            "age": 67, "language": "te-IN", "phone": "+91-90000-00001", "lives_in": "Warangal", "lives_alone": true, "family_calls_her": "Amma" },
+      { "id": "rp",       "name": "Arun",    "role": "responsible_person", "age": 29, "language": "en-IN", "phone": "+91-90000-00002", "lives_in": "Hyderabad", "relation": "son" },
+      { "id": "member_3", "name": "Kavya",   "role": "family",             "age": 26, "language": "en-IN", "phone": "+91-90000-00003", "lives_in": "Bengaluru", "relation": "daughter, Arun's sister" }
     ]
   },
 
   "call_chain": {
-    "_note": "Ranked by the RP for ability to make a sound decision, not by age.",
-    "order": ["patient", "rp", "member_3", "member_4"]
+    "_note": "Ranked by Arun at signup for ability to make a sound decision, not by age.",
+    "order": ["patient", "rp", "member_3"]
   },
 
   "consent": {
     "_note": "Each adult consents to what is shared and with whom. Stage 0.",
     "patient":  { "share_with_rp": "full", "share_with_family_group": "status_only", "share_with_doctor": "full", "record_calls": true },
     "rp":       { "share_with_rp": "full", "share_with_family_group": "status_only", "share_with_doctor": "full", "record_calls": true },
-    "member_3": { "share_with_rp": "full", "share_with_family_group": "status_only", "share_with_doctor": "full", "record_calls": true },
-    "member_4": { "share_with_rp": "full", "share_with_family_group": "status_only", "share_with_doctor": "full", "record_calls": true }
+    "member_3": { "share_with_rp": "full", "share_with_family_group": "status_only", "share_with_doctor": "full", "record_calls": true }
   },
 
   "known_conditions": [
-    { "member": "patient", "label": "Condition A (chronic)", "since": "2019", "placeholder": true },
-    { "member": "patient", "label": "Condition B (chronic)", "since": "2022", "placeholder": true }
+    { "member": "patient", "label": "Hypertension", "since": "2018", "treated_by": "Dr. S. Rao" }
   ],
 
   "current_medicines": [
     {
       "id": "med_chronic_1", "member": "patient",
-      "name": "Placeholder Chronic Medicine 1", "strength": "10mg",
+      "name": "Metoprolol", "strength": "25mg",
+      "purpose": "blood pressure",
       "must_not_miss": true,
-      "daily_dose": 2, "pills_left": 6,
-      "prescription_id": "RX-PLACEHOLDER-4412",
-      "placeholder": true
-    },
-    {
-      "id": "med_common_1", "member": "patient",
-      "name": "Placeholder Common Medicine 1", "strength": "500mg",
-      "must_not_miss": false,
-      "daily_dose": 3, "pills_left": 9,
-      "prescription_id": "RX-PLACEHOLDER-4413",
-      "placeholder": true
+      "daily_dose": 2, "schedule": "one tablet morning, one at night",
+      "pills_left": 6,
+      "prescribed_quantity": 60,
+      "prescription_id": "RX-WGL-2026-0612",
+      "prescribed_by": "Dr. S. Rao"
     }
   ],
 
   "recurring_tests": [
-    { "id": "test_1", "member": "patient", "name": "Placeholder Recurring Test 1", "every_days": 90, "last_done": "2026-07-06", "needed_for_prescription": "RX-PLACEHOLDER-4412", "placeholder": true },
-    { "id": "test_2", "member": "patient", "name": "Placeholder One-off Test 2", "every_days": null, "last_done": null, "placeholder": true }
+    { "id": "test_1", "member": "patient", "name": "BP check", "every_days": 90, "last_done": "2026-06-06", "needed_for_prescription": "RX-WGL-2026-0612" }
   ],
 
   "red_flags": {
-    "_note": "Set with the family doctor at onboarding. The agent matches spoken symptoms against this list. It never names a condition.",
-    "set_by": "Demo Family Doctor",
+    "_note": "Set with the family doctor at onboarding. The agent matches spoken symptoms against this list. It never names a condition. Giddiness on standing is deliberately not on it: urgent, not an emergency.",
+    "set_by": "Dr. S. Rao",
     "list": [
-      "placeholder red flag 1",
-      "placeholder red flag 2",
-      "placeholder red flag 3",
-      "placeholder red flag 4"
-    ],
-    "placeholder": true
+      "chest pain or tightness",
+      "fainting, or a fall she cannot get up from",
+      "slurred speech, a drooping face or weakness on one side",
+      "a sudden severe headache with blurred vision"
+    ]
   },
 
   "providers": {
     "clinics":  [
-      { "rank": 1, "name": "Placeholder Clinic 1", "phone": "+91-80000-10001", "distance_km": 2.1, "placeholder": true },
-      { "rank": 2, "name": "Placeholder Clinic 2", "phone": "+91-80000-10002", "distance_km": 5.4, "placeholder": true }
+      { "rank": 1, "name": "Dr. S. Rao's clinic, Hanamkonda", "doctor": "Dr. S. Rao", "phone": "+91-80000-10001", "distance_km": 2.1, "treating_doctor": true },
+      { "rank": 2, "name": "Warangal Family Health Centre", "phone": "+91-80000-10002", "distance_km": 4.8 }
     ],
     "chemists": [
-      { "rank": 1, "name": "Placeholder Chemist 1", "phone": "+91-80000-20001", "pincode": "560001", "delhivery_pickup_registered": true,  "placeholder": true },
-      { "rank": 2, "name": "Placeholder Chemist 2", "phone": "+91-80000-20002", "pincode": "560034", "delhivery_pickup_registered": false, "placeholder": true }
+      { "rank": 1, "name": "Pillar Road Medicals, Hanamkonda", "phone": "+91-80000-20001", "pincode": "506001", "delhivery_pickup_registered": true },
+      { "rank": 2, "name": "Kazipet Pharmacy", "phone": "+91-80000-20002", "pincode": "506003", "delhivery_pickup_registered": false }
     ],
     "labs":     [
-      { "rank": 1, "name": "Placeholder Lab 1", "phone": "+91-80000-30001", "distance_km": 3.0, "placeholder": true },
-      { "rank": 2, "name": "Placeholder Lab 2", "phone": "+91-80000-30002", "distance_km": 7.2, "placeholder": true }
+      { "rank": 1, "name": "Hanamkonda Diagnostics", "phone": "+91-80000-30001", "distance_km": 2.6 },
+      { "rank": 2, "name": "Warangal Path Lab", "phone": "+91-80000-30002", "distance_km": 5.9 }
     ],
     "emergency": { "name": "Ambulance", "phone": "108" }
   },
 
   "wallet": {
-    "limit_inr": 50000,
+    "_note": "Set by Arun at signup. A month of tablets (60 at about ₹4) is above the ask-first amount, so a full refill comes to him first.",
+    "limit_inr": 5000,
     "spent_inr": 0,
-    "major_spend_threshold_inr": 5000,
+    "major_spend_threshold_inr": 200,
     "low_wallet_pct": 20,
     "rail": "pinelabs_upi_reserve_pay",
     "reserve_pay_sub_id": null
@@ -107,7 +99,7 @@
   },
 
   "sim_clock": {
-    "_note": "The Director advances this only to dates the agent's own data produced.",
-    "start": "2026-10-04T09:00:00+05:30"
+    "_note": "The Director advances this only to dates the agent's own data produced. Tuesday, 9:12am: the voice note in the plan.",
+    "start": "2026-10-06T09:12:00+05:30"
   }
 }
