@@ -102,7 +102,21 @@ export function AgentChat({ memberId, onBack }: { memberId: string; onBack: () =
   )
 }
 
-function DecisionCard({ message, who }: { message: Message; who: string }) {
+/** Answers that say yes. Anything else (Hold, No, Decline…) is a no or a defer. */
+const YES = new Set(['approve', 'yes', 'act', 'treat as urgent', 'top up', 'ok', 'ask the doctor'])
+
+const PAST: Record<string, string> = {
+  approve: 'Approved', yes: 'Confirmed', no: 'Declined', hold: 'Held', 'hold unpaid': 'Held unpaid',
+  decline: 'Declined', act: 'Go ahead', "don't act": 'Do not act', later: 'Later',
+}
+
+/** The facts a person needs to say yes, in the order they would check them. */
+const FACTS: Array<[string, string]> = [
+  ['medicine', 'Medicine'], ['strength', 'Strength'], ['quantity', 'Quantity'],
+  ['for', 'For'], ['payee', 'Chemist'],
+]
+
+export function DecisionCard({ message, who, onAnswer }: { message: Message; who: string; onAnswer?: (answer: string, card: any) => void }) {
   const card = typeof message.card === 'string' ? safeParse(message.card) : message.card
   const [answer, setAnswer] = useState<string | null>(message.answer ?? null)
   const [when, setWhen] = useState<string | null>(message.answered_at ?? null)
@@ -115,13 +129,37 @@ function DecisionCard({ message, who }: { message: Message; who: string }) {
   const buttons: string[] = card.buttons || DEFAULT_BUTTONS[kind] || []
   const title = card.title || TITLES[kind] || null
   const locked = Boolean(answer) || timedOut
+  const yes = answer ? YES.has(answer.toLowerCase()) : false
+  const facts = FACTS.filter(([k]) => card[k] !== undefined && card[k] !== '')
+
+  // The answered state has to read as a different card at a glance: that
+  // transition is the proof on camera that a human said yes.
+  const tone = !locked
+    ? 'border-human/60 bg-human-bg'
+    : yes ? 'border-[#1E8449] bg-[#E9F7EF]' : 'border-line bg-artifact-bg'
 
   return (
-    <div className="mt-1 rounded-xl border border-human/50 bg-human-bg p-2.5">
+    <div className={`mt-1 rounded-xl border-2 p-2.5 transition-colors ${tone}`}>
+      {locked && (
+        <div className={`mb-1.5 flex items-center gap-1.5 text-meta font-bold uppercase tracking-wide ${yes ? 'text-[#196F3D]' : 'text-muted'}`}>
+          <span aria-hidden>{yes ? '✓' : timedOut ? '⏱' : '–'}</span>
+          {timedOut ? 'No answer' : PAST[answer!.toLowerCase()] || answer}
+          {when && !timedOut && <span className="font-semibold normal-case tracking-normal">· {hhmm(when)}</span>}
+        </div>
+      )}
       {title && <div className="text-body font-semibold text-ink">{title}</div>}
-      {card.amount_inr !== undefined && <div className="mt-0.5 text-app leading-tight text-ink">{rupees(card.amount_inr)}</div>}
-      {card.payee && <div className="text-meta text-muted">{card.payee}</div>}
-      {card.detail && <div className="mt-0.5 text-meta text-ink">{card.detail}</div>}
+      {card.amount_inr !== undefined && <div className="mt-0.5 text-app leading-tight text-ink tabular-nums">{rupees(card.amount_inr)}</div>}
+      {facts.length > 0 && (
+        <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 rounded-lg bg-white/80 px-2 py-1.5 text-meta">
+          {facts.map(([k, label]) => (
+            <div key={k} className="contents">
+              <dt className="text-muted">{label}</dt>
+              <dd className="font-semibold text-ink">{String(card[k])}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {card.detail && <div className="mt-1 text-meta text-ink">{card.detail}</div>}
       {card.wallet_left_inr !== undefined && (
         <div className="mt-0.5 text-meta text-muted">Wallet after this: {rupees(card.wallet_left_inr)}</div>
       )}
@@ -129,7 +167,7 @@ function DecisionCard({ message, who }: { message: Message; who: string }) {
         <div className="mt-1.5 grid grid-cols-2 gap-1.5">
           {card.options.map((o: any, i: number) => (
             <div key={i} className="rounded-lg bg-white p-1.5">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">{o.label}</div>
+              <div className="text-meta font-semibold uppercase tracking-wide text-muted">{o.label}</div>
               <div className="text-meta text-ink">{o.value}</div>
             </div>
           ))}
@@ -138,20 +176,22 @@ function DecisionCard({ message, who }: { message: Message; who: string }) {
       {card.why && <div className="mt-1.5 text-meta text-muted">{card.why}</div>}
 
       {locked ? (
-        <div className="mt-2 rounded-lg bg-white px-2 py-1.5 text-meta font-semibold text-human">
+        <div className={`mt-2 rounded-lg bg-white px-2 py-1.5 text-meta font-semibold ${yes ? 'text-[#196F3D]' : 'text-muted'}`}>
           {timedOut
             ? `No answer: ${card.on_timeout || 'I followed my rule'}${timedOut === true ? '' : ` at ${hhmm(timedOut)}`}`
             : `You chose ${answer}${when ? ` at ${hhmm(when)}` : ''}`}
         </div>
       ) : buttons.length > 0 ? (
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {buttons.map((b) => (
+          {buttons.map((b, i) => (
             <button key={b}
               onClick={() => {
-                setAnswer(b); setWhen(new Date().toISOString())
+                // The time arrives with the server's card_answered, on the sim clock.
+                setAnswer(b)
                 sendReply(who, undefined, b, message.id)
+                onAnswer?.(b, card)
               }}
-              className="flex-1 whitespace-nowrap rounded-lg border border-human bg-white px-2 py-2 text-meta font-semibold text-human">
+              className={`flex-1 whitespace-nowrap rounded-lg border-2 px-2 py-2.5 text-body font-semibold ${i === 0 ? 'border-human bg-human text-white' : 'border-human bg-white text-human'}`}>
               {b}
             </button>
           ))}

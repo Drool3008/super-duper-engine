@@ -133,14 +133,15 @@ function reduce(v: SessionView, ev: AgentEvent, nextId: () => string): SessionVi
       return {
         ...v,
         messages: Object.fromEntries(Object.entries(v.messages).map(([k, list]) => [
-          k, list.map((m) => (m.id === ev.message_id ? { ...m, timed_out: ev.at } : m)),
+          k, list.map((m) => (m.id === ev.message_id ? { ...m, timed_out: ev.clock } : m)),
         ])),
       }
     case 'card_answered':
       return {
         ...v,
         messages: Object.fromEntries(Object.entries(v.messages).map(([k, list]) => [
-          k, list.map((m) => (m.id === ev.message_id ? { ...m, answer: ev.answer, answered_at: ev.at } : m)),
+          k, // The sim clock, as the server stored it, never the wall clock.
+          list.map((m) => (m.id === ev.message_id ? { ...m, answer: ev.answer, answered_at: ev.clock } : m)),
         ])),
       }
     case 'wallet':

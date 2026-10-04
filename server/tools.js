@@ -75,7 +75,8 @@ export const TOOLS = [
         'Optional. JSON string for an interactive card the person taps to answer. ' +
         'kind is one of: spend_above_threshold, new_doctor, new_medicine, disagreement, ' +
         'cant_tell, low_wallet, dead_end, substitute_offered, incident_summary, payment, booking. ' +
-        'Optional fields: title, detail, amount_inr, payee, wallet_left_inr, why (one line in plain ' +
+        'Optional fields: title, detail, amount_inr, payee, wallet_left_inr, ' +
+        'medicine, strength, quantity, for (who it is for; name these on any spend card), why (one line in plain ' +
         'language, no rule IDs, the person never sees those), options (array of {label,value} for ' +
         'side-by-side views such as a disagreement), buttons (array of labels; sensible defaults are ' +
         'used if you omit it), on_timeout (what you will do if nobody answers). ' +

@@ -6,8 +6,8 @@ export default {
       colors: {
         stage:    { DEFAULT: '#1F4E79', bg: '#EAF2F8' },
         decision: { DEFAULT: '#C0392B', bg: '#FDEDEC' },
-        input:    { DEFAULT: '#CA6F1E', bg: '#FDEBD0' },
-        human:    { DEFAULT: '#B7950B', bg: '#FEF9E7' },
+        input:    { DEFAULT: '#9A4A0C', bg: '#FDEBD0' },
+        human:    { DEFAULT: '#7D6608', bg: '#FEF9E7' },
         artifact: { DEFAULT: '#424949', bg: '#F4F6F6' },
         record:   { DEFAULT: '#2874A6', bg: '#EBF5FB' },
         rail: {

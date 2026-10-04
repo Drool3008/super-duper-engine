@@ -9,7 +9,7 @@ import { AgentChat } from './AgentChat'
  * palette and no borrowed brand marks, but the shape people already know.
  */
 
-const AVATAR_TONES = ['#6C3483', '#1E8449', '#CB4335', '#1F4E79', '#B7950B', '#2874A6']
+const AVATAR_TONES = ['#6C3483', '#1E8449', '#CB4335', '#1F4E79', '#7D6608', '#2874A6']
 export const toneFor = (s: string) => AVATAR_TONES[[...s].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_TONES.length]
 export const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
 
