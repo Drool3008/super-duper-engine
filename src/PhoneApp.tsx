@@ -3,6 +3,7 @@ import { useSession } from './lib/session'
 import { rupees, sendInput, sendReply, settleReversal } from './lib/api'
 import type { Message } from './lib/types'
 import { ChatsTab } from './components/FamilyChats'
+import { CallBar, CallView, callFor } from './components/CallView'
 
 const STAGE_LINE: Record<number, string> = {
   0: 'Setting things up', 1: 'Watching your medicines and test dates',
@@ -30,10 +31,19 @@ export default function PhoneApp({ memberId }: { memberId: string }) {
   useEffect(() => { if (tab === 'wallet' && !isRP) setTab('home') }, [isRP, tab])
   useEffect(() => { if (tab !== 'family') setInThread(false) }, [tab])
 
+  // A call the agent placed that involves this person. Hiding is per phase, so
+  // a call hidden while on hold comes back when the clinic is handed over.
+  const call = useMemo(() => callFor(s.timeline, me, members), [s.timeline, me, members])
+  const [hidden, setHidden] = useState<string | null>(null)
+  const callKey = call ? `${call.id}:${call.phase}` : null
+  const callLive = call && ['connected', 'handover', 'holding', 'ringing'].includes(call.phase)
+
   if (!me) return <div className="p-6 text-body text-muted">No member for “{memberId}”.</div>
 
   return (
-    <div className="flex h-full flex-col bg-white">
+    <div className="relative flex h-full flex-col bg-white">
+      {call && callKey !== hidden && <CallView key={call.id} call={call} onClose={() => setHidden(callKey)} />}
+      {call && callKey === hidden && callLive && <CallBar call={call} onOpen={() => setHidden(null)} />}
       {!inThread && <Header me={me} stage={s.stage} thinking={s.thinking} />}
       <div className="min-h-0 flex-1 overflow-hidden">
         {tab === 'home' && <Home s={s} me={me} meds={meds} tests={tests} isRP={isRP} waitingOnMe={waitingOnMe} who={memberId} onGoChat={() => setTab('chat')} />}
