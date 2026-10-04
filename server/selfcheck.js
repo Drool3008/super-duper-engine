@@ -94,5 +94,56 @@ assert.equal(critical.parallel, true)
 assert.equal(critical.wait_seconds, 30, 'critical uses the short wait')
 console.log('ok  R4 critical contacted patient and RP in parallel')
 
+// ---------------------------------------------------------------- accounts
+
+const { recordAccount, latestAccountFor } = await import('./accounts.js')
+
+const firsthand = recordAccount({
+  transcript: 'Dawa khatam ho gayi hai, do din se nahi li.',
+  summary: 'Patient has run out and has missed two days.',
+  speaker: 'patient', on_behalf_of: 'patient', via: 'direct', language: 'hi-IN',
+})
+assert.equal(firsthand.ok, true)
+assert.equal(firsthand.secondhand, false, 'the patient speaking for themselves is firsthand')
+
+const relayed = recordAccount({
+  transcript: 'She told me she stopped taking it two days ago.',
+  summary: 'RP reports two missed days; patient did not speak.',
+  speaker: 'rp', on_behalf_of: 'patient', via: 'relayed', language: 'en-IN',
+})
+assert.equal(relayed.ok, true)
+assert.equal(relayed.secondhand, true, 'R6: somebody else speaking makes it secondhand')
+assert.match(relayed.note, /secondhand/i)
+console.log('ok  R6 secondhand decided by who spoke, not by the model')
+
+assert.equal(latestAccountFor('patient').secondhand, true, 'the latest account is the one handed on')
+
+const echoed = recordAccount({
+  transcript: 'Dawa khatam ho gayi hai.',
+  summary: '  dawa   KHATAM ho gayi hai  ',
+  speaker: 'patient', on_behalf_of: 'patient', via: 'direct',
+})
+assert.equal(echoed.ok, false, 'a summary that is the transcript again must be refused')
+assert.match(echoed.error, /R5/)
+console.log('ok  R5 refused a summary that was just the transcript')
+
+const noTranscript = recordAccount({ summary: 's', speaker: 'patient', on_behalf_of: 'patient', via: 'direct' })
+assert.equal(noTranscript.ok, false)
+assert.match(noTranscript.error, /R5/)
+
+const invented = recordAccount({
+  transcript: 't', summary: 's', speaker: 'uncle_ravi', on_behalf_of: 'patient', via: 'relayed',
+})
+assert.equal(invented.ok, false, 'a speaker who is not in the family data must be refused')
+assert.match(invented.error, /Never invent a person/)
+console.log('ok  refused an invented speaker and a missing transcript')
+
+const lying = recordAccount({
+  transcript: 't', summary: 's', speaker: 'rp', on_behalf_of: 'patient', via: 'direct',
+})
+assert.equal(lying.ok, false, 'via direct cannot have somebody else speaking')
+assert.match(lying.error, /relayed/)
+console.log('ok  refused a route that disagreed with who spoke')
+
 console.log('\nall checks passed')
 process.exit(0)

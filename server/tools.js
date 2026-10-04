@@ -94,6 +94,22 @@ export const TOOLS = [
     }, ['from', 'wait_seconds', 'what_for']),
   },
   {
+    name: 'record_account',
+    mode: 'LIVE', rail: null,
+    description:
+      'Store what somebody said about the problem, and your summary of it, as two separate things (R5). Call this once you have an account, whether the patient spoke to you directly, the RP conferenced them in, or somebody described it for them. Whether the account is secondhand is worked out from who spoke; you do not decide it (R6).',
+    parameters: obj('An account of the problem', {
+      transcript: str('Word for word what they said. Exactly as Gnani returned it. Never edited.'),
+      summary: str('Your own summary, in your own words. Must not be the transcript again.'),
+      speaker: str('Who actually spoke, by id, e.g. patient or rp'),
+      on_behalf_of: str('Who the account is about, by id'),
+      via: { type: 'STRING', description: 'How you got it: direct (they spoke to you), conference (the RP brought them onto the call), relayed (somebody described it for them)', enum: ['direct', 'conference', 'relayed'] },
+      also_present: arr('Anyone else on the call, by id', { type: 'STRING' }),
+      language: str('BCP-47 code they spoke in, e.g. hi-IN'),
+      audio_ref: str('The audio this came from, if there was one'),
+    }, ['transcript', 'summary', 'speaker', 'on_behalf_of', 'via']),
+  },
+  {
     name: 'next_contact',
     mode: 'LIVE', rail: null,
     description:

@@ -88,6 +88,26 @@ broken the demo for no good reason.
 Covered by three checks in `npm run check`: the order, the full walk to
 exhaustion, and the critical parallel case.
 
+### Reaching (stage 3) — done
+
+The agent calls the affected person, and works down with `next_contact` when
+they do not pick up. The RP can put the patient on the call or describe it
+themselves; either way it ends in an account.
+
+`server/accounts.js` is the store that R5 and R6 assumed and the code did not
+have. Until now nothing kept a transcript or a summary anywhere, so there was no
+secondhand mark to carry to the doctor and nothing to hand over at stage 8.
+
+`record_account` keeps the two apart and refuses to be fooled: a missing
+transcript, a missing summary, or a summary that is the transcript again with
+the case, spacing or punctuation changed. **Whether an account is secondhand is
+computed from who spoke**, not taken from the model — a mark that changes how a
+doctor reads an account is not a field to let it fill in. `via` must agree with
+the speaker, so a record cannot claim the patient spoke when the RP did.
+
+Covered by four checks: the secondhand decision, the echoed summary, an invented
+speaker with a missing transcript, and a route that disagreed with who spoke.
+
 ## Spend
 
 Every operation costs money, so the RP sets a spend limit. The running total is
