@@ -89,6 +89,28 @@ export function ChemistScreen({
   )
 }
 
+/** Embeddable content for the Phones pane chemist tab. No wrapper. */
+export function ChemistContent({
+  pending,
+  onboarding,
+}: {
+  pending: PendingCall[]
+  onboarding: any
+}) {
+  const chemists: ChemistInfo[] = (onboarding?.providers?.chemists || []).map(
+    (c: any) => ({ name: c.name, phone: c.phone })
+  )
+
+  const chemistCalls = pending.filter((c) => isChemistCall(c, chemists))
+  const activeCall = chemistCalls[0] || null
+
+  return activeCall ? (
+    <IncomingCall call={activeCall} chemists={chemists} />
+  ) : (
+    <IdleScreen chemists={chemists} />
+  )
+}
+
 function IdleScreen({ chemists }: { chemists: ChemistInfo[] }) {
   return (
     <div className="flex h-full flex-col items-center justify-center px-6 text-center">

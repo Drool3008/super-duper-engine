@@ -4,7 +4,6 @@ import { TopBar } from './components/TopBar'
 import { Curtain } from './components/Curtain'
 import { Timeline } from './components/Timeline'
 import { Phones } from './components/Phones'
-import { ChemistScreen } from './components/ChemistScreen'
 import { DecisionLog } from './components/DecisionLog'
 
 export default function App({ embedded = false }: { embedded?: boolean } = {}) {
@@ -30,10 +29,7 @@ export default function App({ embedded = false }: { embedded?: boolean } = {}) {
         <Curtain pending={s.pending} awaiting={s.awaiting} onboarding={s.onboarding} present={present} />
         <Timeline items={s.timeline} thinking={s.thinking} present={present} />
         {!embedded && (
-          <>
-            <ChemistScreen pending={s.pending} onboarding={s.onboarding} />
-            <Phones messages={s.messages} wallet={s.wallet} settings={s.onboarding?.wallet} names={names} awaiting={s.awaiting} />
-          </>
+          <Phones messages={s.messages} wallet={s.wallet} settings={s.onboarding?.wallet} names={names} awaiting={s.awaiting} pending={s.pending} onboarding={s.onboarding} />
         )}
       </div>
       <DecisionLog decisions={s.decisions} />

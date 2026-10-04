@@ -23,10 +23,8 @@ export function Profile({ me, onboarding, clock, isRP, t, onClose }: {
 }) {
   const members: any[] = onboarding?.family?.members || []
   const nameOf = (id: string) => members.find((m) => m.id === id)?.name || id
-  // The RP holds the whole family's picture; anyone else sees their own.
-  const about = (id: string) => isRP || id === me.id
-  const conditions = (onboarding?.known_conditions || []).filter((c: any) => about(c.member))
-  const meds = (onboarding?.current_medicines || []).filter((m: any) => about(m.member))
+  const conditions = onboarding?.known_conditions || []
+  const meds = onboarding?.current_medicines || []
   const order: string[] = onboarding?.call_chain?.order || []
   const clinics: any[] = onboarding?.providers?.clinics || []
   const now = clock ? new Date(clock).getTime() : Date.now()
@@ -46,7 +44,7 @@ export function Profile({ me, onboarding, clock, isRP, t, onClose }: {
         <Section icon={HeartPulse} tone="bg-[#FFE4E6] text-[#BE123C]" title={t('conditions')}>
           {conditions.length === 0 && <Empty />}
           {conditions.map((c: any, i: number) => (
-            <Row key={i} main={c.label} sub={[isRP && c.member !== me.id ? nameOf(c.member) : null, c.since && t('since', { d: c.since })].filter(Boolean).join(' · ')} />
+            <Row key={i} main={c.label} sub={[c.member !== me.id ? nameOf(c.member) : null, c.since && t('since', { d: c.since })].filter(Boolean).join(' · ')} />
           ))}
         </Section>
 
@@ -60,7 +58,7 @@ export function Profile({ me, onboarding, clock, isRP, t, onClose }: {
               <Row key={m.id}
                 main={`${m.name} ${m.strength || ''}`}
                 sub={[
-                  isRP && m.member !== me.id ? nameOf(m.member) : null,
+                  m.member !== me.id ? nameOf(m.member) : null,
                   m.daily_dose && t('per_day', { n: m.daily_dose }),
                   t('pills_left', { n: stock }),
                   out && t('runs_out', { d: dateIn(lang, out) }),
