@@ -1,0 +1,1848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Vantari — Family Health, Coordinated</title>
+<meta name="description" content="Your parents' medicines, appointments and reports. Handled, without you having to remember."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Telugu:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --amber: #FCB716;
+  --amber-dk: #E5A20C;
+  --mango: #FDB931;
+  --teal: #2582A1;
+  --teal-dk: #1B6076;
+  --teal-tint: #E8F3F7;
+  --ink: #10242C;
+  --muted: #5C6E77;
+  --surface: #FFFFFF;
+  --surface-2: #F6F8F9;
+  --border: #DEE6EA;
+  --success: #138A5E;
+  --alert: #D93B30;
+  --focus-ring: #2582A1;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface: #0B1A20;
+    --surface-2: #11242C;
+    --ink: #E6EEF1;
+    --muted: #9BB0BA;
+    --teal: #5FB3CE;
+    --teal-dk: #153E4D;
+    --teal-tint: #132D38;
+    --border: #1E3A46;
+    --focus-ring: #5FB3CE;
+  }
+}
+
+:root[data-theme="dark"] {
+  --surface: #0B1A20;
+  --surface-2: #11242C;
+  --ink: #E6EEF1;
+  --muted: #9BB0BA;
+  --teal: #5FB3CE;
+  --teal-dk: #153E4D;
+  --teal-tint: #132D38;
+  --border: #1E3A46;
+  --focus-ring: #5FB3CE;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', 'Noto Sans Telugu', sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--surface);
+  -webkit-font-smoothing: antialiased;
+}
+
+img { max-width: 100%; height: auto; }
+
+a {
+  color: var(--teal);
+  text-decoration: none;
+}
+a:hover { text-decoration: underline; }
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+h1 {
+  font-size: clamp(2rem, 4.5vw, 3.25rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--ink);
+}
+
+h2 {
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.eyebrow {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--teal);
+}
+
+.container {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 28px;
+  background: var(--amber);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  min-height: 44px;
+  transition: background 0.2s;
+  text-decoration: none;
+}
+.btn-primary:hover {
+  background: var(--amber-dk);
+  text-decoration: none;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 28px;
+  background: transparent;
+  color: var(--teal);
+  font-size: 15px;
+  font-weight: 600;
+  border: 2px solid var(--teal);
+  border-radius: 8px;
+  cursor: pointer;
+  min-height: 44px;
+  transition: background 0.2s, color 0.2s;
+  text-decoration: none;
+}
+.btn-secondary:hover {
+  background: var(--teal-tint);
+  text-decoration: none;
+}
+
+/* ── 1. Utility bar ── */
+.utility-bar {
+  background: #1B6076;
+  color: #fff;
+  font-size: 13px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+}
+.utility-bar .container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.utility-links {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.utility-links a {
+  color: #fff;
+  opacity: 0.85;
+  font-size: 13px;
+}
+.utility-links a:hover { opacity: 1; }
+.utility-left { opacity: 0.85; }
+.lang-select {
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.lang-select option { color: #000; }
+
+@media (max-width: 600px) {
+  .utility-left { display: none; }
+}
+
+/* ── 2. Header ── */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  height: 68px;
+  display: flex;
+  align-items: center;
+}
+.site-header .container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.header-logo-text {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.header-nav {
+  display: flex;
+  gap: 28px;
+  align-items: center;
+}
+.header-nav a {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.header-nav a:hover { color: var(--ink); }
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.header-actions .sign-in {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.header-actions .btn-primary { padding: 10px 20px; font-size: 14px; }
+.mobile-menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  color: var(--ink);
+}
+
+@media (max-width: 768px) {
+  .header-nav { display: none; }
+  .header-actions .sign-in { display: none; }
+  .mobile-menu-btn { display: block; }
+}
+
+/* ── 3. Hero ── */
+.hero {
+  background: var(--surface-2);
+  padding: 80px 0;
+  overflow: hidden;
+}
+.hero .container {
+  display: grid;
+  grid-template-columns: 54fr 46fr;
+  gap: 48px;
+  align-items: center;
+}
+.hero-left { max-width: 560px; }
+.hero h1 { margin: 16px 0 20px; }
+.hero-sub {
+  font-size: 17px;
+  color: var(--muted);
+  max-width: 54ch;
+  margin-bottom: 32px;
+}
+.hero-buttons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+}
+.trust-row {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.trust-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.trust-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--teal-tint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.trust-icon svg { width: 14px; height: 14px; color: var(--teal); }
+
+/* Phone mockups */
+.hero-phones {
+  position: relative;
+  height: 560px;
+}
+.phone-frame {
+  width: 280px;
+  border-radius: 28px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+  position: absolute;
+}
+.phone-front {
+  z-index: 2;
+  top: 40px;
+  left: 0;
+  transform: rotate(2deg);
+}
+.phone-back {
+  z-index: 1;
+  top: 0;
+  left: 100px;
+}
+.phone-header-bar {
+  background: #1B6076;
+  padding: 12px 16px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.phone-header-bar .logo-text {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+}
+.phone-user-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 20px;
+  padding: 4px 10px 4px 4px;
+}
+.phone-user-pill .avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+}
+.phone-user-pill .name {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+}
+.phone-status-strip {
+  background: #2582A1;
+  padding: 6px 16px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.85);
+}
+.phone-status-strip.telugu {
+  font-family: 'Noto Sans Telugu', 'Inter', sans-serif;
+}
+.phone-section-label {
+  padding: 12px 16px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.phone-section-label svg { width: 14px; height: 14px; }
+.phone-person-group {
+  padding: 4px 16px 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.person-initial {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+}
+.phone-med-card {
+  margin: 4px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+.med-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+.med-name { font-weight: 600; font-size: 14px; color: var(--ink); }
+.days-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+.days-pill.low { background: #FEF3E2; color: #B8860B; }
+.days-pill.ok { background: var(--teal-tint); color: var(--teal); }
+.med-dose { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.med-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+.med-progress-fill { height: 100%; border-radius: 2px; }
+.med-progress-fill.low { background: var(--alert); }
+.med-progress-fill.ok { background: var(--success); }
+.med-warning {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--alert);
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+.med-warning svg { width: 12px; height: 12px; }
+.med-reorder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--teal);
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.med-reorder svg { width: 14px; height: 14px; }
+.phone-tabs {
+  display: flex;
+  border-top: 1px solid var(--border);
+  padding: 6px 0 8px;
+  margin-top: 8px;
+  background: var(--surface);
+}
+.phone-tab {
+  flex: 1;
+  text-align: center;
+  font-size: 10px;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.phone-tab svg { width: 18px; height: 18px; }
+.phone-tab.active svg {
+  background: var(--teal);
+  color: #fff;
+  border-radius: 6px;
+  padding: 2px;
+  width: 22px;
+  height: 22px;
+}
+.phone-tab.active { color: var(--teal); font-weight: 600; }
+.phone-body {
+  background: var(--surface-2);
+  min-height: 320px;
+  padding-bottom: 0;
+}
+
+@media (max-width: 900px) {
+  .hero .container {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+  .hero { padding: 48px 0; }
+  .hero-phones {
+    height: 480px;
+    display: flex;
+    justify-content: center;
+  }
+  .phone-front { left: -20px; }
+  .phone-back { left: 80px; }
+}
+
+@media (max-width: 480px) {
+  .hero-phones { height: 420px; }
+  .phone-frame { width: 240px; border-radius: 24px; }
+  .phone-front { left: -10px; top: 30px; }
+  .phone-back { left: 60px; top: 0; }
+}
+
+/* ── 4. Credibility band ── */
+.cred-band {
+  background: #1B6076;
+  padding: 40px 0;
+}
+.cred-band .container {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  text-align: center;
+}
+.cred-item .number {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--mango);
+  line-height: 1.2;
+}
+.cred-item .label {
+  font-size: 14px;
+  color: rgba(255,255,255,0.8);
+  margin-top: 4px;
+}
+@media (max-width: 600px) {
+  .cred-band .container { grid-template-columns: 1fr 1fr; }
+}
+
+/* ── 5. Problem strip ── */
+.problem-strip {
+  background: var(--surface-2);
+  padding: 80px 0;
+  text-align: center;
+}
+.problem-strip h2 {
+  max-width: 26ch;
+  margin: 0 auto 48px;
+}
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px 24px;
+}
+.stat-card .number {
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.1;
+}
+.stat-card:first-child .number { color: var(--alert); }
+.stat-card .stat-label {
+  font-size: 15px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+.stat-attribution {
+  margin-top: 32px;
+  font-size: 13px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+@media (max-width: 700px) {
+  .stat-cards { grid-template-columns: 1fr; max-width: 400px; }
+  .problem-strip { padding: 48px 0; }
+}
+
+/* ── 6. How it works ── */
+.how-it-works {
+  padding: 80px 0;
+  background: var(--surface);
+}
+.how-it-works h2 { text-align: center; margin-bottom: 48px; }
+.steps-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+.step-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px 20px;
+  transition: box-shadow 0.2s;
+}
+.step-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+.step-num {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--teal);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+.step-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--teal-tint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+.step-icon svg { width: 20px; height: 20px; color: var(--teal); }
+.step-card h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+.step-card p { font-size: 14px; color: var(--muted); line-height: 1.5; }
+
+@media (max-width: 900px) {
+  .steps-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 500px) {
+  .steps-grid { grid-template-columns: 1fr; max-width: 400px; margin: 0 auto; }
+  .how-it-works { padding: 48px 0; }
+}
+
+/* ── 7. Agency section ── */
+.agency {
+  background: var(--teal-tint);
+  padding: 80px 0;
+}
+.agency-inner {
+  max-width: 680px;
+  margin: 0 auto;
+  text-align: center;
+}
+.agency h2 { margin-bottom: 28px; }
+.agency-body {
+  font-size: 16px;
+  color: var(--muted);
+  line-height: 1.7;
+  text-align: left;
+  margin-bottom: 32px;
+}
+.agency-callout {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ink);
+  border-left: 4px solid var(--amber);
+  padding-left: 20px;
+  text-align: left;
+}
+
+@media (max-width: 600px) {
+  .agency { padding: 48px 0; }
+}
+
+/* ── 8. Pull quote ── */
+.pull-quote {
+  background: var(--surface);
+  padding: 80px 0;
+  text-align: center;
+}
+.pull-quote-inner {
+  max-width: 560px;
+  margin: 0 auto;
+}
+.quote-mark {
+  color: var(--amber);
+  margin-bottom: 16px;
+}
+.pull-quote blockquote {
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.4;
+  max-width: 32ch;
+  margin: 0 auto 16px;
+}
+.pull-quote cite {
+  font-size: 14px;
+  color: var(--muted);
+  font-style: normal;
+}
+
+@media (max-width: 600px) {
+  .pull-quote { padding: 48px 0; }
+  .pull-quote blockquote { font-size: 20px; }
+}
+
+/* ── 9. Family view ── */
+.family-view {
+  padding: 80px 0;
+  background: var(--surface-2);
+}
+.family-view .container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: center;
+}
+.family-view h2 { margin-bottom: 20px; }
+.family-view-text { font-size: 16px; color: var(--muted); line-height: 1.7; }
+
+.chat-mockup {
+  width: 300px;
+  margin: 0 auto;
+  background: var(--surface);
+  border-radius: 28px;
+  border: 2px solid var(--border);
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.08);
+}
+.chat-header {
+  background: #1B6076;
+  padding: 12px 16px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.chat-body {
+  padding: 12px;
+  background: var(--surface-2);
+  min-height: 280px;
+}
+.chat-msg {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.5s, transform 0.5s;
+}
+.chat-msg.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.chat-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--teal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.chat-avatar svg { width: 14px; height: 14px; color: #fff; }
+.chat-bubble {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--teal);
+  border-radius: 0 10px 10px 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1.5;
+  max-width: 220px;
+}
+.chat-time {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.chat-approval {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.chat-approval-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+.chat-approval-btns {
+  display: flex;
+  gap: 8px;
+}
+.chat-approve-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+}
+.chat-approve-btn.primary {
+  background: var(--amber);
+  color: var(--ink);
+}
+.chat-approve-btn.secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+@media (max-width: 768px) {
+  .family-view .container { grid-template-columns: 1fr; }
+  .family-view { padding: 48px 0; }
+}
+
+/* ── 10. Wallet ── */
+.wallet-section {
+  padding: 80px 0;
+  background: var(--surface);
+}
+.wallet-section .container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: center;
+}
+.wallet-mockup {
+  width: 300px;
+  margin: 0 auto;
+  background: var(--surface);
+  border-radius: 28px;
+  border: 2px solid var(--border);
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.08);
+}
+.wallet-header {
+  background: #1B6076;
+  padding: 12px 16px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+}
+.wallet-body { padding: 16px; background: var(--surface); }
+.wallet-balance {
+  text-align: center;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.wallet-amount {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.wallet-total {
+  font-size: 13px;
+  color: var(--muted);
+}
+.wallet-limit {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.wallet-limit-label { color: var(--muted); }
+.wallet-limit-val { font-weight: 600; color: var(--ink); }
+.wallet-tx {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  font-size: 13px;
+}
+.wallet-tx-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--teal-tint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.wallet-tx-icon svg { width: 16px; height: 16px; color: var(--teal); }
+.wallet-tx-detail { flex: 1; }
+.wallet-tx-name { font-weight: 500; color: var(--ink); }
+.wallet-tx-sub { font-size: 11px; color: var(--muted); }
+.wallet-tx-amt { font-weight: 600; color: var(--ink); }
+.wallet-tx-status {
+  font-size: 11px;
+  color: var(--success);
+  font-weight: 500;
+}
+.wallet-text h2 { margin-bottom: 16px; }
+.wallet-text p { color: var(--muted); line-height: 1.7; }
+
+@media (max-width: 768px) {
+  .wallet-section .container { grid-template-columns: 1fr; }
+  .wallet-section { padding: 48px 0; }
+}
+
+/* ── 11. Membership ── */
+.membership {
+  padding: 80px 0;
+  background: var(--surface-2);
+}
+.membership-panel {
+  max-width: 640px;
+  margin: 0 auto;
+  background: #1B6076;
+  border-radius: 16px;
+  border: 2px solid var(--mango);
+  padding: 48px 40px;
+  text-align: center;
+  color: #fff;
+}
+.membership-panel .eyebrow {
+  color: var(--mango);
+  margin-bottom: 12px;
+}
+.membership-panel h2 {
+  color: #fff;
+  margin-bottom: 16px;
+}
+.membership-body {
+  color: rgba(255,255,255,0.8);
+  margin-bottom: 24px;
+  font-size: 15px;
+}
+.membership-list {
+  list-style: none;
+  margin-bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.membership-list li {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #fff;
+  font-size: 15px;
+}
+.membership-list li svg { width: 18px; height: 18px; color: var(--mango); flex-shrink: 0; }
+
+@media (max-width: 500px) {
+  .membership-panel { padding: 32px 20px; }
+  .membership { padding: 48px 0; }
+}
+
+/* ── 12. Signup ── */
+.signup {
+  padding: 80px 0;
+  background: var(--surface-2);
+  text-align: center;
+}
+.signup-inner {
+  max-width: 560px;
+  margin: 0 auto;
+}
+.signup h2 { margin-bottom: 12px; }
+.signup-sub { color: var(--muted); margin-bottom: 32px; }
+.signup-form {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.phone-input-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.phone-prefix {
+  padding: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--surface-2);
+  border-right: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.phone-input-wrap input {
+  flex: 1;
+  border: none;
+  padding: 12px;
+  font-size: 15px;
+  background: transparent;
+  color: var(--ink);
+  outline: none;
+  min-width: 0;
+}
+.phone-input-wrap input::placeholder { color: var(--muted); opacity: 0.6; }
+.signup-error {
+  color: var(--alert);
+  font-size: 13px;
+  margin-top: -8px;
+  margin-bottom: 16px;
+  display: none;
+}
+.signup-success {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--success);
+  display: none;
+}
+.store-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 20px;
+}
+.store-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--ink);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  min-height: 44px;
+}
+.store-btn svg { width: 18px; height: 18px; }
+
+@media (max-width: 500px) {
+  .signup-form { flex-direction: column; }
+  .signup { padding: 48px 0; }
+}
+
+/* ── 13. Questions ── */
+.questions {
+  padding: 80px 0;
+  background: var(--surface);
+}
+.questions h2 { text-align: center; margin-bottom: 48px; }
+.faq-list {
+  max-width: 720px;
+  margin: 0 auto;
+}
+.faq-item {
+  border-bottom: 1px solid var(--border);
+}
+.faq-item:first-child { border-top: 1px solid var(--border); }
+.faq-q {
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 20px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  min-height: 44px;
+}
+.faq-q svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  transition: transform 0.3s;
+  color: var(--muted);
+}
+.faq-q[aria-expanded="true"] svg { transform: rotate(180deg); }
+.faq-a {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+}
+.faq-a-inner {
+  padding: 0 0 20px;
+  font-size: 15px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+@media (max-width: 600px) {
+  .questions { padding: 48px 0; }
+}
+
+/* ── 14. Footer ── */
+.site-footer {
+  background: #1B6076;
+  color: rgba(255,255,255,0.7);
+  padding: 60px 0 0;
+}
+.footer-top {
+  display: grid;
+  grid-template-columns: 1.5fr repeat(4, 1fr);
+  gap: 32px;
+  padding-bottom: 40px;
+}
+.footer-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.footer-brand .logo-text {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+}
+.footer-col h4 {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.footer-col a {
+  display: block;
+  font-size: 13px;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 8px;
+}
+.footer-col a:hover { color: #fff; }
+.footer-bottom {
+  border-top: 1px solid rgba(255,255,255,0.15);
+  padding: 20px 0;
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.footer-disclosure {
+  font-style: italic;
+  opacity: 0.7;
+  font-size: 12px;
+}
+
+@media (max-width: 768px) {
+  .footer-top { grid-template-columns: 1fr 1fr; }
+  .footer-brand { grid-column: 1 / -1; }
+}
+@media (max-width: 500px) {
+  .footer-top { grid-template-columns: 1fr; }
+}
+
+/* ── Animations ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .chat-msg { transition: none !important; }
+  .reveal { opacity: 1; transform: none; }
+  .chat-msg { opacity: 1; transform: none; }
+  .faq-q svg { transition: none; }
+  .faq-a { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- 1. Utility bar -->
+<div class="utility-bar">
+  <div class="container">
+    <span class="utility-left">Backed by a national hospital network</span>
+    <div class="utility-links">
+      <a href="#faq">Help</a>
+      <a href="#pricing">For clinics</a>
+      <select class="lang-select" aria-label="Language">
+        <option>English</option>
+        <option>తెలుగు</option>
+        <option>हिन्दी</option>
+        <option>தமிழ்</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- 2. Header -->
+<header class="site-header">
+  <div class="container">
+    <a href="#" class="header-logo" aria-label="Vantari home">
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <rect width="32" height="32" rx="8" fill="#2582A1"/>
+        <path d="M8 10l8 14 8-14" stroke="#FCB716" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="16" cy="10" r="2.5" fill="#FCB716"/>
+      </svg>
+      <span class="header-logo-text">Vantari</span>
+    </a>
+    <nav class="header-nav" aria-label="Main">
+      <a href="#how-it-works">How it works</a>
+      <a href="#family-view">For families</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">Questions</a>
+    </nav>
+    <div class="header-actions">
+      <a href="#" class="sign-in">Sign in</a>
+      <a href="#signup" class="btn-primary">Download the app</a>
+      <button class="mobile-menu-btn" aria-label="Menu" aria-expanded="false">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- 3. Hero -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-left reveal">
+      <span class="eyebrow">Family Health, Coordinated</span>
+      <h1>Your parents' medicines, appointments and reports. Handled, without you having to remember.</h1>
+      <p class="hero-sub">Vantari watches how many days of each medicine are actually left, orders the refill before it runs out, and calls the clinic so nobody has to sit on hold.</p>
+      <div class="hero-buttons">
+        <a href="#signup" class="btn-primary">Download the app</a>
+        <a href="#how-it-works" class="btn-secondary">See how it works</a>
+      </div>
+      <div class="trust-row">
+        <div class="trust-item">
+          <div class="trust-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/></svg>
+          </div>
+          Ten Indian languages
+        </div>
+        <div class="trust-item">
+          <div class="trust-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          Your parent sees it in theirs
+        </div>
+        <div class="trust-item">
+          <div class="trust-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M12 10v4"/><path d="M2 10h20"/></svg>
+          </div>
+          Every rupee needs your yes
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-phones reveal">
+      <!-- Front phone: Parent's view in Telugu -->
+      <div class="phone-frame phone-front" aria-label="Parent's app showing medicines in Telugu. Metoprolol has 3 days left with a low supply warning.">
+        <div class="phone-header-bar">
+          <span class="logo-text">Vantari</span>
+          <div class="phone-user-pill">
+            <div class="avatar" style="background:#E5A20C;">ల</div>
+            <span class="name" style="font-family:'Noto Sans Telugu',sans-serif;">లక్ష్మి</span>
+          </div>
+        </div>
+        <div class="phone-status-strip telugu" style="font-family:'Noto Sans Telugu',sans-serif;">మీ మందులు మరియు పరీక్షల తేదీలు చూస్తున్నాము</div>
+        <div class="phone-body">
+          <div class="phone-section-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+            <span style="font-family:'Noto Sans Telugu',sans-serif;">మందులు</span>
+          </div>
+          <div class="phone-med-card">
+            <div class="med-card-top">
+              <span class="med-name">Metoprolol</span>
+              <span class="days-pill low" style="font-family:'Noto Sans Telugu',sans-serif;">3 రోజులు</span>
+            </div>
+            <div class="med-dose">25mg · రోజుకు 2</div>
+            <div class="med-progress"><div class="med-progress-fill low" style="width:12%"></div></div>
+            <div class="med-warning">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L1 21h22L12 2zm0 4l7.53 13H4.47L12 6zm-1 5v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>
+              <span style="font-family:'Noto Sans Telugu',sans-serif;">తప్పనిసరిగా వాడాలి</span>
+            </div>
+            <div class="med-reorder">
+              <span style="font-family:'Noto Sans Telugu',sans-serif;">రీఫిల్ ఆర్డర్ చేయండి</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+            </div>
+          </div>
+          <div class="phone-med-card">
+            <div class="med-card-top">
+              <span class="med-name">Amlodipine</span>
+              <span class="days-pill ok" style="font-family:'Noto Sans Telugu',sans-serif;">18 రోజులు</span>
+            </div>
+            <div class="med-dose">5mg · రోజుకు 1</div>
+            <div class="med-progress"><div class="med-progress-fill ok" style="width:60%"></div></div>
+          </div>
+          <div class="phone-tabs">
+            <div class="phone-tab active">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              <span style="font-family:'Noto Sans Telugu',sans-serif;">హోమ్</span>
+            </div>
+            <div class="phone-tab">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              <span style="font-family:'Noto Sans Telugu',sans-serif;">చాట్</span>
+            </div>
+            <div class="phone-tab">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <span style="font-family:'Noto Sans Telugu',sans-serif;">కుటుంబం</span>
+            </div>
+            <div class="phone-tab">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M12 10v4"/><path d="M2 10h20"/></svg>
+              <span style="font-family:'Noto Sans Telugu',sans-serif;">వాలెట్</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Back phone: Child's view in English -->
+      <div class="phone-frame phone-back" aria-label="Adult child's app showing family medicines in English. Lakshmi's Metoprolol has 3 days left, Arun's Atorvastatin has 22 days left.">
+        <div class="phone-header-bar">
+          <span class="logo-text">Vantari</span>
+          <div class="phone-user-pill">
+            <div class="avatar" style="background:#2582A1;">A</div>
+            <span class="name">Arun</span>
+          </div>
+        </div>
+        <div class="phone-status-strip">Watching your medicines and test dates</div>
+        <div class="phone-body">
+          <div class="phone-section-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+            MEDICINES
+          </div>
+          <div class="phone-person-group">
+            <div class="person-initial" style="background:#E5A20C;">L</div>
+            Lakshmi's medicines
+          </div>
+          <div class="phone-med-card">
+            <div class="med-card-top">
+              <span class="med-name">Metoprolol</span>
+              <span class="days-pill low">3 days left</span>
+            </div>
+            <div class="med-dose">25mg · 2 a day</div>
+            <div class="med-progress"><div class="med-progress-fill low" style="width:12%"></div></div>
+            <div class="med-warning">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L1 21h22L12 2zm0 4l7.53 13H4.47L12 6zm-1 5v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>
+              Must not be missed
+            </div>
+            <div class="med-reorder">
+              <span>Tap to order refill</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+            </div>
+          </div>
+          <div class="phone-person-group">
+            <div class="person-initial" style="background:#2582A1;">A</div>
+            Arun's medicines
+          </div>
+          <div class="phone-med-card">
+            <div class="med-card-top">
+              <span class="med-name">Atorvastatin</span>
+              <span class="days-pill ok">22 days left</span>
+            </div>
+            <div class="med-dose">10mg · 1 a day</div>
+            <div class="med-progress"><div class="med-progress-fill ok" style="width:73%"></div></div>
+          </div>
+          <div class="phone-tabs">
+            <div class="phone-tab active">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              Home
+            </div>
+            <div class="phone-tab">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              Chat
+            </div>
+            <div class="phone-tab">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              Family
+            </div>
+            <div class="phone-tab">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M12 10v4"/><path d="M2 10h20"/></svg>
+              Wallet
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. Credibility band -->
+<section class="cred-band">
+  <div class="container">
+    <div class="cred-item reveal">
+      <div class="number">10</div>
+      <div class="label">Indian languages</div>
+    </div>
+    <div class="cred-item reveal">
+      <div class="number">24×7</div>
+      <div class="label">refill monitoring</div>
+    </div>
+    <div class="cred-item reveal">
+      <div class="number">₹0 setup</div>
+      <div class="label">free for three months</div>
+    </div>
+    <div class="cred-item reveal">
+      <div class="number">Every spend</div>
+      <div class="label">approved by you</div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. Problem strip -->
+<section class="problem-strip">
+  <div class="container">
+    <h2 class="reveal">Nobody finds out the medicine is over until it is over.</h2>
+    <div class="stat-cards">
+      <div class="stat-card reveal">
+        <div class="number">21 of 25</div>
+        <div class="stat-label">families have someone on a lifelong daily medicine</div>
+      </div>
+      <div class="stat-card reveal">
+        <div class="number">23 of 25</div>
+        <div class="stat-label">find out it is finishing by counting the strip, or on the day</div>
+      </div>
+      <div class="stat-card reveal">
+        <div class="number">2 of 25</div>
+        <div class="stat-label">ever had a doctor visit that started because a refill was due</div>
+      </div>
+    </div>
+    <p class="stat-attribution reveal">From our survey of 25 people across 10 Indian families, September 2026.</p>
+  </div>
+</section>
+
+<!-- 6. How it works -->
+<section class="how-it-works" id="how-it-works">
+  <div class="container">
+    <h2 class="reveal">How it works</h2>
+    <div class="steps-grid">
+      <div class="step-card reveal">
+        <div class="step-num">1</div>
+        <div class="step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+        </div>
+        <h3>Add your family</h3>
+        <p>Install the app, add your parents, photograph one prescription. That is the setup.</p>
+      </div>
+      <div class="step-card reveal">
+        <div class="step-num">2</div>
+        <div class="step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <h3>It counts the days</h3>
+        <p>It knows the dose and how many tablets were actually dispensed, so the days-left number is real, not an estimate.</p>
+      </div>
+      <div class="step-card reveal">
+        <div class="step-num">3</div>
+        <div class="step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        </div>
+        <h3>It makes the call</h3>
+        <p>It phones the clinic, sits through the hold, and hands your parent the line when a person picks up.</p>
+      </div>
+      <div class="step-card reveal">
+        <div class="step-num">4</div>
+        <div class="step-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M12 10v4"/><path d="M2 10h20"/></svg>
+        </div>
+        <h3>You only hear about money</h3>
+        <p>Anything under your limit just happens. Anything above it waits in your wallet for a yes.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 7. Agency section -->
+<section class="agency">
+  <div class="container">
+    <div class="agency-inner reveal">
+      <h2>Your parent keeps every decision.</h2>
+      <div class="agency-body">
+        <p>Twelve of the twenty-five people we surveyed said their parent no longer phones the clinic at all. A child does it now: books the slot, orders the medicines, answers the doctor's questions for them.</p>
+        <br/>
+        <p>But when we asked the parents, five of nine said they still want to be asked first. They gave up the errands. They never gave up the choices.</p>
+      </div>
+      <div class="agency-callout">So Vantari takes the phone call. Never the room.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 8. Pull quote -->
+<section class="pull-quote">
+  <div class="container">
+    <div class="pull-quote-inner reveal">
+      <div class="quote-mark">
+        <svg width="48" height="40" viewBox="0 0 48 40" fill="currentColor" aria-hidden="true">
+          <path d="M0 24.8C0 11.2 8.53 2.13 20 0l2.4 5.6C12.8 8 8.53 14.4 8 20h10.4v20H0V24.8zm26.13 0C26.13 11.2 34.67 2.13 46.13 0l2.4 5.6c-9.6 2.4-13.87 8.8-14.4 14.4h10.4v20H26.13V24.8z"/>
+        </svg>
+      </div>
+      <blockquote>"History gets lost a lot if someone new is handling."</blockquote>
+      <cite>Survey respondent, 18-24, Dehradun</cite>
+    </div>
+  </div>
+</section>
+
+<!-- 9. What the whole family sees -->
+<section class="family-view" id="family-view">
+  <div class="container">
+    <div class="reveal">
+      <h2>What the whole family sees</h2>
+      <p class="family-view-text">Every action appears in the family view, so the sibling who does nothing still knows the tablets arrived and who received them. Anyone can ask in the chat: when was the last sugar test, what is he taking now, send me the reports. And get an answer without phoning the one person who always knows.</p>
+    </div>
+    <div class="reveal">
+      <div class="chat-mockup" aria-label="Chat tab showing Vantari messages about medicine refill, a spending approval request, and delivery confirmation.">
+        <div class="chat-header">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Family Chat
+        </div>
+        <div class="chat-body" id="chat-messages">
+          <div class="chat-msg" data-delay="0">
+            <div class="chat-avatar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            </div>
+            <div>
+              <div class="chat-bubble">Amma's BP tablets finish on Thursday. Ordering the refill from Kumar Medicals, ₹480.</div>
+              <div class="chat-time">10:42 am</div>
+            </div>
+          </div>
+          <div class="chat-msg" data-delay="600">
+            <div class="chat-avatar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            </div>
+            <div>
+              <div class="chat-bubble">
+                <div class="chat-approval">
+                  <div class="chat-approval-text">That is above your ₹300 limit. Approve?</div>
+                  <div class="chat-approval-btns">
+                    <button class="chat-approve-btn primary" type="button">Approve</button>
+                    <button class="chat-approve-btn secondary" type="button">Ask me more</button>
+                  </div>
+                </div>
+              </div>
+              <div class="chat-time">10:42 am</div>
+            </div>
+          </div>
+          <div class="chat-msg" data-delay="1200">
+            <div class="chat-avatar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            </div>
+            <div>
+              <div class="chat-bubble">Delivered. Amma received it herself at 4:10 pm.</div>
+              <div class="chat-time">4:12 pm</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 10. Wallet -->
+<section class="wallet-section" id="pricing">
+  <div class="container">
+    <div class="reveal">
+      <div class="wallet-mockup" aria-label="Wallet tab showing balance of 5000 rupees, a 300 rupee auto-approve limit, and one approved medicine purchase.">
+        <div class="wallet-header">Wallet</div>
+        <div class="wallet-body">
+          <div class="wallet-balance">
+            <div class="wallet-amount">₹5,000</div>
+            <div class="wallet-total">of ₹5,000</div>
+          </div>
+          <div class="wallet-limit">
+            <span class="wallet-limit-label">Auto-approve limit</span>
+            <span class="wallet-limit-val">₹300</span>
+          </div>
+          <div class="wallet-tx">
+            <div class="wallet-tx-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+            </div>
+            <div class="wallet-tx-detail">
+              <div class="wallet-tx-name">Kumar Medicals</div>
+              <div class="wallet-tx-sub">Metoprolol refill · Lakshmi</div>
+            </div>
+            <div>
+              <div class="wallet-tx-amt">₹480</div>
+              <div class="wallet-tx-status">Approved</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="wallet-text reveal">
+      <h2>One wallet. One limit. No surprises.</h2>
+      <p>Set the limit once: anything below it happens silently, the way refills should. Anything above it waits. You see the medicine, the amount and the chemist named, and you approve it with one tap. Nothing moves without your yes.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 11. Membership -->
+<section class="membership">
+  <div class="container">
+    <div class="membership-panel reveal">
+      <span class="eyebrow">Vantari Care</span>
+      <h2>₹199 a month, for the whole family.</h2>
+      <p class="membership-body">One subscription covers every member of the household. Free for the first three months, cancel any time.</p>
+      <ul class="membership-list">
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Unlimited refills coordinated
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Appointment calls included
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          All reports in one place
+        </li>
+      </ul>
+      <a href="#signup" class="btn-primary">Start free for three months</a>
+    </div>
+  </div>
+</section>
+
+<!-- 12. Signup -->
+<section class="signup" id="signup">
+  <div class="container">
+    <div class="signup-inner reveal">
+      <h2>Start with one prescription.</h2>
+      <p class="signup-sub">Install the app, add your parents, photograph one prescription. Two minutes, and your parent does not have to learn anything new.</p>
+      <form class="signup-form" id="signup-form" novalidate>
+        <div class="phone-input-wrap">
+          <span class="phone-prefix">+91</span>
+          <input type="tel" id="phone-input" placeholder="10-digit mobile number" aria-label="Mobile phone number" maxlength="10" inputmode="numeric" pattern="[0-9]{10}"/>
+        </div>
+        <button type="submit" class="btn-primary">Send me the link</button>
+      </form>
+      <p class="signup-error" id="signup-error" role="alert">Please enter a valid 10-digit mobile number.</p>
+      <p class="signup-success" id="signup-success" role="status">Sent. Check your messages.</p>
+      <div class="store-buttons">
+        <a href="#" class="store-btn" aria-label="Download on App Store">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+          App Store
+        </a>
+        <a href="#" class="store-btn" aria-label="Get it on Google Play">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M3 20.5v-17c0-.59.34-1.11.84-1.35L13.69 12l-9.85 9.85c-.5-.24-.84-.76-.84-1.35m13.81-5.38L6.05 21.34l8.49-8.49 2.27 2.27m.91-.91L19.77 12 16.72 9.79l-2.27 2.27 2.27 2.15M6.05 2.66l10.76 6.22-2.27 2.27-8.49-8.49z"/></svg>
+          Google Play
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 13. Questions -->
+<section class="questions" id="faq">
+  <div class="container">
+    <h2 class="reveal">Questions</h2>
+    <div class="faq-list">
+      <div class="faq-item reveal">
+        <button class="faq-q" aria-expanded="false" aria-controls="faq-1">
+          Does my parent have to learn a new app?
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="faq-a" id="faq-1" role="region">
+          <div class="faq-a-inner">They get the same app in their own language, showing only their own medicines and one tap to reorder. Most of the time they do not open it at all, because Vantari calls them.</div>
+        </div>
+      </div>
+      <div class="faq-item reveal">
+        <button class="faq-q" aria-expanded="false" aria-controls="faq-2">
+          What language does it speak?
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="faq-a" id="faq-2" role="region">
+          <div class="faq-a-inner">Ten Indian languages, including Telugu, Tamil, Hindi, Bengali, Marathi and Kannada. It speaks to your parent in theirs and to you in yours.</div>
+        </div>
+      </div>
+      <div class="faq-item reveal">
+        <button class="faq-q" aria-expanded="false" aria-controls="faq-3">
+          Can it spend my money without asking?
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="faq-a" id="faq-3" role="region">
+          <div class="faq-a-inner">Only below a limit you set. Above it, nothing moves until you approve it in the wallet.</div>
+        </div>
+      </div>
+      <div class="faq-item reveal">
+        <button class="faq-q" aria-expanded="false" aria-controls="faq-4">
+          What happens in an emergency?
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="faq-a" id="faq-4" role="region">
+          <div class="faq-a-inner">It calls your parent first to understand what is wrong, then alerts everyone in the family at once. It never diagnoses. It routes.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 14. Footer -->
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <rect width="32" height="32" rx="8" fill="#2582A1"/>
+            <path d="M8 10l8 14 8-14" stroke="#FCB716" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="16" cy="10" r="2.5" fill="#FCB716"/>
+          </svg>
+          <span class="logo-text">Vantari</span>
+        </div>
+        <p style="font-size:13px;max-width:260px;">Your family's health coordination. One household, several people, one shared view.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Product</h4>
+        <a href="#how-it-works">How it works</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#signup">Download</a>
+        <a href="#faq">Questions</a>
+      </div>
+      <div class="footer-col">
+        <h4>For families</h4>
+        <a href="#">Medicine tracking</a>
+        <a href="#">Appointment calls</a>
+        <a href="#">Family wallet</a>
+        <a href="#">Reports</a>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <a href="#">About</a>
+        <a href="#">Research</a>
+        <a href="#">Contact</a>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <a href="#">Privacy</a>
+        <a href="#">Terms</a>
+        <a href="#">Security</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>&copy; 2026 Vantari Health.</span>
+      <span class="footer-disclosure">Concept design. Built for The Ken Case Competition 2026. Not affiliated with any healthcare provider.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function() {
+  // Reveal on scroll
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reveals = document.querySelectorAll('.reveal');
+
+  if (prefersReduced) {
+    reveals.forEach(function(el) { el.classList.add('visible'); });
+  } else {
+    var observer = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15 });
+    reveals.forEach(function(el) { observer.observe(el); });
+  }
+
+  // Chat message staggered reveal
+  var chatObserver = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        var msgs = entry.target.querySelectorAll('.chat-msg');
+        msgs.forEach(function(msg) {
+          var delay = parseInt(msg.getAttribute('data-delay') || '0', 10);
+          if (prefersReduced) {
+            msg.classList.add('visible');
+          } else {
+            setTimeout(function() { msg.classList.add('visible'); }, delay);
+          }
+        });
+        chatObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.3 });
+  var chatBody = document.getElementById('chat-messages');
+  if (chatBody) chatObserver.observe(chatBody);
+
+  // FAQ accordion
+  document.querySelectorAll('.faq-q').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var expanded = this.getAttribute('aria-expanded') === 'true';
+      var answer = document.getElementById(this.getAttribute('aria-controls'));
+      if (expanded) {
+        this.setAttribute('aria-expanded', 'false');
+        answer.style.maxHeight = '0';
+      } else {
+        this.setAttribute('aria-expanded', 'true');
+        answer.style.maxHeight = answer.scrollHeight + 'px';
+      }
+    });
+  });
+
+  // Signup form
+  var form = document.getElementById('signup-form');
+  var input = document.getElementById('phone-input');
+  var errorEl = document.getElementById('signup-error');
+  var successEl = document.getElementById('signup-success');
+
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var val = input.value.replace(/\D/g, '');
+      if (val.length !== 10) {
+        errorEl.style.display = 'block';
+        successEl.style.display = 'none';
+      } else {
+        errorEl.style.display = 'none';
+        form.style.display = 'none';
+        successEl.style.display = 'block';
+      }
+    });
+    input.addEventListener('input', function() {
+      this.value = this.value.replace(/\D/g, '').slice(0, 10);
+    });
+  }
+
+  // Smooth scroll for anchor links
+  document.querySelectorAll('a[href^="#"]').forEach(function(a) {
+    a.addEventListener('click', function(e) {
+      var id = this.getAttribute('href').slice(1);
+      var target = document.getElementById(id);
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: prefersReduced ? 'auto' : 'smooth' });
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>
