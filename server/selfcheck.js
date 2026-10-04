@@ -456,5 +456,56 @@ assert.equal(sends[2].ok, true, 'the same figure is fine for the RP, who is the 
 assert.equal(session.messages.family_group.length, 1, 'only the status line reached the group')
 console.log('ok  R18 kept the cost out of the family group and let the status line through')
 
+// ---------------------------------------------------------------- listening
+
+// The exchange the summary is built from. Two answers are useless without the
+// questions that drew them, so the order and the pairing are what matter here.
+const { openListening, recordQuestion, recordAnswer, listeningState, resetListening } = await import('./listening.js')
+
+resetListening()
+openListening({ about: 'patient', speaker: 'patient', transcript: 'my chest feels heavy', audio_ref: 'a1', request_id: 'g1', language: 'te-IN' })
+recordQuestion('ఈ ఇబ్బంది ఎప్పటి నుంచి ఉంది?')
+recordAnswer({ transcript: 'since twenty minutes', audio_ref: 'a2', request_id: 'g2' })
+recordQuestion('చెమటలు పట్టినాయా?')
+recordAnswer({ transcript: 'yes a lot', audio_ref: 'a3', request_id: 'g3' })
+
+const heard = listeningState()
+assert.equal(heard.turns.length, 3, 'the opening account plus two answers')
+assert.equal(heard.asked, 2, 'two questions were asked')
+assert.equal(heard.turns[0].question, undefined, 'she spoke first unprompted, so that turn has no question')
+assert.equal(heard.turns[1].question, 'ఈ ఇబ్బంది ఎప్పటి నుంచి ఉంది?', 'each answer carries the question that drew it')
+assert.equal(heard.turns[2].answer, 'yes a lot')
+assert.deepEqual(heard.turns.map((t) => t.request_id), ['g1', 'g2', 'g3'], 'every line traces back to its own Gnani call')
+assert.equal(heard.pending_question, null, 'nothing is left hanging once answered')
+console.log('ok  the exchange kept its questions, answers and audio refs in order')
+
+// A question asked and never answered stays visible rather than vanishing.
+recordQuestion('one more thing?')
+assert.equal(listeningState().pending_question, 'one more thing?', 'an unanswered question is still on the record')
+assert.equal(listeningState().asked, 3)
+console.log('ok  a question nobody answered is still on the record')
+
+resetListening()
+assert.equal(listeningState(), null, 'a reset clears the exchange')
+console.log('ok  reset cleared the exchange')
+
+// Summarising with nothing recorded is refused rather than inventing an account.
+// Driven through the loop, and no request leaves the machine: the guard returns
+// before Gemini is ever called, which is also why this needs no API key.
+stub.reset([
+  { text: '', toolCalls: [
+    { name: 'log_decision', args: { received: 'nothing', source: 'selfcheck', decided: 'try to summarise an empty account', rule_id: 'R5', why: 'checking the guard', action: 'none', recipient: 'none', connector: 'none' } },
+    { name: 'summarise_account', args: { why: 'there is nothing open' } },
+  ] },
+  { text: 'done', toolCalls: [] },
+])
+const before = session.events.length
+await feed({ kind: 'test', source: 'selfcheck summarise guard' })
+const summaries = session.events.slice(before).filter((e) => e.type === 'tool_result' && e.name === 'summarise_account')
+assert.equal(summaries.length, 1, 'the call was attempted')
+assert.equal(summaries[0].result.ok, false, 'there is no account to summarise')
+assert.match(summaries[0].result.error, /no account open|Nothing has been recorded/i)
+console.log('ok  refused to summarise an account that does not exist')
+
 console.log('\nall checks passed')
 process.exit(0)

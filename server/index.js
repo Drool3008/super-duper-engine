@@ -7,6 +7,7 @@ import { deliverReply, noAnswer, expireByClock, openWaits, resetWaits } from './
 import { feed, isRunning, abortRun, selectScenario, rewindScript } from './agent.js'
 import { chainState, contactChain } from './contacts.js'
 import { accounts } from './accounts.js'
+import { openListening, recordAnswer, listeningState, resetListening } from './listening.js'
 import { assessments, openReversals, exerciseReversal, acceptReversal, expireReversals } from './assessment.js'
 import { providerLog, fulfilments, dispatches, refillCycles } from './acting.js'
 import { readFileSync } from 'node:fs'
@@ -64,6 +65,7 @@ app.get('/api/session', (req, res) => {
     running: isRunning(),
     chain: chainState(),
     accounts: accounts(),
+    listening: listeningState(),
     assessments: assessments(),
     reversals: openReversals(),
     providerLog: providerLog(),
@@ -102,9 +104,37 @@ app.post('/api/input', async (req, res) => {
     emit('message', { message: msg })
   }
 
+  // A spoken account opens stage 4: this is the first turn of the exchange the
+  // summary will later be built from, so it is kept before the agent runs.
+  if (kind === 'spoken_account' && rest.text) {
+    const who = (session.onboarding?.family?.members || []).find((m) => m.id === rest.from)
+    openListening({
+      about: rest.about || rest.from,
+      speaker: rest.from,
+      transcript: rest.text,
+      audio_ref: rest.audio_ref,
+      request_id: rest.request_id,
+      language: rest.language_code || who?.language || 'te-IN',
+    })
+  }
+
   emit('input', { input })
   res.json({ ok: true })
   feed(input).catch((err) => emit('error', { error: err.message }))
+})
+
+/**
+ * Hand back a stored recording: a question Gnani spoke, or audio somebody sent.
+ * This is how a handset plays the agent's voice -- the bytes never go through
+ * the event stream, only the ref does.
+ */
+app.get('/api/audio/:ref', (req, res) => {
+  const audio = audioStore.get(req.params.ref)
+  if (!audio) return res.status(404).json({ error: 'no audio for that ref' })
+  res.setHeader('Content-Type', audio.mimetype || 'audio/wav')
+  res.setHeader('Content-Length', audio.buffer.length)
+  res.setHeader('Cache-Control', 'no-store')
+  res.send(audio.buffer)
 })
 
 /** Audio from the curtain. Stored for gnani_stt to pick up by audio_ref. */
@@ -253,7 +283,7 @@ app.post('/api/curtain/:id', (req, res) => {
 
 /** A person pressed a button or typed in their phone frame. A human checkpoint. */
 app.post('/api/reply', (req, res) => {
-  const { from, text, action, message_id } = req.body || {}
+  const { from, text, action, message_id, audio_ref, request_id, transcribed_by } = req.body || {}
 
   // Lock the card that was answered, so it survives a reload and the console
   // shows the same thing the phone does.
@@ -269,7 +299,19 @@ app.post('/api/reply', (req, res) => {
     }
   }
 
-  const msg = { id: randomUUID(), from, to: 'agent', text, action, at: session.clock.toISOString() }
+  // A spoken answer is also a turn of the exchange the summary gets built from,
+  // and it keeps its own audio and Gnani request id so the line can be traced
+  // back to the recording it came from (R5).
+  if (transcribed_by === 'gnani' && text && listeningState()) {
+    recordAnswer({ transcript: text, audio_ref, request_id })
+  }
+
+  const msg = {
+    id: randomUUID(), from, to: 'agent', text, action,
+    kind: transcribed_by === 'gnani' ? 'spoken_answer' : undefined,
+    audio_ref: audio_ref ?? undefined,
+    at: session.clock.toISOString(),
+  }
   ;(session.messages[from] ||= []).push(msg)
   emit('message', { message: msg, human_checkpoint: true })
   res.json({ ok: deliverReply({ from, text, action }) })
@@ -366,6 +408,7 @@ app.post('/api/reset', (req, res) => {
   abortRun()
   resetPending()
   resetWaits()
+  resetListening()
   rewindScript()
   const out = resetSession(req.body?.reason || 'operator reset')
   res.json(out)

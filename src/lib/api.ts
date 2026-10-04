@@ -8,6 +8,17 @@ export const sendCurtain = (id: string, response: any, variant?: string) => post
 export const sendReply = (from: string, text?: string, action?: string, message_id?: string) =>
   post('/api/reply', { from, text, action, message_id })
 export const sendNoAnswer = (from: string) => post('/api/no-answer', { from })
+
+/**
+ * A spoken answer to a question the agent asked. Carries the recording and
+ * Gnani's own request id, so the line on the record can be traced back to the
+ * audio it came from.
+ */
+export const sendVoiceReply = (from: string, transcript: string, audio_ref?: string, request_id?: string | null) =>
+  post('/api/reply', { from, text: transcript, audio_ref, request_id, transcribed_by: 'gnani' })
+
+/** Where a stored recording is served from, for an <audio> element to play. */
+export const audioUrl = (ref: string) => api(`/api/audio/${ref}`)
 export const advanceClock = (to: string, source: string) => post('/api/clock', { to, source })
 
 export async function uploadAudio(file: File, source: string) {

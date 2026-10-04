@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Mic, Square, Loader2, SendHorizontal, RotateCcw, TriangleAlert } from 'lucide-react'
-import { sendInput, transcribe } from '../lib/api'
+import { sendInput, sendVoiceReply, transcribe } from '../lib/api'
 import { WavRecorder, canRecord } from '../lib/recorder'
 import { cn } from '../lib/utils'
 
@@ -21,15 +21,19 @@ type Phase = 'idle' | 'recording' | 'transcribing' | 'review' | 'error'
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
-export function VoiceAccount({ memberId, name, language, onSent }: {
+export function VoiceAccount({ memberId, name, language, answering = false, asked, onSent }: {
   memberId: string
   name: string
   language: string
+  /** True when the agent is waiting on this person: the recording is an answer. */
+  answering?: boolean
+  /** What it asked, so the prompt above the button is the actual question. */
+  asked?: string
   onSent?: () => void
 }) {
   const [phase, setPhase] = useState<Phase>('idle')
   const [secs, setSecs] = useState(0)
-  const [result, setResult] = useState<{ transcript: string; audio_ref: string; ms: number | null } | null>(null)
+  const [result, setResult] = useState<{ transcript: string; audio_ref: string; request_id: string | null; ms: number | null } | null>(null)
   const [err, setErr] = useState('')
   const rec = useRef<WavRecorder | null>(null)
   const timer = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -82,7 +86,7 @@ export function VoiceAccount({ memberId, name, language, onSent }: {
         return
       }
       const t = await transcribe(blob, memberId, language)
-      setResult({ transcript: t.transcript, audio_ref: t.audio_ref, ms: t.ms })
+      setResult({ transcript: t.transcript, audio_ref: t.audio_ref, request_id: t.request_id, ms: t.ms })
       setPhase('review')
     } catch (e: any) {
       setErr(e?.message || 'Could not transcribe that. Nothing was sent to the agent.')
@@ -92,6 +96,16 @@ export function VoiceAccount({ memberId, name, language, onSent }: {
 
   const send = () => {
     if (!result) return
+
+    // Answering a question it asked settles the wait it is parked on; speaking
+    // unprompted starts a new run. Same recorder, two different things.
+    if (answering) {
+      sendVoiceReply(memberId, result.transcript, result.audio_ref, result.request_id)
+      setResult(null); setPhase('idle'); setSecs(0)
+      onSent?.()
+      return
+    }
+
     sendInput({
       kind: 'spoken_account',
       source: `${name}, recorded in the app; transcribed live by Gnani`,
@@ -113,13 +127,24 @@ export function VoiceAccount({ memberId, name, language, onSent }: {
   return (
     <div className="shrink-0 border-t border-line bg-white px-3 py-2.5">
       {phase === 'idle' && (
-        <button
-          onClick={start}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-ai/30 bg-ai-bg/60 py-3 text-card text-ai hover:border-ai/50"
-        >
-          <Mic className="h-5 w-5" aria-hidden />
-          Tell the agent in your own words
-        </button>
+        <>
+          {answering && asked && (
+            <div className="mb-2 rounded-xl border border-human/30 bg-human-bg px-3 py-2 text-body text-ink">
+              <div className="text-meta font-semibold text-human">It asked you</div>
+              {asked}
+            </div>
+          )}
+          <button
+            onClick={start}
+            className={cn(
+              'flex w-full items-center justify-center gap-2 rounded-2xl border py-3 text-card',
+              answering ? 'border-human/40 bg-human-bg text-human hover:border-human/60' : 'border-ai/30 bg-ai-bg/60 text-ai hover:border-ai/50',
+            )}
+          >
+            <Mic className="h-5 w-5" aria-hidden />
+            {answering ? 'Answer out loud' : 'Tell the agent in your own words'}
+          </button>
+        </>
       )}
 
       {phase === 'recording' && (

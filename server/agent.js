@@ -4,8 +4,10 @@ import { session, emit, audioStore } from './state.js'
 import { TOOLS, TOOL_BY_NAME, CURTAIN_MODES, RULE_IDS } from './tools.js'
 import { enqueue } from './curtain.js'
 import { awaitReply } from './humans.js'
-import { nextContact, startChain } from './contacts.js'
+import { nextContact, startChain, responsiblePerson } from './contacts.js'
 import { recordAccount } from './accounts.js'
+import { recordQuestion, listeningState, setSummary } from './listening.js'
+import { summarise } from './summarise.js'
 import { recordAssessment, openReversal } from './assessment.js'
 import { nextProvider, recordProviderOutcome, reportDeadEnd, recordFulfilment, recordDispatch, setRefillCycle } from './acting.js'
 import { loadFixtures } from './fixtures.js'
@@ -25,7 +27,9 @@ function provider() {
   if (which === 'anthropic') {
     return { run: anthropicProvider.run, model: process.env.MODEL_NAME || 'claude-sonnet-5', apiKey: process.env.ANTHROPIC_API_KEY }
   }
-  return { run: geminiProvider.run, model: process.env.MODEL_NAME || 'gemini-2.5-pro', apiKey: process.env.GEMINI_API_KEY }
+  // Not 2.5-pro: a key issued today is refused with "no longer available to
+  // new users". Override with MODEL_NAME when a take wants a specific model.
+  return { run: geminiProvider.run, model: process.env.MODEL_NAME || 'gemini-3.1-pro-preview', apiKey: process.env.GEMINI_API_KEY }
 }
 
 function systemPrompt() {
@@ -93,6 +97,66 @@ async function runLive(name, args) {
     }
     case 'wait_for_reply':
       return awaitReply({ from: args.from, waitSeconds: args.wait_seconds, whatFor: args.what_for })
+    case 'gnani_tts': {
+      const spoken = await gnani.tts({ text: args.text, languageCode: args.language_code })
+      if (!spoken.ok) {
+        return { ok: false, error: spoken.reason || `Gnani could not speak that (${spoken.status}). Ask in writing instead.`, response: spoken.response ?? null }
+      }
+      // Parked where the uploads live, and handed out by GET /api/audio/:ref so
+      // the handset can play it.
+      const audio_ref = randomUUID()
+      audioStore.set(audio_ref, { buffer: spoken.audio, filename: 'question.wav', mimetype: 'audio/wav' })
+
+      // The question goes on the record before the answer exists, so one that
+      // never gets answered is still visible.
+      recordQuestion(args.text)
+
+      const msg = {
+        id: randomUUID(), from: 'agent', to: args.to,
+        text: args.text, language: args.language_code,
+        kind: 'spoken_question', audio_ref, at: session.clock.toISOString(),
+      }
+      ;(session.messages[args.to] ||= []).push(msg)
+      emit('message', { message: msg })
+      emit('spoken', { to: args.to, audio_ref, language: args.language_code, ms: spoken.ms, bytes: spoken.bytes, voice: spoken.request?.voice })
+      return { ok: true, spoken_to: args.to, audio_ref, voice: spoken.request?.voice, ms: spoken.ms }
+    }
+    case 'summarise_account': {
+      const l = listeningState()
+      if (!l || l.turns.length === 0) {
+        return { ok: false, error: 'Nothing has been recorded to summarise. There is no account open.' }
+      }
+      const who = (session.onboarding?.family?.members || []).find((m) => m.id === l.about)
+      const rp = responsiblePerson()
+
+      const out = await summarise({ about: who?.name || l.about, language: l.language, turns: l.turns })
+      if (!out.ok) return { ok: false, error: out.reason, status: out.status ?? null }
+      setSummary(out)
+
+      // Delivered here rather than handed back, because these are Gemini's own
+      // words: passing them through the agent to re-send would invite a
+      // paraphrase of a summary, which is one remove too many from what she said.
+      const send = (to, text, language, card) => {
+        const msg = { id: randomUUID(), from: 'agent', to, text, language, card: card ?? null, at: session.clock.toISOString() }
+        ;(session.messages[to] ||= []).push(msg)
+        emit('message', { message: msg })
+      }
+      send(l.about, out.for_patient, l.language)
+      send(rp?.id || 'rp', out.for_rp, 'en-IN', {
+        kind: 'incident_summary',
+        title: `${who?.name || l.about} described this herself`,
+        detail: out.problems?.join(' · ') || '',
+        for: who?.name || l.about,
+        why: out.next_steps?.length ? `What I plan to do: ${out.next_steps.join(' Then ')}` : '',
+      })
+
+      emit('summarised', { model: out.model, ms: out.ms, turns: out.turns, problems: out.problems, next_steps: out.next_steps })
+      return {
+        ok: true, model: out.model, ms: out.ms, turns: out.turns,
+        problems: out.problems, next_steps: out.next_steps,
+        sent_to: [l.about, rp?.id || 'rp'],
+      }
+    }
     case 'next_contact':
       return nextContact({ affected: args.affected, tier: args.tier })
     case 'record_account':

@@ -245,14 +245,29 @@ export const TOOLS = [
   },
   {
     name: 'gnani_tts',
-    mode: 'CURTAIN_RUN', rail: 'gnani',
-    endpoint: 'POST https://docs.gnani.ai TTS inference  // TODO: confirm exact path with docs',
-    description: 'Speak text aloud to a person in their language.',
+    mode: 'LIVE', rail: 'gnani',
+    endpoint: 'POST https://api.vachana.ai/api/v1/tts/inference',
+    description:
+      'Ask a question out loud, in the person\'s own language. Real: Gnani synthesises it and the audio plays on their handset. ' +
+      'Use it for the follow-ups at stage 4, one question at a time, and then wait_for_reply for their answer. ' +
+      'Keep each question short and about one thing. Never ask what medicine they take or suggest one (R1).',
     parameters: obj('Speak', {
-      text: str('What to say'),
-      language_code: str('e.g. hi-IN'),
-      to: str('Who hears it'),
+      text: str('The question, in their language. One thing at a time.'),
+      language_code: str('Their language from onboarding, e.g. te-IN'),
+      to: str('Who hears it, by id'),
     }, ['text', 'language_code', 'to']),
+  },
+  {
+    name: 'summarise_account',
+    mode: 'LIVE', rail: null,
+    description:
+      'Hand the whole exchange -- what they said and every follow-up answer -- to Gemini, which writes it up and sends it. ' +
+      'The person gets what happens next in their own language; the responsible person gets the account and what is being asked of them. ' +
+      'Both messages are delivered by this call, because the words are generated here and cannot be written in advance. ' +
+      'Call it once the follow-ups are done. Returns what was sent.',
+    parameters: obj('Summarise and tell', {
+      why: str('One line: why you are closing the questions here'),
+    }, ['why']),
   },
 
   {

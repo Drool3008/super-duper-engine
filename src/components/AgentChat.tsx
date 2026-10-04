@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, Check, CheckCircle2, ChevronDown, ChevronLeft, Clock3, Hand, Lightbulb, Pause, SendHorizontal } from 'lucide-react'
+import { ArrowDown, Check, CheckCircle2, ChevronDown, ChevronLeft, Clock3, Hand, Lightbulb, Pause, SendHorizontal, Volume2 } from 'lucide-react'
 import { useSession } from '../lib/session'
-import { rupees, sendInput, sendReply } from '../lib/api'
+import { audioUrl, rupees, sendInput, sendReply } from '../lib/api'
 import type { Message } from '../lib/types'
 import { AgentAvatar, AiTag, HumanTag, PersonAvatar } from './brand'
 import { cn } from '../lib/utils'
@@ -128,6 +128,10 @@ export function AgentChat({ memberId, onBack, t = english, onAnswer }: {
   const unanswered = all.filter((m) => m.card && !m.answer && !(m as any).timed_out)
   const awaiting = s.awaiting?.from === memberId ? s.awaiting : null
 
+  // The last thing it asked aloud, so the recorder shows the question itself
+  // rather than the English note the wait carries for the console.
+  const lastSpokenQuestion = [...all].reverse().find((m: any) => m.kind === 'spoken_question')?.text
+
   // A sample sentence this person tapped, still sitting in the box unedited.
   // Only then does its id travel, so an edited sentence counts as their own
   // words and the agent is handed no scenario at all.
@@ -192,6 +196,7 @@ export function AgentChat({ memberId, onBack, t = english, onAnswer }: {
                   <div className="mb-0.5 flex items-center gap-1 text-[12px] font-bold text-ai">Vantari · AI</div>
                 )}
                 {m.text && <div className="whitespace-pre-wrap text-body">{m.text}</div>}
+                {(m as any).audio_ref && <PlayLine ref_={(m as any).audio_ref} spoken={(m as any).kind === 'spoken_question'} />}
                 {m.action && (
                   <div className="flex items-center gap-1.5 text-body font-semibold text-[#166534]">
                     <Check className="h-4 w-4" aria-hidden /> You chose {m.action}
@@ -231,14 +236,19 @@ export function AgentChat({ memberId, onBack, t = english, onAnswer }: {
           onPick={(s) => { setText(s.text); setPicked({ id: s.id, text: s.text }) }}
         />
       )}
-      {/* Stage 4: she says it herself, Gnani writes it down, she sends it. */}
-      {!awaiting && (
-        <VoiceAccount
-          memberId={memberId}
-          name={me?.name || memberId}
-          language={me?.language || 'te-IN'}
-        />
-      )}
+      {/*
+        Stage 4. The same recorder does both halves: speaking unprompted starts a
+        run, and answering a question it asked out loud settles the wait it is
+        parked on. Shown while awaiting too, because at this stage the answer it
+        is waiting for is a spoken one.
+      */}
+      <VoiceAccount
+        memberId={memberId}
+        name={me?.name || memberId}
+        language={me?.language || 'te-IN'}
+        answering={Boolean(awaiting)}
+        asked={lastSpokenQuestion}
+      />
       <div className="flex shrink-0 items-center gap-2 border-t border-line bg-white px-3 py-2.5">
         <input
           value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()}
@@ -251,6 +261,36 @@ export function AgentChat({ memberId, onBack, t = english, onAnswer }: {
         </button>
       </div>
     </div>
+  )
+}
+
+/**
+ * Plays a stored recording: a question Gnani spoke, or the person's own answer
+ * back to them. The agent asking out loud is the point of the step, so the
+ * handset has to be able to actually say it rather than only print it.
+ */
+function PlayLine({ ref_, spoken }: { ref_: string; spoken: boolean }) {
+  const el = useRef<HTMLAudioElement | null>(null)
+  const [playing, setPlaying] = useState(false)
+
+  return (
+    <button
+      onClick={() => {
+        const a = el.current
+        if (!a) return
+        if (playing) { a.pause(); a.currentTime = 0; setPlaying(false); return }
+        a.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
+      }}
+      className={cn(
+        'mt-1 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-meta font-semibold',
+        spoken ? 'bg-ai-bg text-ai' : 'bg-secondary text-muted',
+      )}
+      aria-label={playing ? 'Stop' : 'Play what was said'}
+    >
+      {playing ? <Pause className="h-3.5 w-3.5" aria-hidden /> : <Volume2 className="h-3.5 w-3.5" aria-hidden />}
+      {playing ? 'Playing…' : spoken ? 'Hear the question' : 'Play'}
+      <audio ref={el} src={audioUrl(ref_)} onEnded={() => setPlaying(false)} preload="none" />
+    </button>
   )
 }
 

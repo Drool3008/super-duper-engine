@@ -20,7 +20,13 @@
               "connector": "WhatsApp"
             }
           },
-          { "name": "set_stage", "args": { "stage": 2, "why": "a named person reported a severe symptom" } },
+          {
+            "name": "set_stage",
+            "args": {
+              "stage": 2,
+              "why": "a named person reported a severe symptom"
+            }
+          },
           {
             "name": "send_message",
             "args": {
@@ -47,7 +53,13 @@
               "connector": "none"
             }
           },
-          { "name": "set_stage", "args": { "stage": 5, "why": "weighing the four factors before routing" } },
+          {
+            "name": "set_stage",
+            "args": {
+              "stage": 5,
+              "why": "weighing the four factors before routing"
+            }
+          },
           {
             "name": "record_assessment",
             "args": {
@@ -76,10 +88,20 @@
               "connector": "Beckn"
             }
           },
-          { "name": "set_stage", "args": { "stage": 6, "why": "acting: transport first" } },
+          {
+            "name": "set_stage",
+            "args": {
+              "stage": 6,
+              "why": "acting: transport first"
+            }
+          },
           {
             "name": "beckn_search",
-            "args": { "from": "Home", "to": "The nearest clinic on file", "for_person": "patient" }
+            "args": {
+              "from": "Home",
+              "to": "The nearest clinic on file",
+              "for_person": "patient"
+            }
           }
         ]
       },
@@ -101,7 +123,11 @@
           },
           {
             "name": "beckn_confirm",
-            "args": { "item_id": "the soonest ride from on_search", "fare_inr": 420, "for_person": "patient" }
+            "args": {
+              "item_id": "the soonest ride from on_search",
+              "fare_inr": 420,
+              "for_person": "patient"
+            }
           }
         ]
       },
@@ -123,7 +149,12 @@
           },
           {
             "name": "wallet_ledger_append",
-            "args": { "amount_inr": 420, "payee": "Ride to the clinic", "what": "Cab for the patient, critical", "rail": "beckn" }
+            "args": {
+              "amount_inr": 420,
+              "payee": "Ride to the clinic",
+              "what": "Cab for the patient, critical",
+              "rail": "beckn"
+            }
           },
           {
             "name": "send_message",
@@ -170,7 +201,13 @@
               "connector": "none"
             }
           },
-          { "name": "set_stage", "args": { "stage": 7, "why": "ride booked and paid, now checking in" } }
+          {
+            "name": "set_stage",
+            "args": {
+              "stage": 7,
+              "why": "ride booked and paid, now checking in"
+            }
+          }
         ]
       }
     ],
@@ -191,7 +228,13 @@
               "connector": "WhatsApp"
             }
           },
-          { "name": "set_stage", "args": { "stage": 2, "why": "a named person reported a symptom" } },
+          {
+            "name": "set_stage",
+            "args": {
+              "stage": 2,
+              "why": "a named person reported a symptom"
+            }
+          },
           {
             "name": "send_message",
             "args": {
@@ -218,7 +261,13 @@
               "connector": "none"
             }
           },
-          { "name": "set_stage", "args": { "stage": 5, "why": "weighing the four factors before routing" } },
+          {
+            "name": "set_stage",
+            "args": {
+              "stage": 5,
+              "why": "weighing the four factors before routing"
+            }
+          },
           {
             "name": "record_assessment",
             "args": {
@@ -258,7 +307,11 @@
           },
           {
             "name": "wait_for_reply",
-            "args": { "from": "rp", "wait_seconds": 180, "what_for": "whether to book a clinic slot today" }
+            "args": {
+              "from": "rp",
+              "wait_seconds": 180,
+              "what_for": "whether to book a clinic slot today"
+            }
           }
         ]
       },
@@ -278,8 +331,20 @@
               "connector": "WhatsApp"
             }
           },
-          { "name": "set_stage", "args": { "stage": 6, "why": "the RP said to go ahead" } },
-          { "name": "next_provider", "args": { "kind": "clinics", "why": "the RP asked for a slot today" } }
+          {
+            "name": "set_stage",
+            "args": {
+              "stage": 6,
+              "why": "the RP said to go ahead"
+            }
+          },
+          {
+            "name": "next_provider",
+            "args": {
+              "kind": "clinics",
+              "why": "the RP asked for a slot today"
+            }
+          }
         ]
       },
       {
@@ -306,7 +371,13 @@
               "language": "en-IN"
             }
           },
-          { "name": "set_stage", "args": { "stage": 7, "why": "waiting on the clinic" } }
+          {
+            "name": "set_stage",
+            "args": {
+              "stage": 7,
+              "why": "waiting on the clinic"
+            }
+          }
         ]
       }
     ],
@@ -327,7 +398,13 @@
               "connector": "WhatsApp"
             }
           },
-          { "name": "set_stage", "args": { "stage": 2, "why": "a named person reported something minor" } },
+          {
+            "name": "set_stage",
+            "args": {
+              "stage": 2,
+              "why": "a named person reported something minor"
+            }
+          },
           {
             "name": "send_message",
             "args": {
@@ -354,7 +431,13 @@
               "connector": "none"
             }
           },
-          { "name": "set_stage", "args": { "stage": 5, "why": "weighing the four factors before routing" } },
+          {
+            "name": "set_stage",
+            "args": {
+              "stage": 5,
+              "why": "weighing the four factors before routing"
+            }
+          },
           {
             "name": "record_assessment",
             "args": {
@@ -394,7 +477,11 @@
           },
           {
             "name": "wait_for_reply",
-            "args": { "from": "rp", "wait_seconds": 900, "what_for": "whether to do anything about a routine complaint" }
+            "args": {
+              "from": "rp",
+              "wait_seconds": 900,
+              "what_for": "whether to do anything about a routine complaint"
+            }
           }
         ]
       },
@@ -414,7 +501,13 @@
               "connector": "WhatsApp"
             }
           },
-          { "name": "set_stage", "args": { "stage": 9, "why": "the RP has decided and nothing is outstanding" } }
+          {
+            "name": "set_stage",
+            "args": {
+              "stage": 9,
+              "why": "the RP has decided and nothing is outstanding"
+            }
+          }
         ]
       }
     ]
@@ -429,108 +522,133 @@
             "args": {
               "received": "A spoken account from the patient, transcribed by Gnani",
               "source": "Patient, recorded in the app; transcript from Gnani STT",
-              "decided": "Take the account as given and acknowledge it in her own language",
+              "decided": "Keep her words as they came back and ask her two things out loud",
               "rule_id": "R5",
-              "why": "the words are hers and are kept as they came back; nothing is interpreted at this stage",
-              "action": "acknowledged and moved to listening",
+              "why": "the transcript is hers and is stored unedited; what is missing is when it started and whether anything else came with it",
+              "action": "opened the account and asked the first question aloud",
               "recipient": "patient",
-              "connector": "WhatsApp"
-            }
-          },
-          { "name": "set_stage", "args": { "stage": 4, "why": "the patient has described it in her own words" } },
-          {
-            "name": "send_message",
-            "args": {
-              "to": "patient",
-              "text": "విన్నాను, చెప్పినందుకు ధన్యవాదాలు. ఇది నేను అర్జున్‌కి తెలియజేస్తాను, తరువాత మీకు చెబుతాను.",
-              "language": "te-IN"
-            }
-          }
-        ]
-      },
-      {
-        "text": "",
-        "toolCalls": [
-          {
-            "name": "log_decision",
-            "args": {
-              "received": "The account, in her own words",
-              "source": "Agent's own weighing at stage 5",
-              "decided": "Urgent, and the responsible person decides what happens next",
-              "rule_id": "R7",
-              "why": "weighed against her red flags, her baseline and her current medicines; it needs a person, not a booking",
-              "action": "assessed urgent",
-              "recipient": "none",
-              "connector": "none"
-            }
-          },
-          { "name": "set_stage", "args": { "stage": 5, "why": "weighing what she said against her record" } },
-          {
-            "name": "record_assessment",
-            "args": {
-              "about": "patient",
-              "tier": "urgent",
-              "factors": "weighed against the red-flag list, her baseline, the medicines she is on, and who is reachable right now",
-              "can_tell": true,
-              "unsure": false
-            }
-          }
-        ]
-      },
-      {
-        "text": "",
-        "toolCalls": [
-          {
-            "name": "log_decision",
-            "args": {
-              "received": "Assessment came back urgent",
-              "source": "record_assessment at stage 5",
-              "decided": "Send the responsible person a summary with her own words under it, and wait",
-              "rule_id": "R17",
-              "why": "this is his call to make, and he should see what she actually said rather than only my reading of it",
-              "action": "summarised to the RP and stopped",
-              "recipient": "rp",
-              "connector": "WhatsApp"
+              "connector": "Gnani"
             }
           },
           {
-            "name": "send_message",
+            "name": "set_stage",
             "args": {
-              "to": "rp",
-              "text": "Lakshmi recorded a message for me just now. In short: she is describing something new that I would call urgent, and I have booked nothing. Her own words are below, exactly as they came back. Do you want me to get her a clinic slot today?",
-              "language": "en-IN",
-              "card": "{\"kind\":\"incident_summary\",\"title\":\"Lakshmi described something herself\",\"detail\":\"She spoke in Telugu and I kept the transcript word for word. I have weighed it against her red flags, her baseline and the medicines she is on.\",\"for\":\"Lakshmi\",\"why\":\"Nothing is booked and nothing is spent. Tell me what you would like me to do.\"}"
+              "stage": 4,
+              "why": "she has described it in her own words; now filling the gaps"
+            }
+          },
+          {
+            "name": "gnani_tts",
+            "args": {
+              "text": "ఈ ఇబ్బంది ఎప్పటి నుంచి ఉంది?",
+              "language_code": "te-IN",
+              "to": "patient"
             }
           },
           {
             "name": "wait_for_reply",
-            "args": { "from": "rp", "wait_seconds": 180, "what_for": "what to do about the account Lakshmi recorded" }
+            "args": {
+              "from": "patient",
+              "wait_seconds": 180,
+              "what_for": "how long it has been going on"
+            }
           }
         ]
       },
       {
-        "text": "Arun has the summary and her own words. Waiting on him before anything is booked.",
+        "text": "",
         "toolCalls": [
           {
             "name": "log_decision",
             "args": {
-              "received": "The RP answered",
-              "source": "RP's tap in the app",
-              "decided": "Do what he said, and tell the group only that it is being handled",
-              "rule_id": "R10",
-              "why": "he holds this call; the group hears the status and never the symptom",
-              "action": "acted on his answer",
-              "recipient": "rp",
+              "received": "Her answer to the first question",
+              "source": "Patient, recorded in the app; transcript from Gnani STT",
+              "decided": "Ask one more, about whether anything came with it",
+              "rule_id": "R5",
+              "why": "two questions is enough to write it up; more than that is an interrogation, not a call",
+              "action": "asked the second question aloud",
+              "recipient": "patient",
+              "connector": "Gnani"
+            }
+          },
+          {
+            "name": "gnani_tts",
+            "args": {
+              "text": "ఇది మరో చోటికి పొక్కుతోందా, లేదా చెమటలు పట్టినాయా?",
+              "language_code": "te-IN",
+              "to": "patient"
+            }
+          },
+          {
+            "name": "wait_for_reply",
+            "args": {
+              "from": "patient",
+              "wait_seconds": 180,
+              "what_for": "whether it is spreading or she is sweating"
+            }
+          }
+        ]
+      },
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "Her account and both answers",
+              "source": "The exchange recorded at stage 4",
+              "decided": "Close the questions and have the whole exchange written up",
+              "rule_id": "R7",
+              "why": "I have when it started and what came with it; that is enough to weigh and to hand to a person",
+              "action": "summarised the exchange and sent it on",
+              "recipient": "patient and rp",
               "connector": "WhatsApp"
             }
           },
-          { "name": "set_stage", "args": { "stage": 7, "why": "the RP has answered" } },
+          {
+            "name": "set_stage",
+            "args": {
+              "stage": 5,
+              "why": "the account is complete; writing it up and routing it"
+            }
+          },
+          {
+            "name": "summarise_account",
+            "args": {
+              "why": "she has told me when it began and what came with it, so there is nothing more I should be asking her"
+            }
+          }
+        ]
+      },
+      {
+        "text": "Her own words are on the record, she has been told what happens next, and Arun has the account.",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "The write-up went to both of them",
+              "source": "summarise_account",
+              "decided": "Tell the group it is being handled and nothing more",
+              "rule_id": "R18",
+              "why": "the group hears who is handling it, never the symptom",
+              "action": "posted a status line",
+              "recipient": "family_group",
+              "connector": "WhatsApp"
+            }
+          },
           {
             "name": "send_message",
             "args": {
               "to": "family_group",
-              "text": "Lakshmi got in touch with me and Arun and I are sorting it out. I will update here.",
+              "text": "Lakshmi got in touch with me herself. Arun and I are sorting it out and I will update here.",
               "language": "en-IN"
+            }
+          },
+          {
+            "name": "set_stage",
+            "args": {
+              "stage": 7,
+              "why": "waiting on Arun"
             }
           }
         ]
@@ -553,7 +671,13 @@
               "connector": "WhatsApp"
             }
           },
-          { "name": "set_stage", "args": { "stage": 2, "why": "a severe symptom reported secondhand, nobody reachable at home" } }
+          {
+            "name": "set_stage",
+            "args": {
+              "stage": 2,
+              "why": "a severe symptom reported secondhand, nobody reachable at home"
+            }
+          }
         ]
       },
       {
@@ -572,7 +696,13 @@
               "connector": "none"
             }
           },
-          { "name": "set_stage", "args": { "stage": 5, "why": "weighing the four factors" } },
+          {
+            "name": "set_stage",
+            "args": {
+              "stage": 5,
+              "why": "weighing the four factors"
+            }
+          },
           {
             "name": "record_assessment",
             "args": {
@@ -601,7 +731,13 @@
               "connector": "phone"
             }
           },
-          { "name": "set_stage", "args": { "stage": 6, "why": "dispatching with nobody reachable" } },
+          {
+            "name": "set_stage",
+            "args": {
+              "stage": 6,
+              "why": "dispatching with nobody reachable"
+            }
+          },
           {
             "name": "record_dispatch",
             "args": {
