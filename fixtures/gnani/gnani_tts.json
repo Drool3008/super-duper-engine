@@ -1,0 +1,7 @@
+{
+  "_source": "https://docs.gnani.ai",
+  "_confirmed": "todo",
+  "_note": "TODO: confirm the exact TTS inference path and response shape at docs.gnani.ai. Until then gnani_tts runs as a curtain call, not a live one.",
+  "success": { "success": true, "request_id": "TODO-CONFIRM", "audio_url": "TODO-CONFIRM", "duration_seconds": 0 },
+  "failure_language_unsupported": { "success": false, "error": "TODO: confirm the documented error shape" }
+}

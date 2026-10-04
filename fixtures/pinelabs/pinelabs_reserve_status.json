@@ -1,0 +1,8 @@
+{
+  "_source": "https://www.pinelabs.com/docs/online-payments/api/upi-reserve-pay",
+  "_confirmed": "partial",
+  "_note": "Endpoint CONFIRMED: GET /ps/public/subscriptions/sbmd/{reserve_pay_sub_id}. Field names TODO: confirm with docs.",
+  "success": { "reserve_pay_sub_id": "TODO-CONFIRM-SUB-0001", "status": "ACTIVE", "blocked_amount": 5000000, "consumed_amount": 760000, "available_amount": 4240000, "currency": "INR" },
+  "failure_low_balance": { "reserve_pay_sub_id": "TODO-CONFIRM-SUB-0001", "status": "ACTIVE", "blocked_amount": 5000000, "consumed_amount": 4200000, "available_amount": 800000, "currency": "INR" },
+  "failure_expired": { "reserve_pay_sub_id": "TODO-CONFIRM-SUB-0001", "status": "EXPIRED", "available_amount": 0 }
+}

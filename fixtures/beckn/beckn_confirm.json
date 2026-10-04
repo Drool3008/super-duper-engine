@@ -1,0 +1,14 @@
+{
+  "_source": "https://developers.becknprotocol.io/docs/mobility-specification/api-reference/",
+  "_confirmed": "partial",
+  "_note": "on_confirm returns the confirmed order with state CONFIRMED (CONFIRMED is documented). Remaining field detail TODO: confirm against beckn/protocol-specifications.",
+  "success": {
+    "context": { "action": "on_confirm", "core_version": "0.9.3", "transaction_id": "TODO-CONFIRM-TXN-0001", "message_id": "TODO-CONFIRM-MSG-0003", "timestamp": "2026-10-04T09:21:00.000Z" },
+    "message": { "order": { "id": "ORD-DEMO-RIDE-1", "state": "CONFIRMED", "items": [ { "id": "I1" } ], "fulfillment": { "vehicle": { "registration": "KA-01-DEMO-0001" }, "agent": { "name": "Demo Driver", "phone": "+91-90000-99999" }, "start": { "time": { "timestamp": "2026-10-04T09:28:00.000Z" } } }, "quote": { "price": { "currency": "INR", "value": "120" } } } }
+  },
+  "failure_driver_cancelled": {
+    "context": { "action": "on_confirm", "core_version": "0.9.3", "transaction_id": "TODO-CONFIRM-TXN-0001", "message_id": "TODO-CONFIRM-MSG-0004", "timestamp": "2026-10-04T09:21:00.000Z" },
+    "message": { "order": { "id": "ORD-DEMO-RIDE-1", "state": "CANCELLED" } },
+    "error": { "type": "DOMAIN-ERROR", "code": "TODO-CONFIRM", "message": "driver cancelled before pickup" }
+  }
+}

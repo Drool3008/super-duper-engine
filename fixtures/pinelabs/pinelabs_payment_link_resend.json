@@ -1,0 +1,7 @@
+{
+  "_source": "https://www.pinelabs.com/docs/online-payments/api",
+  "_confirmed": "partial",
+  "_note": "Endpoint CONFIRMED: PATCH /api/pay/v1/paymentlink/{payment_link_id}/notify. Response shape TODO: confirm with docs.",
+  "success": { "payment_link_id": "TODO-CONFIRM-PL-0001", "notified": true, "channel": "sms" },
+  "failure_already_cancelled": { "error": { "code": "TODO-CONFIRM", "message": "cannot notify a cancelled link" } }
+}

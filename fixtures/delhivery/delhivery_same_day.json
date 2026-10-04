@@ -1,0 +1,8 @@
+{
+  "_source": "IMAGINED CAPABILITY. No such endpoint exists today.",
+  "_confirmed": "imagined",
+  "_note": "Imagined capability 3 of 3. Delhivery's express network is next-day, which is too slow for an urgent refill. This assumes a hyperlocal chemist-to-home pickup with a 4 hour promise, built on rider networks and pharma clients Delhivery already has.",
+  "success": { "order_id": "HL-DEMO-0001", "promise_minutes": 240, "rider_eta_minutes": 35, "status": "ASSIGNED", "fee_inr": 70 },
+  "failure_no_rider": { "order_id": null, "status": "NO_RIDER", "message": "no rider available in this pincode right now" },
+  "failure_outside_hyperlocal_zone": { "order_id": null, "status": "OUT_OF_ZONE", "message": "destination outside the hyperlocal serviceable zone" }
+}

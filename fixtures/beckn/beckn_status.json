@@ -1,0 +1,8 @@
+{
+  "_source": "https://developers.becknprotocol.io/docs/mobility-specification/api-reference/",
+  "_confirmed": "partial",
+  "_note": "TODO: confirm fulfillment state vocabulary against beckn/protocol-specifications.",
+  "success_arrived": { "context": { "action": "on_status", "core_version": "0.9.3", "transaction_id": "TODO-CONFIRM-TXN-0001", "timestamp": "2026-10-04T09:30:00.000Z" }, "message": { "order": { "id": "ORD-DEMO-RIDE-1", "state": "ACTIVE", "fulfillment": { "state": { "descriptor": { "name": "Driver arrived" } } } } } },
+  "success_completed": { "context": { "action": "on_status", "core_version": "0.9.3", "transaction_id": "TODO-CONFIRM-TXN-0001", "timestamp": "2026-10-04T10:05:00.000Z" }, "message": { "order": { "id": "ORD-DEMO-RIDE-1", "state": "COMPLETED", "fulfillment": { "state": { "descriptor": { "name": "Trip completed" } } } } } },
+  "failure_delayed": { "context": { "action": "on_status", "core_version": "0.9.3", "transaction_id": "TODO-CONFIRM-TXN-0001", "timestamp": "2026-10-04T09:45:00.000Z" }, "message": { "order": { "id": "ORD-DEMO-RIDE-1", "state": "ACTIVE", "fulfillment": { "state": { "descriptor": { "name": "Driver delayed, 15 minutes" } } } } } }
+}

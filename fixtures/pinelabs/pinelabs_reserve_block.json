@@ -1,0 +1,8 @@
+{
+  "_source": "https://www.pinelabs.com/docs/online-payments/api/upi-reserve-pay",
+  "_confirmed": "partial",
+  "_note": "Endpoint CONFIRMED: POST /ps/public/subscriptions/sbmd on sandbox base pluraluat.v2.pinepg.in, Bearer token from POST /api/auth/v1/token. The per-endpoint JSON schema sits behind the individual endpoint page / OpenAPI download and was not readable. TODO: confirm field names and whether amounts are paise or rupees before the dry run.",
+  "success": { "reserve_pay_sub_id": "TODO-CONFIRM-SUB-0001", "status": "ACTIVE", "blocked_amount": 5000000, "currency": "INR", "payer_vpa": "demo@upi", "_amount_unit": "TODO: confirm paise vs rupees" },
+  "failure_mandate_declined": { "error": { "code": "TODO-CONFIRM", "message": "mandate declined by payer" }, "reserve_pay_sub_id": null },
+  "failure_insufficient_balance": { "error": { "code": "TODO-CONFIRM", "message": "insufficient balance to block the requested amount" }, "reserve_pay_sub_id": null }
+}

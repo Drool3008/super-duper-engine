@@ -1,0 +1,14 @@
+{
+  "_source": "https://developers.becknprotocol.io/docs/mobility-specification/api-reference/",
+  "_confirmed": "partial",
+  "_note": "Open protocol, not a partner rail. Flag it in the UI as 'open protocol'. The context envelope is CONFIRMED (domain, country, city, action, core_version, bap_id, bap_uri, transaction_id, message_id, timestamp) and on_search carries message.catalog with bpp/descriptor and bpp/providers. Item and fulfillment detail TODO: confirm against beckn/protocol-specifications on GitHub.",
+  "success": {
+    "context": { "domain": "nic2004:60221", "country": "IND", "city": "std:080", "action": "on_search", "core_version": "0.9.3", "bpp_id": "demo-mobility-bpp.example", "bpp_uri": "https://demo-mobility-bpp.example", "transaction_id": "TODO-CONFIRM-TXN-0001", "message_id": "TODO-CONFIRM-MSG-0001", "timestamp": "2026-10-04T09:20:00.000Z" },
+    "message": { "catalog": { "bpp/descriptor": { "name": "Demo Mobility BPP" }, "bpp/providers": [ { "id": "P1", "descriptor": { "name": "Demo Auto Service" }, "items": [ { "id": "I1", "descriptor": { "name": "Auto" }, "price": { "currency": "INR", "value": "120" } }, { "id": "I2", "descriptor": { "name": "Cab, non AC" }, "price": { "currency": "INR", "value": "260" } } ] } ] } }
+  },
+  "failure_no_driver": {
+    "context": { "domain": "nic2004:60221", "country": "IND", "city": "std:080", "action": "on_search", "core_version": "0.9.3", "transaction_id": "TODO-CONFIRM-TXN-0001", "message_id": "TODO-CONFIRM-MSG-0002", "timestamp": "2026-10-04T09:20:00.000Z" },
+    "message": { "catalog": { "bpp/descriptor": { "name": "Demo Mobility BPP" }, "bpp/providers": [] } },
+    "error": { "type": "DOMAIN-ERROR", "code": "TODO-CONFIRM", "message": "no driver available near the pickup location" }
+  }
+}

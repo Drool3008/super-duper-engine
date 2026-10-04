@@ -1,0 +1,8 @@
+{
+  "_source": "https://www.pinelabs.com/docs/online-payments/api/upi-reserve-pay",
+  "_confirmed": "partial",
+  "_note": "Endpoint CONFIRMED: POST /ps/api/v1/public/subscriptions/{reserve_pay_sub_id}/presentations. Field names TODO: confirm with docs.",
+  "success": { "presentation_id": "TODO-CONFIRM-PRES-0001", "status": "SUCCESS", "amount": 640000, "currency": "INR", "_amount_unit": "TODO: confirm paise vs rupees" },
+  "failure_exceeds_blocked_amount": { "error": { "code": "TODO-CONFIRM", "message": "debit exceeds the remaining blocked amount" }, "status": "FAILED" },
+  "failure_declined": { "error": { "code": "TODO-CONFIRM", "message": "debit declined by issuer" }, "status": "FAILED" }
+}

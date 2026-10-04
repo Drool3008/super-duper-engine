@@ -1,0 +1,26 @@
+{
+  "_source": "https://delhivery-express-api-doc.readme.io/reference/order-creation-api",
+  "_confirmed": "partial",
+  "_note": "TODO: confirm with docs. The public page lists field NAMES (pickup_location{pin,add,phone,state,city,country,name} and shipments[] with order, phone, products_desc, product_type, cod_amount, name, waybill, order_date, payment_mode, total_amount, address, pin, quantity, weight, state, city) but publishes no full request or response example. The response bodies below follow the documented field names and the documented behaviour that a blank waybill is generated server-side; the exact envelope is unverified.",
+  "success": {
+    "success": true,
+    "packages": [
+      { "waybill": "TODO-CONFIRM-1234567890", "refnum": "ORD-DEMO-001", "status": "Success", "remarks": [""], "client": "DEMO-CLIENT" }
+    ],
+    "upload_wbn": "TODO-CONFIRM",
+    "rmk": ""
+  },
+  "failure_pickup_location_not_registered": {
+    "success": false,
+    "packages": [],
+    "rmk": "ClientWarehouse matching query does not exist.",
+    "error": ["pickup location name must exactly match a registered warehouse, and is case sensitive"]
+  },
+  "failure_pin_not_serviceable": {
+    "success": false,
+    "packages": [
+      { "waybill": "", "refnum": "ORD-DEMO-001", "status": "Fail", "remarks": ["pincode not serviceable"] }
+    ],
+    "rmk": ""
+  }
+}

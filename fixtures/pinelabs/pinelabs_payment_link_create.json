@@ -1,0 +1,7 @@
+{
+  "_source": "https://www.pinelabs.com/docs/online-payments/api",
+  "_confirmed": "partial",
+  "_note": "Endpoint and status values CONFIRMED: POST /api/pay/v1/paymentlink; statuses CREATED, PROCESSED, CANCELLED. Full request/response field names TODO: confirm with docs (see the Error Codes page for the error envelope).",
+  "success": { "payment_link_id": "TODO-CONFIRM-PL-0001", "status": "CREATED", "payment_link_url": "https://pluraluat.v2.pinepg.in/pl/TODO-CONFIRM", "amount": 640000, "currency": "INR", "expires_at": "2026-10-04T23:59:00+05:30" },
+  "failure_invalid_amount": { "error": { "code": "TODO-CONFIRM", "message": "invalid amount" } }
+}

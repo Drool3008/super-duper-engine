@@ -1,0 +1,18 @@
+{
+  "_source": "https://delhivery-express-api-doc.readme.io/reference/1-pincode-servicability-api",
+  "_confirmed": "full",
+  "_note": "Response shape confirmed from the docs: delivery_codes[].postal_code{pin, pre_paid, cash, pickup}.",
+  "success": {
+    "delivery_codes": [
+      { "postal_code": { "pin": 560001, "pre_paid": "Y", "cash": "Y", "pickup": "Y" } }
+    ]
+  },
+  "failure_not_serviceable": {
+    "delivery_codes": []
+  },
+  "failure_pickup_only_no_delivery": {
+    "delivery_codes": [
+      { "postal_code": { "pin": 560034, "pre_paid": "N", "cash": "N", "pickup": "Y" } }
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "_source": "https://delhivery-express-api-doc.readme.io/reference/order-tracking-api",
+  "_confirmed": "todo",
+  "_note": "TODO: confirm with docs. The public page documents only the endpoint, the pull/push options and a 750-request / 5-minute rate limit. It publishes no response example. The ShipmentData / Shipment / Status nesting below is the widely used shape but is UNVERIFIED against the official docs. Do not present these field names as documented.",
+  "success_in_transit": {
+    "ShipmentData": [
+      { "Shipment": { "AWB": "TODO-CONFIRM-1234567890", "Status": { "Status": "In Transit", "StatusType": "UD", "StatusLocation": "Bengaluru_Hub", "StatusDateTime": "2026-10-04T12:40:00", "Instructions": "" } } }
+    ]
+  },
+  "success_delivered": {
+    "ShipmentData": [
+      { "Shipment": { "AWB": "TODO-CONFIRM-1234567890", "Status": { "Status": "Delivered", "StatusType": "DL", "StatusLocation": "Bengaluru", "StatusDateTime": "2026-10-04T16:05:00", "Instructions": "Delivered to consignee" } } }
+    ]
+  },
+  "failure_late": {
+    "ShipmentData": [
+      { "Shipment": { "AWB": "TODO-CONFIRM-1234567890", "Status": { "Status": "Pending", "StatusType": "PP", "StatusLocation": "Bengaluru_Hub", "StatusDateTime": "2026-10-04T18:00:00", "Instructions": "Delayed in transit" } } }
+    ]
+  }
+}

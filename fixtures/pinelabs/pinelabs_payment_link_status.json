@@ -1,0 +1,8 @@
+{
+  "_source": "https://www.pinelabs.com/docs/online-payments/api",
+  "_confirmed": "partial",
+  "_note": "Endpoint and the three status values are CONFIRMED. Envelope field names TODO: confirm with docs.",
+  "success_processed": { "payment_link_id": "TODO-CONFIRM-PL-0001", "status": "PROCESSED", "amount": 640000, "paid_at": "2026-10-04T12:05:00+05:30" },
+  "pending_created": { "payment_link_id": "TODO-CONFIRM-PL-0001", "status": "CREATED", "amount": 640000 },
+  "failure_expired": { "payment_link_id": "TODO-CONFIRM-PL-0001", "status": "CANCELLED", "reason": "link expired before payment" }
+}

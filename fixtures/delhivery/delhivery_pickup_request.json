@@ -1,0 +1,8 @@
+{
+  "_source": "https://delhivery-express-api-doc.readme.io/reference/pickup-request-creation-api",
+  "_confirmed": "partial",
+  "_note": "Endpoint path CONFIRMED: POST https://staging-express.delhivery.com/fm/request/new/ , and the docs state it returns pickup_id on success. The four documented inputs are pickup time, date, warehouse name and quantity, but the exact JSON field names are not published. TODO: confirm with docs.",
+  "success": { "pickup_id": 20260004412, "client_name": "DEMO-CLIENT", "pickup_date": "2026-10-04", "pickup_time": "14:00:00" },
+  "failure_slot_full": { "error": ["pickup slot unavailable for the requested time"], "pickup_id": null },
+  "failure_warehouse_unknown": { "error": ["ClientWarehouse matching query does not exist."], "pickup_id": null }
+}

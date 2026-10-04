@@ -1,0 +1,113 @@
+{
+  "placeholder": true,
+  "_note": "Every value here is a placeholder and will be replaced with the real demo scenario. Nothing in the code may depend on these specific values.",
+
+  "family": {
+    "name": "Demo Family",
+    "pincode": "560001",
+    "members": [
+      { "id": "patient",  "name": "Demo Patient",  "role": "patient", "age": 68, "language": "hi-IN", "phone": "+91-90000-00001", "placeholder": true },
+      { "id": "rp",       "name": "Demo RP",       "role": "responsible_person", "age": 41, "language": "en-IN", "phone": "+91-90000-00002", "placeholder": true },
+      { "id": "member_3", "name": "Demo Member 3", "role": "family", "age": 38, "language": "en-IN", "phone": "+91-90000-00003", "placeholder": true },
+      { "id": "member_4", "name": "Demo Member 4", "role": "family", "age": 22, "language": "hi-IN", "phone": "+91-90000-00004", "placeholder": true }
+    ]
+  },
+
+  "call_chain": {
+    "_note": "Ranked by the RP for ability to make a sound decision, not by age.",
+    "order": ["patient", "rp", "member_3", "member_4"]
+  },
+
+  "consent": {
+    "_note": "Each adult consents to what is shared and with whom. Stage 0.",
+    "patient":  { "share_with_rp": "full", "share_with_family_group": "status_only", "share_with_doctor": "full", "record_calls": true },
+    "rp":       { "share_with_rp": "full", "share_with_family_group": "status_only", "share_with_doctor": "full", "record_calls": true },
+    "member_3": { "share_with_rp": "full", "share_with_family_group": "status_only", "share_with_doctor": "full", "record_calls": true },
+    "member_4": { "share_with_rp": "full", "share_with_family_group": "status_only", "share_with_doctor": "full", "record_calls": true }
+  },
+
+  "known_conditions": [
+    { "member": "patient", "label": "Condition A (chronic)", "since": "2019", "placeholder": true },
+    { "member": "patient", "label": "Condition B (chronic)", "since": "2022", "placeholder": true }
+  ],
+
+  "current_medicines": [
+    {
+      "id": "med_chronic_1", "member": "patient",
+      "name": "Placeholder Chronic Medicine 1", "strength": "10mg",
+      "must_not_miss": true,
+      "daily_dose": 2, "pills_left": 6,
+      "prescription_id": "RX-PLACEHOLDER-4412",
+      "placeholder": true
+    },
+    {
+      "id": "med_common_1", "member": "patient",
+      "name": "Placeholder Common Medicine 1", "strength": "500mg",
+      "must_not_miss": false,
+      "daily_dose": 3, "pills_left": 9,
+      "prescription_id": "RX-PLACEHOLDER-4413",
+      "placeholder": true
+    }
+  ],
+
+  "recurring_tests": [
+    { "id": "test_1", "member": "patient", "name": "Placeholder Recurring Test 1", "every_days": 90, "last_done": "2026-07-06", "needed_for_prescription": "RX-PLACEHOLDER-4412", "placeholder": true },
+    { "id": "test_2", "member": "patient", "name": "Placeholder One-off Test 2", "every_days": null, "last_done": null, "placeholder": true }
+  ],
+
+  "red_flags": {
+    "_note": "Set with the family doctor at onboarding. The agent matches spoken symptoms against this list. It never names a condition.",
+    "set_by": "Demo Family Doctor",
+    "list": [
+      "placeholder red flag 1",
+      "placeholder red flag 2",
+      "placeholder red flag 3",
+      "placeholder red flag 4"
+    ],
+    "placeholder": true
+  },
+
+  "providers": {
+    "clinics":  [
+      { "rank": 1, "name": "Placeholder Clinic 1", "phone": "+91-80000-10001", "distance_km": 2.1, "placeholder": true },
+      { "rank": 2, "name": "Placeholder Clinic 2", "phone": "+91-80000-10002", "distance_km": 5.4, "placeholder": true }
+    ],
+    "chemists": [
+      { "rank": 1, "name": "Placeholder Chemist 1", "phone": "+91-80000-20001", "pincode": "560001", "delhivery_pickup_registered": true,  "placeholder": true },
+      { "rank": 2, "name": "Placeholder Chemist 2", "phone": "+91-80000-20002", "pincode": "560034", "delhivery_pickup_registered": false, "placeholder": true }
+    ],
+    "labs":     [
+      { "rank": 1, "name": "Placeholder Lab 1", "phone": "+91-80000-30001", "distance_km": 3.0, "placeholder": true },
+      { "rank": 2, "name": "Placeholder Lab 2", "phone": "+91-80000-30002", "distance_km": 7.2, "placeholder": true }
+    ],
+    "emergency": { "name": "Ambulance", "phone": "108" }
+  },
+
+  "wallet": {
+    "limit_inr": 50000,
+    "spent_inr": 0,
+    "major_spend_threshold_inr": 5000,
+    "low_wallet_pct": 20,
+    "rail": "pinelabs_upi_reserve_pay",
+    "reserve_pay_sub_id": null
+  },
+
+  "wait_times_seconds": {
+    "_note": "Proposed in the brief, kept configurable. How long the agent waits for an answer before moving down the call chain.",
+    "critical": 30,
+    "urgent": 180,
+    "routine": 900
+  },
+
+  "policy": {
+    "clash_resolution": "rp_wins_log_both",
+    "family_group_sharing": "status_only_ask_rp_before_sharing_summary",
+    "unsure_assessment": "escalate_one_tier",
+    "cant_tell": "treat_as_urgent_ask_human"
+  },
+
+  "sim_clock": {
+    "_note": "The Director advances this only to dates the agent's own data produced.",
+    "start": "2026-10-04T09:00:00+05:30"
+  }
+}

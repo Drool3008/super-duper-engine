@@ -1,0 +1,8 @@
+{
+  "_source": "IMAGINED CAPABILITY. No such endpoint exists today.",
+  "_confirmed": "imagined",
+  "_note": "Imagined capability 1 of 3. Gnani already sells voice biometrics. This makes the secondhand flag (R6) automatic instead of a guess.",
+  "success_match": { "match": true, "confidence": 0.94, "enrolled_member": "patient" },
+  "success_no_match": { "match": false, "confidence": 0.21, "enrolled_member": "patient" },
+  "failure_audio_too_short": { "match": null, "confidence": null, "error": "audio too short for a reliable speaker decision" }
+}
