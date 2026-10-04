@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSession } from './lib/session'
-import { rupees, sendInput, sendReply, settleReversal } from './lib/api'
+import { rupees, sendInput, settleReversal } from './lib/api'
 import type { Message } from './lib/types'
 import { ChatsTab } from './components/FamilyChats'
+import { AgentChat } from './components/AgentChat'
 import { CallBar, CallView, callFor } from './components/CallView'
 import { translator } from './lib/i18n'
 import { SOS_ENABLED } from './lib/config'
@@ -43,8 +44,8 @@ export default function PhoneApp({ memberId }: { memberId: string }) {
       {!inThread && <Header me={me} stage={s.stage} thinking={s.thinking} t={t} />}
       <div className="min-h-0 flex-1 overflow-hidden">
         {tab === 'home' && <Home s={s} me={me} meds={meds} tests={tests} isRP={isRP} waitingOnMe={waitingOnMe} who={memberId} t={t} onGoChat={() => setTab('chat')} />}
-        {tab === 'chat' && <Chat who={memberId} me={me} messages={mine} awaiting={waitingOnMe ? s.awaiting : null} thinking={s.thinking} t={t} />}
-        {tab === 'family' && <ChatsTab memberId={memberId} onOpenChange={setInThread} />}
+        {tab === 'chat' && <AgentChat memberId={memberId} t={t} />}
+        {tab === 'family' && <ChatsTab memberId={memberId} t={t} onOpenChange={setInThread} />}
         {tab === 'wallet' && isRP && <Wallet wallet={s.wallet} onboarding={s.onboarding} />}
       </div>
       {!inThread && <Nav tab={tab} onTab={setTab} isRP={isRP} unread={mine.length} nudge={waitingOnMe} t={t} />}
@@ -189,79 +190,6 @@ function Home({ s, me, meds, tests, isRP, waitingOnMe, who, t, onGoChat }: any) 
         >
           {sos === 'sent' ? t('help_sent') : sos === 'armed' ? t('help_confirm') : t('help')}
         </button>
-      )}
-    </div>
-  )
-}
-
-function Chat({ who, me, messages, awaiting, thinking, t }: any) {
-  const [text, setText] = useState('')
-  const box = useRef<HTMLDivElement>(null)
-  useEffect(() => { box.current?.scrollTo({ top: box.current.scrollHeight, behavior: 'smooth' }) }, [messages.length, thinking])
-
-  const send = () => {
-    const t = text.trim(); if (!t) return
-    setText('')
-    if (awaiting) sendReply(who, t)
-    else sendInput({ kind: 'message', source: `${me.name}, message in the app`, from: who, text: t })
-  }
-
-  return (
-    <div className="flex h-full flex-col">
-      <div ref={box} className="scroll flex-1 overflow-y-auto bg-surface p-3">
-        {messages.length === 0 && <p className="mt-10 text-center text-body text-muted">{t('no_messages')}</p>}
-        {messages.map((m: Message) => <Bubble key={m.id} m={m} who={who} />)}
-        {thinking && <div className="shimmer mt-2 text-meta text-muted">{t('working')}</div>}
-      </div>
-      {awaiting && <div className="shrink-0 border-t border-human/40 bg-human-bg px-3 py-1.5 text-meta text-human">{t('waiting_on_you')} {awaiting.what_for}</div>}
-      <div className="flex shrink-0 gap-2 border-t border-line bg-white p-2.5">
-        <input
-          value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()}
-          placeholder={t('message')}
-          className="min-w-0 flex-1 rounded-full border border-line px-3 py-2 text-body"
-        />
-        <button onClick={send} className="shrink-0 rounded-full bg-stage px-4 text-body font-semibold text-white">{t('send')}</button>
-      </div>
-    </div>
-  )
-}
-
-export function Bubble({ m, who }: { m: Message; who: string }) {
-  const fromAgent = m.from === 'agent'
-  return (
-    <div className={`fadein mt-2 flex ${fromAgent ? 'justify-start' : 'justify-end'}`}>
-      <div className={`max-w-[84%] rounded-2xl px-3 py-2 text-body ${fromAgent ? 'rounded-tl-sm border-l-[3px] border-record bg-record-bg text-stage' : 'rounded-tr-sm bg-artifact-bg text-ink'}`}>
-        {m.text && <div className="whitespace-pre-wrap">{m.text}</div>}
-        {m.action && <div className="italic text-muted">you pressed {m.action}</div>}
-        {m.card && <ActionCard card={m.card} who={who} message={m} />}
-        <div className="mt-0.5 text-right text-meta text-muted">
-          {new Date(m.at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}
-          {!fromAgent && <span className="ml-1 text-record">✓✓</span>}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-export function ActionCard({ card, who, message }: { card: any; who: string; message?: Message }) {
-  const [done, setDone] = useState<string | null>(message?.answer ?? null)
-  const buttons: string[] = card.buttons || (card.kind === 'payment' ? ['Approve', 'Hold'] : ['Yes', 'No'])
-  return (
-    <div className="mt-2 rounded-xl border border-human/50 bg-human-bg p-2.5">
-      <div className="text-meta font-bold uppercase tracking-wide text-human">{card.kind}</div>
-      {card.amount_inr !== undefined && <div className="text-card text-ink">{rupees(card.amount_inr)}</div>}
-      {card.title && <div className="text-body font-semibold text-ink">{card.title}</div>}
-      {card.payee && <div className="text-meta text-muted">{card.payee}</div>}
-      {card.detail && <div className="text-meta text-ink">{card.detail}</div>}
-      {done ? (
-        <div className="mt-1.5 text-meta font-semibold text-human">You chose {done}.</div>
-      ) : (
-        <div className="mt-2 flex gap-1.5">
-          {buttons.map((b) => (
-            <button key={b} onClick={() => { setDone(b); sendReply(who, undefined, b) }}
-              className="flex-1 rounded-lg border border-human bg-white py-2 text-meta font-semibold text-human">{b}</button>
-          ))}
-        </div>
       )}
     </div>
   )

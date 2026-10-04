@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSession } from '../lib/session'
-import { rupees, sendReply } from '../lib/api'
+import { rupees, sendInput, sendReply } from '../lib/api'
 import type { Message } from '../lib/types'
 import { Avatar } from './FamilyChats'
 
@@ -39,9 +39,23 @@ const TITLES: Record<string, string> = {
   incident_summary: 'What happened',
 }
 
-export function AgentChat({ memberId, onBack }: { memberId: string; onBack: () => void }) {
+type T = (key: string, vars?: Record<string, string | number>) => string
+const english: T = (k) => ({ message: 'Message…', send: 'Send', no_messages: 'No messages yet.', working: 'Working on it…', waiting_on_you: 'Waiting on you:' } as Record<string, string>)[k] || k
+
+/**
+ * The one conversation with the agent. The Chat tab shows it inline; the
+ * Family list opens the same thing with a back button. One component, so a
+ * card looks and answers the same way wherever the person meets it.
+ */
+export function AgentChat({ memberId, onBack, t = english, onAnswer }: {
+  memberId: string
+  onBack?: () => void
+  t?: T
+  onAnswer?: (answer: string, card: any) => void
+}) {
   const s = useSession()
   const box = useRef<HTMLDivElement>(null)
+  const [text, setText] = useState('')
   const anchors = useRef<Record<string, HTMLDivElement | null>>({})
 
   const members: any[] = s.onboarding?.family?.members || []
@@ -55,19 +69,31 @@ export function AgentChat({ memberId, onBack }: { memberId: string; onBack: () =
   const all = useMemo(() => [...seeded, ...live], [seeded, live])
 
   const unanswered = all.filter((m) => m.card && !m.answer && !(m as any).timed_out)
+  const awaiting = s.awaiting?.from === memberId ? s.awaiting : null
+
+  // Typing routes itself: an answer if the agent is waiting on this person,
+  // otherwise a new message that starts its own run, labelled with its source.
+  const send = () => {
+    const v = text.trim(); if (!v) return
+    setText('')
+    if (awaiting) sendReply(memberId, v)
+    else sendInput({ kind: 'message', source: `${me?.name || memberId}, message in the app`, from: memberId, text: v })
+  }
 
   useEffect(() => { box.current?.scrollTo({ top: box.current.scrollHeight, behavior: 'smooth' }) }, [all.length])
 
   return (
-    <div className="slide-in flex h-full flex-col bg-surface">
-      <div className="flex shrink-0 items-center gap-2.5 border-b border-line bg-white px-2 py-2">
-        <button onClick={onBack} aria-label="Back" className="px-1 text-pane leading-none text-stage">‹</button>
-        <Avatar name="agent" agent size={34} />
-        <div className="min-w-0">
-          <div className="truncate text-body font-semibold">Family Health agent</div>
-          <div className="text-meta text-muted">{s.thinking ? 'working…' : 'always on'}</div>
+    <div className={`flex h-full flex-col bg-surface ${onBack ? 'slide-in' : ''}`}>
+      {onBack && (
+        <div className="flex shrink-0 items-center gap-2.5 border-b border-line bg-white px-2 py-2">
+          <button onClick={onBack} aria-label="Back" className="px-1 text-pane leading-none text-stage">‹</button>
+          <Avatar name="agent" agent size={34} />
+          <div className="min-w-0">
+            <div className="truncate text-body font-semibold">Family Health agent</div>
+            <div className="text-meta text-muted">{s.thinking ? t('working') : 'always on'}</div>
+          </div>
         </div>
-      </div>
+      )}
 
       {unanswered.length > 0 && (
         <button
@@ -79,7 +105,7 @@ export function AgentChat({ memberId, onBack }: { memberId: string; onBack: () =
       )}
 
       <div ref={box} className="scroll flex-1 overflow-y-auto px-3 py-2">
-        {all.length === 0 && <p className="mt-10 text-center text-body text-muted">Nothing yet.</p>}
+        {all.length === 0 && <p className="mt-10 text-center text-body text-muted">{t('no_messages')}</p>}
         {all.map((m) => {
           const mine = m.from !== 'agent'
           return (
@@ -88,7 +114,7 @@ export function AgentChat({ memberId, onBack }: { memberId: string; onBack: () =
               <div className={`max-w-[88%] rounded-2xl px-2 py-1.5 shadow-sm ${mine ? 'rounded-tr-sm bg-record-bg' : 'rounded-tl-sm bg-white'}`}>
                 {m.text && <div className="px-1 pt-0.5 text-body">{m.text}</div>}
                 {m.action && <div className="px-1 text-body italic text-muted">you chose {m.action}</div>}
-                {m.card && <DecisionCard message={m} who={memberId} />}
+                {m.card && <DecisionCard message={m} who={memberId} onAnswer={onAnswer} />}
                 <div className="flex items-center justify-end gap-1 px-1 pt-0.5 text-meta text-muted">
                   {hhmm(m.at)}{mine && <span className="text-record">✓✓</span>}
                 </div>
@@ -96,7 +122,23 @@ export function AgentChat({ memberId, onBack }: { memberId: string; onBack: () =
             </div>
           )
         })}
-        {s.thinking && <div className="shimmer mt-2 px-1 text-meta text-muted">agent is working…</div>}
+        {s.thinking && <div className="shimmer mt-2 px-1 text-meta text-muted">{t('working')}</div>}
+      </div>
+
+      {awaiting && (
+        <div className="shrink-0 border-t border-human/40 bg-human-bg px-3 py-1.5 text-meta text-human">
+          {t('waiting_on_you')} {awaiting.what_for}
+        </div>
+      )}
+      <div className="flex shrink-0 gap-2 border-t border-line bg-white p-2.5">
+        <input
+          value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()}
+          placeholder={t('message')} aria-label="Message the agent"
+          className="min-w-0 flex-1 rounded-full border border-line px-3 py-2 text-body"
+        />
+        <button onClick={send} disabled={!text.trim()} className="shrink-0 rounded-full bg-stage px-4 text-body font-semibold text-white disabled:opacity-40">
+          {t('send')}
+        </button>
       </div>
     </div>
   )
