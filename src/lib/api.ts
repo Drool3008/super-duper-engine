@@ -35,3 +35,10 @@ export const settleReversal = (id: string, by: string, action: 'reverse' | 'acce
  */
 export const sendChat = (from: string, chat_id: string, text: string, askAgent = false) =>
   post('/api/chat/send', { from, chat_id, text, ask_agent: askAgent })
+
+/** The RP changes their wallet limits. Returns the server's error text on a refusal. */
+export const updateWallet = (by: string, body: { limit_inr?: number; threshold_inr?: number; low_pct?: number }) =>
+  post('/api/wallet/settings', { by, ...body })
+
+/** The RP adds money to the wallet. */
+export const topUpWallet = (by: string, amount_inr: number) => post('/api/wallet/topup', { by, amount_inr })

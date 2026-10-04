@@ -83,7 +83,7 @@ function groupMembers(members: any[], me: string) {
 
 // ---------------------------------------------------------------- the tab
 
-export function ChatsTab({ memberId, onOpenChange, t }: { memberId: string; onOpenChange?: (v: boolean) => void; t?: any }) {
+export function ChatsTab({ memberId, onOpenChange, t, onAnswer }: { memberId: string; onOpenChange?: (v: boolean) => void; t?: any; onAnswer?: (answer: string, card: any) => void }) {
   const s = useSession()
   const [open, setOpen] = useState<string | null>(null)
   useEffect(() => { onOpenChange?.(Boolean(open)) }, [open, onOpenChange])
@@ -100,7 +100,7 @@ export function ChatsTab({ memberId, onOpenChange, t }: { memberId: string; onOp
     return list.filter((c) => c.id !== memberId)
   }, [seeded, memberId])
 
-  if (open === '__agent') return <AgentChat memberId={memberId} t={t} onBack={() => setOpen(null)} />
+  if (open === '__agent') return <AgentChat memberId={memberId} t={t} onAnswer={onAnswer} onBack={() => setOpen(null)} />
   if (open) {
     const chat = chats.find((c) => c.id === open)
     if (chat) return <ChatScreen chat={chat} memberId={memberId} nameOf={nameOf} onBack={() => setOpen(null)} />

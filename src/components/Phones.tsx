@@ -10,9 +10,10 @@ const BOXES = [
   { id: 'doctor', label: 'Doctor' },
 ] as const
 
-export function Phones({ messages, wallet, names, awaiting }: {
+export function Phones({ messages, wallet, settings, names, awaiting }: {
   messages: Record<string, Message[]>
   wallet: { limit: number; spent: number }
+  settings?: { low_wallet_pct?: number; major_spend_threshold_inr?: number }
   names: Record<string, string>
   awaiting: { from: string } | null
 }) {
@@ -52,7 +53,7 @@ export function Phones({ messages, wallet, names, awaiting }: {
           </div>
         </div>
 
-        {tab === 'rp' && <Wallet wallet={wallet} />}
+        {tab === 'rp' && <Wallet wallet={wallet} settings={settings} />}
       </div>
     </aside>
   )
@@ -111,10 +112,11 @@ function Card({ card, to }: { card: any; to: string }) {
   )
 }
 
-function Wallet({ wallet }: { wallet: { limit: number; spent: number } }) {
+function Wallet({ wallet, settings }: { wallet: { limit: number; spent: number }; settings?: { low_wallet_pct?: number; major_spend_threshold_inr?: number } }) {
   const left = wallet.limit - wallet.spent
   const pct = wallet.limit ? Math.max(0, Math.min(100, (left / wallet.limit) * 100)) : 0
-  const low = pct < 20
+  const lowPct = settings?.low_wallet_pct ?? 20
+  const low = pct < lowPct
   return (
     <div className="mt-3 rounded border border-line bg-white p-3">
       <div className="flex items-baseline justify-between">
@@ -123,10 +125,13 @@ function Wallet({ wallet }: { wallet: { limit: number; spent: number } }) {
       </div>
       <div className="mt-1 text-app">{rupees(left)}</div>
       <div className="text-meta text-muted">left of {rupees(wallet.limit)} · spent {rupees(wallet.spent)}</div>
+      {settings?.major_spend_threshold_inr !== undefined && (
+        <div className="text-meta text-muted">R15 asks above {rupees(settings.major_spend_threshold_inr)} · R16 below {lowPct}%</div>
+      )}
       <div className="mt-2 h-2 overflow-hidden rounded bg-artifact-bg">
         <div className="h-full rounded" style={{ width: pct + '%', background: low ? '#C0392B' : '#1E8449' }} />
       </div>
-      {low && <div className="mt-1 text-meta text-decision">Below 20 percent. R16 says ask the RP to top up before the next spend.</div>}
+      {low && <div className="mt-1 text-meta text-decision">Below {lowPct} percent. R16 says ask the RP to top up before the next spend.</div>}
     </div>
   )
 }

@@ -13,6 +13,7 @@ import { readFileSync } from 'node:fs'
 import { TOOLS } from './tools.js'
 import { gnaniOn } from './rails/gnani.js'
 import { sheetsOn } from './rails/sheets.js'
+import * as sheets from './rails/sheets.js'
 
 const app = express()
 
@@ -218,6 +219,75 @@ app.post('/api/reversal/:id', (req, res) => {
     ? acceptReversal({ id: req.params.id, by })
     : exerciseReversal({ id: req.params.id, by, why })
   res.status(out.ok ? 200 : 400).json(out)
+})
+
+/**
+ * The responsible person changes their own wallet: the limit, the spend above
+ * which the agent must ask first (R15), or the low mark (R16). Only they can.
+ *
+ * The change is never silent. It updates the onboarding data the agent reads
+ * on every step, and it reaches the agent as a labelled input from a real
+ * person, so the agent can log it and act on the new numbers.
+ */
+const rpOnly = (by) => session.onboarding?.family?.members?.find((m) => m.id === by && m.role === 'responsible_person')
+const walletView = () => ({ limit: session.wallet.limit, spent: session.wallet.spent, left: session.wallet.limit - session.wallet.spent })
+
+app.post('/api/wallet/settings', (req, res) => {
+  const { by, limit_inr, threshold_inr, low_pct } = req.body || {}
+  const rp = rpOnly(by)
+  if (!rp) return res.status(403).json({ error: 'only the responsible person can change the wallet' })
+  const w = session.onboarding.wallet
+  const changes = []
+  const num = (v) => (v === undefined || v === null || v === '' ? null : Number(v))
+  const limit = num(limit_inr), threshold = num(threshold_inr), low = num(low_pct)
+  if (limit !== null && (!Number.isFinite(limit) || limit < session.wallet.spent)) {
+    return res.status(400).json({ error: `the limit cannot be below what is already spent (₹${session.wallet.spent})` })
+  }
+  if (threshold !== null && (!Number.isFinite(threshold) || threshold <= 0)) return res.status(400).json({ error: 'the ask-first amount must be above zero' })
+  if (low !== null && (!Number.isFinite(low) || low < 0 || low > 100)) return res.status(400).json({ error: 'the low mark is a percentage, 0 to 100' })
+
+  if (limit !== null && limit !== session.wallet.limit) {
+    changes.push({ field: 'limit_inr', from: session.wallet.limit, to: limit })
+    session.wallet.limit = limit; w.limit_inr = limit
+  }
+  if (threshold !== null && threshold !== w.major_spend_threshold_inr) {
+    changes.push({ field: 'major_spend_threshold_inr', from: w.major_spend_threshold_inr, to: threshold })
+    w.major_spend_threshold_inr = threshold
+  }
+  if (low !== null && low !== w.low_wallet_pct) {
+    changes.push({ field: 'low_wallet_pct', from: w.low_wallet_pct, to: low })
+    w.low_wallet_pct = low
+  }
+  if (changes.length === 0) return res.json({ ok: true, changes })
+
+  emit('wallet_settings', { wallet: walletView(), settings: { ...w }, by, changes })
+  res.json({ ok: true, changes })
+  const input = { kind: 'wallet_change', source: `${rp.name}, wallet settings in the app`, from: by, changes, at: session.clock.toISOString() }
+  emit('input', { input })
+  feed(input).catch((err) => emit('error', { error: err.message }))
+})
+
+/** The responsible person adds money. A ledger row, and an input the agent sees. */
+app.post('/api/wallet/topup', async (req, res) => {
+  const { by, amount_inr } = req.body || {}
+  const rp = rpOnly(by)
+  if (!rp) return res.status(403).json({ error: 'only the responsible person can top up' })
+  const amount = Number(amount_inr)
+  if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: 'enter an amount above zero' })
+
+  session.wallet.limit += amount
+  session.onboarding.wallet.limit_inr = session.wallet.limit
+  const row = {
+    kind: 'topup', amount_inr: amount, payee: 'Top up', what: `Added by ${rp.name}`, rail: 'pinelabs',
+    at: session.clock.toISOString(), balance_inr: session.wallet.limit - session.wallet.spent,
+  }
+  session.wallet.ledger.push(row)
+  emit('wallet', { wallet: walletView(), row })
+  res.json({ ok: true, row })
+  sheets.appendRow('wallet_ledger', row).catch(() => {})
+  const input = { kind: 'wallet_topup', source: `${rp.name}, top up in the app`, from: by, amount_inr: amount, balance_inr: row.balance_inr, at: row.at }
+  emit('input', { input })
+  feed(input).catch((err) => emit('error', { error: err.message }))
 })
 
 /**

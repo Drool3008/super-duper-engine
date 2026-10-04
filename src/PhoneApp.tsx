@@ -4,6 +4,7 @@ import { rupees, sendInput, settleReversal } from './lib/api'
 import type { Message } from './lib/types'
 import { ChatsTab } from './components/FamilyChats'
 import { AgentChat } from './components/AgentChat'
+import { EditSheet, TopUpSheet, Wallet, type WalletSheet } from './components/Wallet'
 import { CallBar, CallView, callFor } from './components/CallView'
 import { translator } from './lib/i18n'
 import { SOS_ENABLED } from './lib/config'
@@ -32,6 +33,12 @@ export default function PhoneApp({ memberId }: { memberId: string }) {
   // a call hidden while on hold comes back when the clinic is handed over.
   const call = useMemo(() => callFor(s.timeline, me, members), [s.timeline, me, members])
   const [hidden, setHidden] = useState<string | null>(null)
+  const [walletSheet, setWalletSheet] = useState<WalletSheet>(null)
+
+  // "Top up" on the agent's low-wallet card goes straight to topping up.
+  const onAnswer = (answer: string, card: any) => {
+    if (isRP && card?.kind === 'low_wallet' && answer.toLowerCase() === 'top up') { setTab('wallet'); setWalletSheet('topup') }
+  }
   const callKey = call ? `${call.id}:${call.phase}` : null
   const callLive = call && ['connected', 'handover', 'holding', 'ringing'].includes(call.phase)
 
@@ -44,10 +51,12 @@ export default function PhoneApp({ memberId }: { memberId: string }) {
       {!inThread && <Header me={me} stage={s.stage} thinking={s.thinking} t={t} />}
       <div className="min-h-0 flex-1 overflow-hidden">
         {tab === 'home' && <Home s={s} me={me} meds={meds} tests={tests} isRP={isRP} waitingOnMe={waitingOnMe} who={memberId} t={t} onGoChat={() => setTab('chat')} />}
-        {tab === 'chat' && <AgentChat memberId={memberId} t={t} />}
-        {tab === 'family' && <ChatsTab memberId={memberId} t={t} onOpenChange={setInThread} />}
-        {tab === 'wallet' && isRP && <Wallet wallet={s.wallet} onboarding={s.onboarding} />}
+        {tab === 'chat' && <AgentChat memberId={memberId} t={t} onAnswer={onAnswer} />}
+        {tab === 'family' && <ChatsTab memberId={memberId} t={t} onAnswer={onAnswer} onOpenChange={setInThread} />}
+        {tab === 'wallet' && isRP && <Wallet wallet={s.wallet} settings={s.onboarding?.wallet} timeline={s.timeline} onSheet={setWalletSheet} />}
       </div>
+      {isRP && walletSheet === 'topup' && <TopUpSheet me={me} left={s.wallet.limit - s.wallet.spent} onClose={() => setWalletSheet(null)} />}
+      {isRP && walletSheet === 'edit' && <EditSheet me={me} wallet={s.wallet} settings={s.onboarding?.wallet} onClose={() => setWalletSheet(null)} />}
       {!inThread && <Nav tab={tab} onTab={setTab} isRP={isRP} unread={mine.length} nudge={waitingOnMe} t={t} />}
     </div>
   )
@@ -191,34 +200,6 @@ function Home({ s, me, meds, tests, isRP, waitingOnMe, who, t, onGoChat }: any) 
           {sos === 'sent' ? t('help_sent') : sos === 'armed' ? t('help_confirm') : t('help')}
         </button>
       )}
-    </div>
-  )
-}
-
-function Wallet({ wallet, onboarding }: any) {
-  const left = wallet.limit - wallet.spent
-  const pct = wallet.limit ? Math.max(0, (left / wallet.limit) * 100) : 0
-  const low = pct < (onboarding?.wallet?.low_wallet_pct ?? 20)
-  return (
-    <div className="scroll h-full overflow-y-auto p-4">
-      <h2 className="text-card">Wallet</h2>
-      <p className="mt-0.5 text-meta text-muted">Only you can see this.</p>
-      <div className="mt-3 rounded-xl border border-line p-4">
-        <div className="text-app">{rupees(left)}</div>
-        <div className="text-meta text-muted">left of {rupees(wallet.limit)} · spent {rupees(wallet.spent)}</div>
-        <div className="mt-2 h-2 overflow-hidden rounded bg-artifact-bg">
-          <div className="h-full rounded" style={{ width: pct + '%', background: low ? '#C0392B' : '#1E8449' }} />
-        </div>
-        {low && <div className="mt-2 text-meta text-decision">Running low. Your agent will ask you to top up.</div>}
-      </div>
-      <h3 className="mt-4 text-meta font-semibold uppercase tracking-wide text-muted">Recent spend</h3>
-      {(wallet.ledger || []).length === 0 && <p className="mt-1 text-body text-muted">Nothing spent yet.</p>}
-      {(wallet.ledger || []).filter(Boolean).slice(-5).reverse().map((r: any, i: number) => (
-        <div key={i} className="mt-2 flex items-baseline justify-between rounded-lg border border-line px-3 py-2">
-          <div><div className="text-body">{r.payee}</div><div className="text-meta text-muted">{r.what}</div></div>
-          <div className="text-body font-semibold">{rupees(r.amount_inr)}</div>
-        </div>
-      ))}
     </div>
   )
 }

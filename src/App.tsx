@@ -30,7 +30,7 @@ export default function App({ embedded = false }: { embedded?: boolean } = {}) {
         <Timeline items={s.timeline} thinking={s.thinking} present={present} />
         {/* On the stage the real phone simulators sit beside the console, so the
             built-in frames would be a duplicate. Give the timeline the room. */}
-        {!embedded && <Phones messages={s.messages} wallet={s.wallet} names={names} awaiting={s.awaiting} />}
+        {!embedded && <Phones messages={s.messages} wallet={s.wallet} settings={s.onboarding?.wallet} names={names} awaiting={s.awaiting} />}
       </div>
       <DecisionLog decisions={s.decisions} />
     </div>

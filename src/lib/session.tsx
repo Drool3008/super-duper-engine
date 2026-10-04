@@ -150,6 +150,13 @@ function reduce(v: SessionView, ev: AgentEvent, nextId: () => string): SessionVi
           list.map((m) => (m.id === ev.message_id ? { ...m, answer: ev.answer, answered_at: ev.clock } : m)),
         ])),
       }
+    // The RP changed a limit. The onboarding copy is what every screen reads.
+    case 'wallet_settings':
+      return {
+        ...v,
+        wallet: { ...v.wallet, limit: ev.wallet.limit, spent: ev.wallet.spent },
+        onboarding: v.onboarding ? { ...v.onboarding, wallet: { ...v.onboarding.wallet, ...ev.settings } } : v.onboarding,
+      }
     case 'wallet':
       return { ...v, wallet: { ...v.wallet, limit: ev.wallet.limit, spent: ev.wallet.spent, ledger: [...(v.wallet.ledger || []), ev.row] } }
     case 'awaiting_reply':
