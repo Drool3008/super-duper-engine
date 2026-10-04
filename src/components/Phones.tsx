@@ -1,45 +1,51 @@
-import { Smartphone } from 'lucide-react'
+import { Smartphone, Store } from 'lucide-react'
 import { useState } from 'react'
-import type { Message } from '../lib/types'
+import type { Message, PendingCall } from '../lib/types'
 import { PaneHeader } from './ui'
 import { rupees, sendReply } from '../lib/api'
+import { ChemistContent } from './ChemistScreen'
 
 const BOXES = [
   { id: 'patient', label: 'Patient' },
   { id: 'rp', label: 'RP' },
   { id: 'family_group', label: 'Family' },
   { id: 'doctor', label: 'Doctor' },
+  { id: 'chemist', label: 'Chemist' },
 ] as const
 
-export function Phones({ messages, wallet, settings, names, awaiting }: {
+export function Phones({ messages, wallet, settings, names, awaiting, pending, onboarding }: {
   messages: Record<string, Message[]>
   wallet: { limit: number; spent: number }
   settings?: { low_wallet_pct?: number; major_spend_threshold_inr?: number }
   names: Record<string, string>
   awaiting: { from: string } | null
+  pending: PendingCall[]
+  onboarding: any
 }) {
   const [tab, setTab] = useState<string>('patient')
   const msgs = messages[tab] || []
+  const isChemist = tab === 'chemist'
 
   return (
     <aside className="flex h-full w-[460px] shrink-0 flex-col border-l border-line bg-surface">
       <PaneHeader
         title="Phones"
         icon={<span className="flex h-8 w-8 items-center justify-center rounded-lg bg-stage-bg text-stage"><Smartphone className="h-4 w-4" aria-hidden /></span>}
-        right={<span className="text-meta text-muted">what people see</span>}
+        right={<span className="text-meta text-muted">{isChemist ? 'wizard-of-oz' : 'what people see'}</span>}
       />
 
       <div className="flex gap-1 px-4 pt-3">
         {BOXES.map((b) => {
-          const n = (messages[b.id] || []).length
+          const n = b.id === 'chemist' ? 0 : (messages[b.id] || []).length
           const on = tab === b.id
           const nudge = awaiting?.from === b.id
           return (
             <button
               key={b.id}
               onClick={() => setTab(b.id)}
-              className={`rounded-t border-x border-t px-3 py-1.5 text-meta ${on ? 'border-line bg-white font-semibold text-ink' : 'border-transparent text-muted hover:text-ink'} ${nudge ? 'ring-2 ring-human' : ''}`}
+              className={`flex items-center gap-1 rounded-t border-x border-t px-3 py-1.5 text-meta ${on ? 'border-line bg-white font-semibold text-ink' : 'border-transparent text-muted hover:text-ink'} ${nudge ? 'ring-2 ring-human' : ''}`}
             >
+              {b.id === 'chemist' && <Store className="h-3.5 w-3.5" aria-hidden />}
               {b.label}{n > 0 && <span className="ml-1 opacity-60">{n}</span>}
             </button>
           )
@@ -48,14 +54,20 @@ export function Phones({ messages, wallet, settings, names, awaiting }: {
 
       <div className="scroll flex-1 overflow-y-auto px-4 pb-4">
         <div className="phone mx-auto mt-0 h-[540px] w-[330px]">
-          <div className="h-full overflow-y-auto scroll px-3 pb-3 pt-7">
-            <div className="sticky top-0 -mx-3 mb-2 border-b border-line bg-white/95 px-3 py-1.5 text-meta font-semibold">
-              {names[tab] || BOXES.find((b) => b.id === tab)?.label}
-              {tab === 'family_group' && <span className="ml-1 font-normal text-muted">· status only</span>}
+          {isChemist ? (
+            <div className="h-full overflow-hidden">
+              <ChemistContent pending={pending} onboarding={onboarding} />
             </div>
-            {msgs.length === 0 && <p className="mt-6 text-center text-meta text-muted">No messages yet.</p>}
-            {msgs.map((m) => <Bubble key={m.id} m={m} />)}
-          </div>
+          ) : (
+            <div className="h-full overflow-y-auto scroll px-3 pb-3 pt-7">
+              <div className="sticky top-0 -mx-3 mb-2 border-b border-line bg-white/95 px-3 py-1.5 text-meta font-semibold">
+                {names[tab] || BOXES.find((b) => b.id === tab)?.label}
+                {tab === 'family_group' && <span className="ml-1 font-normal text-muted">· status only</span>}
+              </div>
+              {msgs.length === 0 && <p className="mt-6 text-center text-meta text-muted">No messages yet.</p>}
+              {msgs.map((m) => <Bubble key={m.id} m={m} />)}
+            </div>
+          )}
         </div>
 
         {tab === 'rp' && <Wallet wallet={wallet} settings={settings} />}

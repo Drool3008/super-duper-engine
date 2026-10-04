@@ -235,7 +235,8 @@ const { nextProvider, recordProviderOutcome, reportDeadEnd, recordFulfilment, re
   await import('./acting.js')
 
 // Provider and medicine names from the onboarding data, not hardcoded.
-const [clinic1, clinic2] = ob.providers.clinics.map((c) => c.name)
+const allClinics = ob.providers.clinics.map((c) => c.name)
+const [clinic1, clinic2] = allClinics
 const lab1 = ob.providers.labs[0].name
 const chemist1 = ob.providers.chemists[0].name
 const med1 = ob.current_medicines.find((m) => m.id === 'med_chronic_1')
@@ -261,7 +262,15 @@ assert.equal(c2.provider.name, clinic2, 'only then does the second clinic get a 
 recordProviderOutcome({ kind: 'clinics', provider: clinic2, outcome: 'no_answer' })
 console.log('ok  R11 redialled the first clinic before trying the second')
 
-const nowDead = reportDeadEnd({ kind: 'clinics', why: 'both clinics rang out twice' })
+// Exhaust any remaining clinics (the list may be longer than 2 after adding providers).
+for (let ci = 2; ci < allClinics.length; ci++) {
+  const redial2 = nextProvider({ kind: 'clinics' })
+  if (redial2.redial) recordProviderOutcome({ kind: 'clinics', provider: redial2.provider.name, outcome: 'no_answer' })
+  const next = nextProvider({ kind: 'clinics' })
+  if (next.provider) recordProviderOutcome({ kind: 'clinics', provider: next.provider.name, outcome: 'no_answer' })
+}
+
+const nowDead = reportDeadEnd({ kind: 'clinics', why: 'all clinics rang out twice' })
 assert.equal(nowDead.ok, true, 'once the list is exhausted the dead end is allowed')
 console.log('ok  R11 dead end allowed only once the list was exhausted')
 

@@ -28,7 +28,7 @@ export default function PhoneApp({ memberId }: { memberId: string }) {
   const members = s.onboarding?.family?.members || []
   const me = members.find((m: any) => m.id === memberId)
   const isRP = me?.role === 'responsible_person'
-  const meds = (s.onboarding?.current_medicines || []).filter((m: any) => m.member === memberId || isRP)
+  const meds = s.onboarding?.current_medicines || []
   const tests = (s.onboarding?.recurring_tests || []).filter((t: any) => t.member === memberId || isRP)
   const mine = s.messages[memberId] || []
   const fromAgent = mine.filter((m: Message) => m.from === 'agent').length
@@ -216,31 +216,44 @@ function Home({ s, me, meds, tests, isRP, waitingOnMe, who, t, onGoChat, onProfi
         <SectionTitle icon={Pill}>{t('medicines')}</SectionTitle>
         {meds.length === 0 && <p className="mt-2 text-body text-muted">{t('nothing_on_file')}</p>}
         {meds.map((m: any, i: number) => {
-          const days = m.daily_dose ? Math.floor(m.pills_left / m.daily_dose) : null
+          const stock = m.doses_left ?? m.pills_left
+          const days = m.daily_dose ? Math.floor(stock / m.daily_dose) : null
           const low = days !== null && days <= 5
           // The RP sees other people's medicines; say whose, once per person.
-          const owner = m.member !== who && m.member !== meds[i - 1]?.member
-            ? (s.onboarding?.family?.members || []).find((x: any) => x.id === m.member)?.name
-            : null
+          const ownerName = (s.onboarding?.family?.members || []).find((x: any) => x.id === m.member)?.name || m.member
+          const showOwner = m.member !== who && m.member !== meds[i - 1]?.member
           return (
             <div key={m.id}>
-              {owner && (
+              {showOwner && (
                 <div className="mt-3 flex items-center gap-2 text-meta font-semibold text-ink">
-                  <PersonAvatar name={owner} size={20} /> {t('whose', { name: owner })}
+                  <PersonAvatar name={ownerName} size={20} /> {t('whose', { name: ownerName })}
                 </div>
               )}
-              <div className="mt-2 rounded-2xl bg-white p-3.5 shadow-card">
+              <button
+                className="mt-2 w-full rounded-2xl bg-white p-3.5 shadow-card text-left transition-shadow hover:shadow-md active:shadow-sm"
+                onClick={() => {
+                  sendInput({
+                    kind: 'refill_request',
+                    source: `${me.name}, tapped ${m.name} in the app`,
+                    from: who,
+                    medicine_id: m.id,
+                    medicine_name: m.name,
+                    for_member: m.member,
+                    text: `Please refill ${m.name} ${m.strength} for ${ownerName}`,
+                  })
+                  onGoChat()
+                }}
+              >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="text-body font-semibold text-ink">{m.name}</div>
                     <div className="text-meta text-muted">{m.strength}{m.daily_dose ? ` · ${t('per_day', { n: m.daily_dose })}` : ''}</div>
                   </div>
                   <span className={cn('shrink-0 rounded-full px-2.5 py-1 text-meta font-bold', low ? 'bg-decision-bg text-decision' : 'bg-ok-bg text-ok')}>
-                    {days !== null ? t('days_left', { n: days }) : t('pills_left', { n: m.pills_left })}
+                    {days !== null ? t('days_left', { n: days }) : t('pills_left', { n: stock })}
                   </span>
                 </div>
                 <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-secondary" aria-hidden>
-                  {/* Days of supply against a month, so the bar says what the label says. */}
                   <div className={cn('h-full rounded-full', low ? 'bg-gradient-to-r from-[#F87171] to-decision' : 'bg-gradient-to-r from-[#34D399] to-ok')}
                     style={{ width: Math.max(4, Math.min(100, ((days ?? 0) / 30) * 100)) + '%' }} />
                 </div>
@@ -249,7 +262,12 @@ function Home({ s, me, meds, tests, isRP, waitingOnMe, who, t, onGoChat, onProfi
                     <AlertTriangle className="h-3.5 w-3.5" aria-hidden /> {t('must_not_miss')}
                   </div>
                 )}
-              </div>
+                {low && (
+                  <div className="mt-2 flex items-center gap-1 text-meta text-decision">
+                    <ChevronRight className="h-3.5 w-3.5" aria-hidden /> Tap to order refill
+                  </div>
+                )}
+              </button>
             </div>
           )
         })}

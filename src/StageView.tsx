@@ -17,7 +17,7 @@ export default function StageView() {
   const [picks, setPicks] = useState<string[]>(['patient', 'rp', 'member_3'])
 
   const set = (i: number, v: string) => setPicks((p) => p.map((x, j) => (j === i ? v : x)))
-  const nameOf = (id: string) => members.find((m: any) => m.id === id)?.name || id
+  const nameOf = (id: string) => id === 'chemist' ? 'Chemist' : (members.find((m: any) => m.id === id)?.name || id)
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-surface">
@@ -37,6 +37,7 @@ export default function StageView() {
             <select key={i} value={p} onChange={(e) => set(i, e.target.value)}
               className="rounded border border-line bg-white px-2 py-1 text-meta">
               {members.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
+              <option value="chemist">Chemist</option>
             </select>
           ))}
           <a href="/" className="rounded border border-line px-2.5 py-1 text-meta hover:bg-artifact-bg">Console only</a>

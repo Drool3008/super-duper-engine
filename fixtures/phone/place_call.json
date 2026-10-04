@@ -9,5 +9,8 @@
   "clinic_slot_offered": { "outcome": "ANSWERED", "who": "clinic receptionist", "said": "We have 4:30 pm today with the duty doctor. Name and age?" },
   "chemist_out_of_stock": { "outcome": "ANSWERED", "who": "chemist", "said": "That one is out of stock. I have a different brand of the same thing if you want." },
   "chemist_in_stock": { "outcome": "ANSWERED", "who": "chemist", "said": "Yes, I have a full strip. Three hundred and twenty rupees." },
+  "chemist_in_stock_inhaler": { "outcome": "ANSWERED", "who": "chemist", "said": "Yes, I have the Budesonide Formoterol inhaler. Four hundred and eighty rupees for one." },
+  "chemist_in_stock_kazipet": { "outcome": "ANSWERED", "who": "chemist", "said": "Yes, Metoprolol 25 mg is available. Three hundred and twenty rupees for sixty tablets." },
+  "chemist_substitute_only": { "outcome": "ANSWERED", "who": "chemist", "said": "We don't have Metoprolol 25 mg right now. I can give you Atenolol 25 mg instead, same class. Two hundred rupees." },
   "ambulance_dispatched": { "outcome": "ANSWERED", "who": "108 operator", "said": "Ambulance dispatched. Give me the address and a landmark. It will take about twelve minutes." }
 }

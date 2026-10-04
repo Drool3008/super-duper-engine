@@ -15,13 +15,22 @@ function PhoneRoute({ key_ }: { key_: string }) {
   const s = useSession()
   const bare = useBareDevice()
   const members = s.onboarding?.family?.members || []
-  const me = findMember(members, key_)
 
   if (!s.onboarding) return <Centered>Loading…</Centered>
+
+  if (key_.toLowerCase() === 'chemist') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-surface p-6">
+        <PhoneScreen memberId="chemist" />
+      </div>
+    )
+  }
+
+  const me = findMember(members, key_)
   if (!me) {
     return (
       <Centered>
-        <p className="text-body">No member matches “{key_}”.</p>
+        <p className="text-body">No member matches "{key_}".</p>
         <button onClick={() => navigate('/phone')} className="mt-3 rounded-lg bg-stage px-4 py-2 text-body font-semibold text-white">
           Choose a member
         </button>
@@ -29,7 +38,6 @@ function PhoneRoute({ key_ }: { key_: string }) {
     )
   }
 
-  // On a real handset the device frame would be a phone inside a phone.
   if (bare) {
     return (
       <div className="bare-device bg-white">
@@ -71,6 +79,16 @@ function PhonePicker() {
             </span>
           </button>
         ))}
+        <button
+          onClick={() => navigate('/phone/chemist')}
+          className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-line px-4 py-3 text-left active:bg-surface"
+        >
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-ok/10 text-ok text-lg">Rx</span>
+          <span className="min-w-0">
+            <span className="block truncate text-body font-semibold">Chemist</span>
+            <span className="block text-meta text-muted">Wizard-of-Oz: play the chemist receiving calls</span>
+          </span>
+        </button>
       </div>
       <a href="/stage" className="mt-auto pt-6 text-center text-meta text-muted underline">Operator stage</a>
     </div>

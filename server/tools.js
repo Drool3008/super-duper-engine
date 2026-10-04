@@ -68,7 +68,7 @@ export const TOOLS = [
     mode: 'LIVE', rail: 'whatsapp',
     description: 'Send a WhatsApp message. The family group gets status only, never medical detail (R18). Use the recipient\'s own language (R23).',
     parameters: obj('A message', {
-      to: { type: 'STRING', description: 'Recipient', enum: ['patient', 'rp', 'family_group', 'doctor', 'member_3', 'member_4'] },
+      to: { type: 'STRING', description: 'Recipient', enum: ['patient', 'rp', 'family_group', 'doctor', 'member_3'] },
       text: str('The message, in the recipient\'s language'),
       language: str('BCP-47 code you wrote it in, e.g. hi-IN'),
       card: str(
@@ -89,7 +89,7 @@ export const TOOLS = [
     mode: 'LIVE', rail: 'whatsapp',
     description: 'Pause until this person replies. Use when you genuinely cannot continue without their answer. Returns their reply, or a timeout so you can move down the chain (R3).',
     parameters: obj('Wait', {
-      from: { type: 'STRING', description: 'Who you are waiting on', enum: ['patient', 'rp', 'family_group', 'doctor', 'member_3', 'member_4'] },
+      from: { type: 'STRING', description: 'Who you are waiting on', enum: ['patient', 'rp', 'family_group', 'doctor', 'member_3'] },
       wait_seconds: num('How long to wait. Use the tier wait time from onboarding.'),
       what_for: str('What you asked them'),
     }, ['from', 'wait_seconds', 'what_for']),

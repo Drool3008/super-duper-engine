@@ -7,6 +7,11 @@
       { "postal_code": { "pin": 506002, "pre_paid": "Y", "cash": "Y", "pickup": "Y" } }
     ]
   },
+  "success_hyderabad": {
+    "delivery_codes": [
+      { "postal_code": { "pin": 500032, "pre_paid": "Y", "cash": "Y", "pickup": "Y" } }
+    ]
+  },
   "failure_not_serviceable": {
     "delivery_codes": []
   },
