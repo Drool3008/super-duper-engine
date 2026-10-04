@@ -6,3 +6,4 @@ node_modules/
 data/session.json
 dist/
 .playwright-mcp/
+.claude/
