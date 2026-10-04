@@ -1,0 +1,75 @@
+# The flow the agent runs
+
+Source: `flow chart.pdf` (happy and unhappy paths) plus the walkthrough given on
+2026-10-04. The happy and unhappy paths are the same spine: when everything
+works the agent walks it straight through, and when something breaks it takes a
+branch. **Every failure moves to the next option, holds, or hands back to a
+human. None of them stop silently.**
+
+The agent records and routes. It never interprets a symptom and never
+substitutes a medicine.
+
+## Stages
+
+`STAGE_NAMES` in `src/lib/types.ts` carries ten entries. The flowchart shows
+eight: it folds in `Onboarding` and collapses `Reaching` (the calling stage)
+into the step either side of it.
+
+| # | Stage | Happy path | Where it breaks |
+|---|---|---|---|
+| 0 | Onboarding | Family, medicines, tests and wallet are on file. | — |
+| 1 | Idle | Watching. Nothing to do. | — |
+| 2 | Triggered | Responsible person raises it, or the patient hits SOS. | **Nobody answers the trigger.** RP unreachable → move to the next contact instead of waiting. |
+| 3 | Reaching | The agent calls the affected person. Transcript and a short summary go to the family group and the RP. | They don't pick up → call the RP. RP may conference the affected person in, or describe it directly. Still no answer → keep going down the chain. |
+| 4 | Listening | The patient describes it in their own language. Recorded, not interpreted. | **Patient can't describe it.** Whoever is present speaks; the agent flags to the doctor that the account is secondhand. |
+| 5 | Assessing | Follow-up questions against known conditions and current medicines. Routes routine vs emergency. | **It can't tell.** Escalates upward: treats it as urgent and asks a human rather than guessing downward. **Emergency, nobody reachable** → dispatches anyway, then keeps calling down the contact list. |
+| 6 | Acting | Books the clinic slot. Arranges the cab. Sends the prescription to the chemist. Assembles the record: last reports, current medicines, the trend. | **Clinic won't pick up** → redial, try the second known clinic, then report the dead end. **No slot** → offer next available, another known doctor, or walk-in, and say which it chose and why. **Medicine out of stock** → local chemist, then another; never substitute a drug, that goes back to a human. |
+| 7 | Checking in | Updates the family thread. Asks a human only for the bigger calls: spend, a new doctor, a new medicine. | **Spend above the limit** → stop and ask. If nobody answers, hold the booking unpaid rather than cancelling. |
+| 8 | Handing over | Passes the phone to the parent once a human answers. The record goes with whoever walks into the room. | **Wrong specialist** → the doctor redirects; the agent carries the same record to the new booking. |
+| 9 | Closing | Slot confirmed by name. Cab arrived. Medicines delivered. Family told who did what. | — |
+
+## Triggers
+
+Three kinds, each spanning a range of severity:
+
+- **Medication** — supplies have run out. May require a test first before the
+  medication can be issued.
+- **Tests** — one-off or recurring.
+- **Emergency** — someone needs to get to hospital.
+
+Severity varies *within* each kind: a plain box of penicillin against a drug
+that must not be missed; a cough swab against a diabetic panel; mild flu
+against something dire.
+
+## Decisions taken (2026-10-04)
+
+These were open questions. They are settled; do not re-derive them.
+
+1. **Severity is assessed by the agent**, at the Assessing stage, from the
+   record and its own knowledge. It is not tagged in the data and not set by the
+   Director. Consequence to accept: the same trigger can be read differently
+   between takes.
+2. **The contact chain is by role, then by listing order** — affected person,
+   then the responsible person, then the remaining family members in the order
+   they appear in `onboarding.json`. No separate `contact_order` config.
+3. **The RP's veto is after the fact.** The agent acts on the affected person's
+   answer immediately and notifies the RP, who can reverse it within a window.
+   The flow is never blocked waiting on the RP. Consequence to accept: a booking
+   may have to be undone.
+4. **Emergency with nobody reachable**: book transport, notify the clinic so the
+   arrival is expected, and alert the family group — then keep calling down the
+   contact list.
+
+## Spend
+
+Every operation costs money, so the RP sets a spend limit. The running total is
+shown **to the responsible person only** (the Wallet tab is already gated on
+`role === 'responsible_person'`). Any major spend, or going over budget, has to
+notify them. Who else may see cost, if anyone, is still open.
+
+## What the agent must never see
+
+The family chats are not an input. The agent reads a record only when a member
+deliberately forwards it (`POST /api/forward`). Live chat traffic
+(`POST /api/chat/send`) is stored and broadcast to the other handsets and goes
+nowhere near the model. That is rule **R2**.

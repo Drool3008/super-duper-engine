@@ -1,7 +1,7 @@
 import express from 'express'
 import multer from 'multer'
 import { randomUUID } from 'node:crypto'
-import { session, emit, addClient, advanceClock, audioStore, snapshot } from './state.js'
+import { session, emit, addClient, advanceClock, audioStore, snapshot, chatKey } from './state.js'
 import { respond, pendingList } from './curtain.js'
 import { deliverReply, noAnswer, expireByClock, openWaits } from './humans.js'
 import { feed, isRunning } from './agent.js'
@@ -35,7 +35,9 @@ app.get('/events', (req, res) => {
     'Access-Control-Allow-Origin': '*',
   })
   res.write('\n')
-  addClient(res)
+  // Hand this client the live truth after the replay, so a run that ended
+  // earlier does not leave it showing "working on it" forever.
+  addClient(res, () => ({ running: isRunning(), waits: openWaits() }))
 })
 
 app.get('/api/session', (req, res) => {
@@ -47,6 +49,7 @@ app.get('/api/session', (req, res) => {
     wallet: session.wallet,
     decisions: session.decisions,
     messages: session.messages,
+    chats: session.chats,
     familyHistory: session.familyHistory,
     rpHistory: session.rpHistory,
     pending: pendingList(),
@@ -123,6 +126,26 @@ app.post('/api/forward', async (req, res) => {
   emit('input', { input, attachment: { ...media, caption, note, from } })
   res.json({ ok: true })
   feed(input, images).catch((err) => emit('error', { error: err.message }))
+})
+
+/**
+ * A member types into a family chat.
+ *
+ * This never reaches the agent. R2 is that it only ever sees what somebody
+ * deliberately forwarded, so this writes to the chat log and broadcasts it to
+ * the other handsets, and that is the whole job. Forwarding stays a separate,
+ * explicit act on /api/forward.
+ */
+app.post('/api/chat/send', (req, res) => {
+  const { from, chat_id, text } = req.body || {}
+  if (!from || !chat_id || !String(text || '').trim()) {
+    return res.status(400).json({ error: 'from, chat_id and text are required' })
+  }
+  const key = chatKey(from, chat_id)
+  const message = { id: randomUUID(), from, text: String(text).trim(), at: session.clock.toISOString() }
+  ;(session.chats[key] ||= []).push(message)
+  emit('chat_message', { key, message })
+  res.json({ ok: true, key, message })
 })
 
 app.get('/api/curtain', (req, res) => res.json({ pending: pendingList() }))

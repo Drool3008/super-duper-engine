@@ -21,3 +21,7 @@ export async function uploadAudio(file: File, source: string) {
 export const rupees = (n: number) => '₹' + n.toLocaleString('en-IN')
 
 export const forwardToAgent = (body: any) => post('/api/forward', body)
+
+/** A member posts into a family chat. The agent never sees these (R2). */
+export const sendChat = (from: string, chat_id: string, text: string) =>
+  post('/api/chat/send', { from, chat_id, text })

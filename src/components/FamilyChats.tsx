@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSession } from '../lib/session'
-import { forwardToAgent } from '../lib/api'
+import { forwardToAgent, sendChat } from '../lib/api'
 import type { Message } from '../lib/types'
 import { AgentChat } from './AgentChat'
 
@@ -30,6 +30,18 @@ const AgentGlyph = ({ size }: { size: number }) => (
     <path d="M9 12.1h6M12 9.1v6" stroke="#fff" strokeWidth="1.7" strokeLinecap="round" />
   </svg>
 )
+
+/**
+ * Must match chatKey() in server/state.js. A group keeps its own id; a direct
+ * chat is keyed by the pair, so the thread Demo RP sees as "Demo Patient" and
+ * the one Demo Patient sees as "Demo RP" share their live messages.
+ */
+export const chatKeyFor = (memberId: string, chat: any) =>
+  chat.kind === 'group' ? chat.id : ['dm', ...[memberId, chat.id].sort()].join(':')
+
+/** Seeded history first, then anything typed during the session. */
+const mergeChat = (chat: any, live: any[]) =>
+  [...(chat.messages || []), ...live].sort((a, b) => String(a.at).localeCompare(String(b.at)))
 
 const dayKey = (iso: string) => new Date(iso).toDateString()
 function daySeparator(iso: string, now: Date) {
@@ -89,7 +101,7 @@ function ChatList({ chats, memberId, nameOf, onOpen }: any) {
     <div className="scroll h-full overflow-y-auto bg-white">
       {chats.map((c: any) => {
         const isAgent = c.kind === 'agent'
-        const msgs: any[] = isAgent ? agentThread : c.messages
+        const msgs: any[] = isAgent ? agentThread : mergeChat(c, s.chats[chatKeyFor(memberId, c)] || [])
         const last = msgs[msgs.length - 1]
         const preview = last ? (last.text || last.caption || (last.media ? (last.media.type === 'pdf' ? 'Document' : 'Photo') : '')) : 'No messages yet'
         return (
@@ -120,11 +132,24 @@ function ChatList({ chats, memberId, nameOf, onOpen }: any) {
 }
 
 function ChatScreen({ chat, memberId, nameOf, onBack }: any) {
+  const s = useSession()
   const [sheet, setSheet] = useState<any | null>(null)
   const [viewer, setViewer] = useState<any | null>(null)
   const [forwarded, setForwarded] = useState<Record<string, boolean>>({})
+  const [draft, setDraft] = useState('')
   const box = useRef<HTMLDivElement>(null)
-  useEffect(() => { box.current?.scrollTo({ top: box.current.scrollHeight }) }, [])
+
+  const live = s.chats[chatKeyFor(memberId, chat)] || []
+  const messages = useMemo(() => mergeChat(chat, live), [chat, live])
+
+  // Follow the thread as it grows, including messages typed on another handset.
+  useEffect(() => { box.current?.scrollTo({ top: box.current.scrollHeight }) }, [messages.length])
+
+  const send = () => {
+    const t = draft.trim(); if (!t) return
+    setDraft('')
+    sendChat(memberId, chat.id, t)
+  }
 
   const now = new Date()
   let lastDay = ''
@@ -141,7 +166,7 @@ function ChatScreen({ chat, memberId, nameOf, onBack }: any) {
       </div>
 
       <div ref={box} className="scroll flex-1 overflow-y-auto px-3 py-2">
-        {chat.messages.map((m: any) => {
+        {messages.map((m: any) => {
           const key = dayKey(m.at)
           const sep = key !== lastDay ? ((lastDay = key), daySeparator(m.at, now)) : null
           const mine = m.from === memberId
@@ -175,8 +200,21 @@ function ChatScreen({ chat, memberId, nameOf, onBack }: any) {
 
       <div className="flex shrink-0 items-center gap-2 border-t border-line bg-white p-2">
         <span className="px-1 text-pane leading-none text-muted">+</span>
-        <div className="flex-1 rounded-full border border-line px-3 py-1.5 text-meta text-muted">Message</div>
-        <span className="rounded-full bg-stage px-3 py-1.5 text-meta font-semibold text-white">Send</span>
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && send()}
+          placeholder="Message"
+          aria-label={`Message ${chat.name}`}
+          className="min-w-0 flex-1 rounded-full border border-line px-3 py-1.5 text-body"
+        />
+        <button
+          onClick={send}
+          disabled={!draft.trim()}
+          className="shrink-0 rounded-full bg-stage px-3 py-1.5 text-meta font-semibold text-white disabled:opacity-40"
+        >
+          Send
+        </button>
       </div>
 
       {viewer && <Viewer media={viewer} onClose={() => setViewer(null)} />}

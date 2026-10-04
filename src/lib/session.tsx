@@ -11,6 +11,8 @@ export interface SessionView {
   onboarding: any
   decisions: Decision[]
   messages: Record<string, Message[]>
+  /** Live family-chat messages, keyed by the server's chatKey(). */
+  chats: Record<string, any[]>
   pending: PendingCall[]
   timeline: TimelineItem[]
   thinking: boolean
@@ -24,7 +26,7 @@ export interface SessionView {
 const EMPTY: SessionView = {
   model: '', stage: 1, clock: '', wallet: { limit: 0, spent: 0, ledger: [] },
   rails: { gnani: false, sheets: false }, onboarding: null,
-  decisions: [], messages: {}, pending: [], timeline: [], thinking: false,
+  decisions: [], messages: {}, chats: {}, pending: [], timeline: [], thinking: false,
   awaiting: null, lastMessage: null, familyHistory: null, rpHistory: null,
 }
 
@@ -44,6 +46,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setView((v) => ({
         ...v, model: s.model, stage: s.stage, clock: s.clock,
         wallet: s.wallet, rails: s.rails, onboarding: s.onboarding,
+        chats: s.chats || {},
         familyHistory: s.familyHistory, rpHistory: s.rpHistory,
       }))
     }).catch(() => {})
@@ -69,6 +72,20 @@ function reduce(v: SessionView, ev: AgentEvent, nextId: () => string): SessionVi
       return { ...v, clock: ev.clock }
     case 'stage':
       return { ...push({ kind: 'stage', id: nextId(), at: ev.clock, stage: ev.stage, why: ev.why }), stage: ev.stage }
+    case 'sync': {
+      // Sent once, to this client, after the replay. The replayed log can leave
+      // `thinking` stuck on when a run ended without a terminal event, so the
+      // server's live answer wins. An awaited reply survives only if its wait is
+      // genuinely still open.
+      const open = new Set((ev.waits || []).map((w: any) => w.id))
+      return {
+        ...v,
+        thinking: Boolean(ev.running),
+        awaiting: v.awaiting && open.has(v.awaiting.id) ? v.awaiting : null,
+      }
+    }
+    case 'chat_message':
+      return { ...v, chats: { ...v.chats, [ev.key]: [...(v.chats[ev.key] || []), ev.message] } }
     case 'thinking':
       return { ...v, thinking: true }
     case 'idle':

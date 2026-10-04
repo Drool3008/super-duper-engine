@@ -24,18 +24,43 @@ export const session = {
   decisions: [],   // the competition's Part 1 table
   events: [],      // everything, replayed to a client that joins late
   messages: { patient: [], rp: [], family_group: [], doctor: [] },
+  chats: {},       // live family-chat messages, keyed by chatKey() below
   familyHistory,
   rpHistory,
   history: [],     // provider-agnostic conversation history
   pending: [],     // curtain calls waiting on a teammate
 }
 
+const GROUP_CHATS = new Set((familyHistory.chats || []).filter((c) => c.kind === 'group').map((c) => c.id))
+
+/**
+ * Where a live chat message is stored.
+ *
+ * The seeded direct chats are each written from one viewpoint: the thread named
+ * "Demo Patient" and the thread named "Demo RP" are two records of the same
+ * pair, kept as they were recorded. Live messages instead hang off the pair
+ * itself, so a line typed on one handset shows up on the other one. A group
+ * keeps its own id, because everyone is already looking at the same thread.
+ */
+export function chatKey(from, chatId) {
+  if (GROUP_CHATS.has(chatId)) return chatId
+  return ['dm', ...[from, chatId].sort()].join(':')
+}
+
 const clients = new Set()
 
-export function addClient(res) {
+export function addClient(res, syncState) {
   clients.add(res)
   // Replay so a reconnect mid-take does not lose the recording.
   for (const e of session.events) write(res, e)
+
+  // The replay above re-applies every historical `input` and `thinking`. If a
+  // run ended without a terminal event in the log, a client that joins later
+  // reduces its way to "working on it" and stays there for good. This says what
+  // is true right now, and is deliberately not appended to session.events: it
+  // is addressed to this one client at this one moment.
+  if (syncState) write(res, { type: 'sync', at: new Date().toISOString(), clock: session.clock.toISOString(), ...syncState() })
+
   res.on('close', () => clients.delete(res))
 }
 
