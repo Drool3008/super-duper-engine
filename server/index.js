@@ -1,10 +1,10 @@
 import express from 'express'
 import multer from 'multer'
 import { randomUUID } from 'node:crypto'
-import { session, emit, addClient, advanceClock, audioStore, snapshot, chatKey } from './state.js'
-import { respond, pendingList } from './curtain.js'
-import { deliverReply, noAnswer, expireByClock, openWaits } from './humans.js'
-import { feed, isRunning } from './agent.js'
+import { session, emit, addClient, advanceClock, audioStore, snapshot, chatKey, resetSession } from './state.js'
+import { respond, pendingList, resetPending } from './curtain.js'
+import { deliverReply, noAnswer, expireByClock, openWaits, resetWaits } from './humans.js'
+import { feed, isRunning, abortRun } from './agent.js'
 import { chainState, contactChain } from './contacts.js'
 import { accounts } from './accounts.js'
 import { assessments, openReversals, exerciseReversal, acceptReversal, expireReversals } from './assessment.js'
@@ -202,6 +202,20 @@ app.post('/api/reversal/:id', (req, res) => {
     ? acceptReversal({ id: req.params.id, by })
     : exerciseReversal({ id: req.params.id, by, why })
   res.status(out.ok ? 200 : 400).json(out)
+})
+
+/**
+ * Wipe the session and start a fresh take. Clears the decision log, the
+ * messages, the chats and everything the stages recorded, abandons anything
+ * held at the curtain, releases anyone the agent was waiting on, and stops a
+ * run already in flight. Onboarding is re-read from disk.
+ */
+app.post('/api/reset', (req, res) => {
+  abortRun()
+  resetPending()
+  resetWaits()
+  const out = resetSession(req.body?.reason || 'operator reset')
+  res.json(out)
 })
 
 /** The Director: this person did not pick up. */

@@ -22,6 +22,9 @@ export const rupees = (n: number) => '₹' + n.toLocaleString('en-IN')
 
 export const forwardToAgent = (body: any) => post('/api/forward', body)
 
+/** Wipe the session and start a fresh take. */
+export const resetSession = (reason?: string) => post('/api/reset', { reason })
+
 /** The responsible person overrules, or lets it stand. Only they can (R10). */
 export const settleReversal = (id: string, by: string, action: 'reverse' | 'accept', why?: string) =>
   post(`/api/reversal/${id}`, { by, action, why })

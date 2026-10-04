@@ -63,6 +63,12 @@ export function expireByClock() {
   }
 }
 
+/** Release every outstanding wait so no promise is left dangling on a reset. */
+export function resetWaits() {
+  for (const [, entry] of waiting) entry.resolve?.({ answered: false, reason: 'session_reset' })
+  waiting.clear()
+}
+
 export function openWaits() {
   return [...waiting.entries()].map(([id, e]) => ({ id, from: e.from, deadline: e.deadline.toISOString() }))
 }

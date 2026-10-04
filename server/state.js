@@ -92,6 +92,49 @@ export function emit(type, payload = {}) {
   return event
 }
 
+/**
+ * Back to a fresh take.
+ *
+ * Onboarding is re-read from disk rather than reused, because the agent edits
+ * it as it goes: record_update changes schedules and set_refill_cycle writes
+ * pills_left and the run-out date. Keeping the object would carry the last
+ * run's edits into the next one, which is the kind of thing that only shows up
+ * halfway through a recording.
+ *
+ * The event log is emptied before the reset event is emitted, so a client that
+ * connects afterwards replays one event and lands on an empty session, while
+ * clients already connected are told to clear.
+ */
+export function resetSession(reason = 'operator reset') {
+  const fresh = JSON.parse(readFileSync('config/onboarding.json', 'utf8'))
+
+  session.onboarding = fresh
+  session.clock = new Date(fresh.sim_clock.start)
+  session.stage = 1
+  session.startedAt = new Date().toISOString()
+  session.wallet = { limit: fresh.wallet.limit_inr, spent: fresh.wallet.spent_inr, ledger: [] }
+  session.decisions = []
+  session.messages = { patient: [], rp: [], family_group: [], doctor: [] }
+  session.chats = {}
+  session.chain = null
+  session.accounts = []
+  session.assessments = []
+  session.reversals = []
+  session.ladders = {}
+  session.providerLog = []
+  session.fulfilments = []
+  session.deadEnds = []
+  session.dispatches = []
+  session.refillCycles = []
+  session.history = []
+  session.pending = []
+  session.tier = undefined
+  session.events = []
+
+  emit('reset', { reason, clock: session.clock.toISOString() })
+  return { ok: true, reason, clock: session.clock.toISOString(), stage: session.stage }
+}
+
 export function snapshot() {
   try {
     mkdirSync('data', { recursive: true })

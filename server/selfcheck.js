@@ -327,5 +327,39 @@ console.log('ok  refill cycle set from the dispensed quantity, and the record sa
 const unknown = setRefillCycle({ medicine_id: 'med_nope', quantity_dispensed: 10, source: 'dispensing_receipt' })
 assert.equal(unknown.ok, false, 'an unknown medicine is refused')
 
+// ---------------------------------------------------------------- reset
+
+const { resetSession } = await import('./state.js')
+
+// The refill check above wrote 20 into the record, and the assessment checks
+// filled the session. A reset has to undo both.
+assert.equal(session.onboarding.current_medicines.find((m) => m.id === 'med_chronic_1').pills_left, 20)
+assert.ok(session.decisions.length > 0 || session.assessments.length > 0, 'the session is dirty before the reset')
+
+resetSession('selfcheck')
+
+assert.equal(session.decisions.length, 0)
+assert.equal(session.assessments.length, 0)
+assert.equal(session.reversals.length, 0)
+assert.equal(session.accounts.length, 0)
+assert.equal(session.refillCycles.length, 0)
+assert.deepEqual(session.chats, {})
+assert.equal(session.chain, null)
+assert.deepEqual(session.ladders, {})
+assert.equal(session.stage, 1)
+assert.equal(session.history.length, 0)
+
+// Re-read from disk, not reused: the agent edits onboarding as it goes, and
+// carrying those edits into the next take is the kind of thing that only shows
+// up halfway through a recording.
+const after = session.onboarding.current_medicines.find((m) => m.id === 'med_chronic_1')
+assert.equal(after.pills_left, 6, 'onboarding came back from disk, not from memory')
+assert.equal(after.refill_source, undefined, 'and the refill source the agent wrote is gone')
+
+// One event, so a client connecting after the reset lands on an empty session.
+assert.equal(session.events.length, 1)
+assert.equal(session.events[0].type, 'reset')
+console.log('ok  reset cleared the session and re-read onboarding from disk')
+
 console.log('\nall checks passed')
 process.exit(0)

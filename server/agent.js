@@ -151,7 +151,13 @@ async function executeTool(name, args) {
 
 let running = false
 
+// Bumped by a reset. A loop started before the bump stops at its next step
+// rather than writing into the session that replaced it.
+let epoch = 0
+
 export function isRunning() { return running }
+
+export function abortRun() { epoch++; running = false }
 
 export async function feed(input, images = []) {
   // `input` is a real external event. It carries its own source label and the
@@ -168,10 +174,12 @@ export async function feed(input, images = []) {
 }
 
 async function loop() {
+  const myEpoch = epoch
   const { run, model, apiKey } = provider()
   if (!apiKey) { emit('error', { error: 'No API key for the selected MODEL_PROVIDER. Set it in .env.' }); return }
 
   for (let step = 0; step < MAX_STEPS; step++) {
+    if (epoch !== myEpoch) return
     emit('thinking', { step })
     let out
     try {
@@ -184,6 +192,7 @@ async function loop() {
     // Gemini gives no call ids; mint ours so the curtain and Claude both work.
     for (const c of out.toolCalls) c.id ||= randomUUID()
 
+    if (epoch !== myEpoch) return
     emit('model_step', { step, text: out.text, tool_calls: out.toolCalls.map(({ id, name, args }) => ({ id, name, args })) })
     session.history.push({ role: 'model', text: out.text, toolCalls: out.toolCalls })
 

@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import type { PendingCall } from '../lib/types'
 import { RunBadge, Json, PaneHeader } from './ui'
 import { RAIL_COLOUR } from '../lib/types'
-import { advanceClock, sendCurtain, sendInput, sendNoAnswer, uploadAudio } from '../lib/api'
+import { advanceClock, resetSession, sendCurtain, sendInput, sendNoAnswer, uploadAudio } from '../lib/api'
 
 export function Curtain({ pending, awaiting, onboarding, present }: {
   pending: PendingCall[]
@@ -17,8 +17,46 @@ export function Curtain({ pending, awaiting, onboarding, present }: {
         {awaiting && <Awaiting awaiting={awaiting} />}
         <PendingQueue pending={pending} present={present} />
         <Inputs onboarding={onboarding} />
+        {!present && <ResetTake />}
       </div>
     </aside>
+  )
+}
+
+/**
+ * Start a fresh take. Hidden in present mode: nothing that wipes the recording
+ * should be one stray click away while the camera is running.
+ */
+function ResetTake() {
+  const [armed, setArmed] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  return (
+    <section className="border-b border-line p-4">
+      <h3 className="text-card">Reset</h3>
+      <p className="mt-0.5 text-meta text-muted">
+        Clears the decision log, messages, chats and everything the stages recorded, and re-reads the family profile from disk.
+      </p>
+      {armed ? (
+        <div className="mt-2 flex gap-2">
+          <button
+            disabled={busy}
+            onClick={async () => { setBusy(true); await resetSession('Director reset from the console'); setArmed(false); setBusy(false) }}
+            className="flex-1 rounded border border-decision bg-decision px-3 py-2 text-body font-semibold text-white disabled:opacity-50"
+          >
+            {busy ? 'Resetting…' : 'Yes, wipe this take'}
+          </button>
+          <button onClick={() => setArmed(false)} className="flex-1 rounded border border-line px-3 py-2 text-body">Cancel</button>
+        </div>
+      ) : (
+        <button
+          onClick={() => setArmed(true)}
+          className="mt-2 w-full rounded border border-decision/50 px-3 py-2 text-body text-decision hover:bg-decision/5"
+        >
+          Start a fresh take
+        </button>
+      )}
+    </section>
   )
 }
 

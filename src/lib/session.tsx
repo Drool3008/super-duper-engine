@@ -76,6 +76,10 @@ function reduce(v: SessionView, ev: AgentEvent, nextId: () => string): SessionVi
       return { ...v, clock: ev.clock }
     case 'stage':
       return { ...push({ kind: 'stage', id: nextId(), at: ev.clock, stage: ev.stage, why: ev.why }), stage: ev.stage }
+    // Everything this view holds came from the event log, and the log is now
+    // empty. Keep only what the next fetch would give us back anyway.
+    case 'reset':
+      return { ...EMPTY, model: v.model, onboarding: v.onboarding, familyHistory: v.familyHistory, rpHistory: v.rpHistory, clock: ev.clock }
     case 'sync': {
       // Sent once, to this client, after the replay. The replayed log can leave
       // `thinking` stuck on when a run ended without a terminal event, so the

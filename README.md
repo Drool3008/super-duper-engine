@@ -97,6 +97,29 @@ xcodebuild -downloadPlatform iOS
 That fails with "Insufficient space available" unless the volume has more than
 8.5 GB free. Check with `df -h /System/Volumes/Data`.
 
+## Starting a fresh take
+
+The console's Curtain pane has **Start a fresh take** at the bottom, behind a
+confirm. It is hidden in present mode, because nothing that wipes a recording
+should be one stray click away while the camera is running.
+
+From a terminal:
+
+```bash
+npm run reset
+```
+
+Either one clears the decision log, the messages, the family chats, the curtain
+queue and everything the stages recorded; abandons calls a teammate was holding;
+releases anyone the agent was waiting on; and stops a run already in flight.
+
+**Onboarding is re-read from disk**, not reused. The agent edits it as it goes —
+`record_update` changes schedules, `set_refill_cycle` writes `pills_left` and the
+run-out date — so reusing the object would carry one take's edits into the next.
+
+Restarting the server has the same effect: `data/session.json` is written as a
+crash snapshot and never read back, so every boot starts clean.
+
 ## Regenerating the seeded records
 
 ```bash

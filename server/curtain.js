@@ -29,6 +29,12 @@ export function respond(id, body, meta = {}) {
   return true
 }
 
+/** Abandon every held call. Used by a session reset; the agent is going away too. */
+export function resetPending() {
+  for (const [, entry] of waiting) entry.resolve?.({ ok: false, error: 'session reset' })
+  waiting.clear()
+}
+
 export function pendingList() {
   return session.pending
 }
