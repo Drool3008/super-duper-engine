@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { AgentEvent, Decision, Message, PendingCall, TimelineItem } from './types'
+import { api } from './config'
 
 export interface SessionView {
   model: string
@@ -39,7 +40,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const seq = useRef(0)
 
   useEffect(() => {
-    fetch('/api/session').then((r) => r.json()).then((s) => {
+    fetch(api('/api/session')).then((r) => r.json()).then((s) => {
       setView((v) => ({
         ...v, model: s.model, stage: s.stage, clock: s.clock,
         wallet: s.wallet, rails: s.rails, onboarding: s.onboarding,
@@ -47,7 +48,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }))
     }).catch(() => {})
 
-    const es = new EventSource('/events')
+    const es = new EventSource(api('/events'))
     es.onmessage = (e) => {
       const ev: AgentEvent = JSON.parse(e.data)
       setView((v) => reduce(v, ev, () => `i${seq.current++}`))

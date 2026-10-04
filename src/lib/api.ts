@@ -1,5 +1,7 @@
+import { api } from './config'
+
 const post = (url: string, body: any) =>
-  fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json())
+  fetch(api(url), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json())
 
 export const sendInput = (body: any) => post('/api/input', body)
 export const sendCurtain = (id: string, response: any, variant?: string) => post(`/api/curtain/${id}`, { response, variant })
@@ -12,7 +14,7 @@ export async function uploadAudio(file: File, source: string) {
   const fd = new FormData()
   fd.append('audio', file)
   fd.append('source', source)
-  const r = await fetch('/api/input/audio', { method: 'POST', body: fd })
+  const r = await fetch(api('/api/input/audio'), { method: 'POST', body: fd })
   return r.json() as Promise<{ audio_ref: string }>
 }
 

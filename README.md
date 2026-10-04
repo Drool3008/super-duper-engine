@@ -51,6 +51,52 @@ model. It costs nothing and needs no key, which makes it right for UI work and
 dry runs — and wrong for a real take, since the brief requires a real model
 making every decision.
 
+## Viewing it on a real phone
+
+### Now, no build, no download
+
+```bash
+npm run server     # :8787
+npm run dev:lan    # :5173, bound to the LAN
+```
+
+`dev:lan` prints a Network URL. On a phone **on the same Wi-Fi**, open
+`http://<that-ip>:5173/phone`, pick a member, and the app runs full-bleed: no
+simulator frame, safe-area insets for the notch, 16px inputs so iOS does not
+zoom on focus. **Share → Add to Home Screen** installs it standalone with its
+own icon, via `public/manifest.webmanifest`.
+
+It is the same live session as the console, so taps on the phone land in the
+decision log straight away.
+
+### Native iOS (Capacitor)
+
+The project is scaffolded and uses **Swift Package Manager**, so CocoaPods is
+not needed. `ios/App/App/Info.plist` already allows cleartext HTTP to a LAN
+address, declares local-network use, and locks the app to portrait.
+
+```bash
+npm run ios:build          # detects the LAN IP, bakes it in, runs cap sync
+npm run ios:build -- http://192.168.1.23:8787    # or pass one
+npm run ios:open           # Xcode: pick the connected iPhone, press Run
+```
+
+`ios:build` sets `VITE_API_BASE`, because a bundled native app is served from
+`capacitor://localhost` and relative `/api` calls would resolve against the app
+bundle. The backend sends permissive CORS headers for the same reason. On the
+web both are inert: `VITE_API_BASE` is empty and the vite proxy handles things.
+
+**Prerequisite, and it is the blocker today:** Xcode needs the iOS platform
+component installed. It is ~8.5 GB and is required for a *device* build, not
+just the simulator, so connecting by cable does not avoid it.
+
+```bash
+xcodebuild -downloadPlatform iOS
+```
+
+That fails with "Insufficient space available" unless the volume has more than
+8.5 GB free. Check with `df -h /System/Volumes/Data`.
+
 ## Regenerating the seeded records
 
 ```bash
@@ -154,5 +200,8 @@ data/       session.json snapshot, so a crash does not lose a take
 - **Multimodal forwarding is unverified.** The image goes into the conversation
   (Gemini `inlineData`, Anthropic image blocks; a PDF is sent as its page-1
   image), but with no API key yet nothing has actually been sent to a model.
-- **Real-phone mode was cut** by agreement: no LAN host flag, no PWA manifest,
-  no scrcpy/QuickTime notes. None of it appears in the recording.
+- **Native iOS has never been compiled.** The Capacitor project exists and is
+  configured, but Xcode's iOS platform component is not installed on this
+  machine and there is not enough disk space to fetch it, so `xcodebuild` fails
+  at the destination step. Nothing about the native build is proven.
+- The phone **web** app, by contrast, is verified end to end over the LAN.

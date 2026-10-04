@@ -7,9 +7,16 @@
     "dev": "vite",
     "start": "npm run server & npm run dev",
     "check": "node --env-file-if-exists=.env server/selfcheck.js",
-    "gen:media": "node --experimental-strip-types scripts/generate-family-media.ts"
+    "gen:media": "node --experimental-strip-types scripts/generate-family-media.ts",
+    "gen:icons": "node --experimental-strip-types scripts/generate-icons.ts",
+    "dev:lan": "vite --host",
+    "ios:build": "node scripts/ios-build.mjs",
+    "ios:open": "cap open ios"
   },
   "dependencies": {
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/ios": "^8.5.2",
     "@resvg/resvg-js": "^2.6.2",
     "express": "^4.21.2",
     "multer": "^2.4.0",

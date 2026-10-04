@@ -11,11 +11,29 @@ import { gnaniOn } from './rails/gnani.js'
 import { sheetsOn } from './rails/sheets.js'
 
 const app = express()
+
+// The native app is served from capacitor://localhost, so every call to this
+// server is cross-origin. Demo backend on a LAN: allow any origin rather than
+// maintaining a list of handset origins.
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+  if (req.method === 'OPTIONS') return res.sendStatus(204)
+  next()
+})
+
 app.use(express.json({ limit: '5mb' }))
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } })
 
 app.get('/events', (req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' })
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+    'Access-Control-Allow-Origin': '*',
+  })
   res.write('\n')
   addClient(res)
 })
