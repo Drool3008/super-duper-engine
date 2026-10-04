@@ -178,16 +178,33 @@ function PendingQueue({ pending, present }: { pending: PendingCall[]; present: b
   )
 }
 
+/**
+ * A held call. The response is never free-typed JSON: DOCS and IMAGINED calls
+ * send the documented fixture exactly as written, so nothing is invented live.
+ * A PERSON call is a teammate playing someone, so only that person's words
+ * (`who`, `said`) can be typed, and the variant sent to the log says so.
+ */
 function PendingCard({ call, present }: { call: PendingCall; present: boolean }) {
   const variants = Object.entries(call.fixtures || {}).filter(([k]) => !k.startsWith('_'))
   const [variant, setVariant] = useState(variants[0]?.[0] || '')
-  const [body, setBody] = useState(() => JSON.stringify(variants[0]?.[1] ?? {}, null, 2))
-  const [err, setErr] = useState('')
+  const fixture: any = (call.fixtures as any)?.[variant] ?? {}
+  const [who, setWho] = useState<string>(fixture.who ?? '')
+  const [said, setSaid] = useState<string>(fixture.said ?? '')
   const colour = (call.rail && RAIL_COLOUR[call.rail]) || '#5A6B75'
   const note = (call.fixtures as any)?._note
 
   // CURTAIN-RUN has no editor at all: the real Gnani response goes through untouched.
   const readOnly = call.runMode === 'CURTAIN_RUN'
+  const person = call.runMode === 'CURTAIN_PERSON'
+  const speaks = person && typeof fixture.said === 'string'
+  const typed = speaks && (said !== (fixture.said ?? '') || who !== (fixture.who ?? ''))
+  const response = speaks ? { ...fixture, who, said } : fixture
+  const missingWords = speaks && !said.trim()
+
+  const pick = (k: string) => {
+    const f: any = (call.fixtures as any)?.[k] ?? {}
+    setVariant(k); setWho(f.who ?? ''); setSaid(f.said ?? '')
+  }
 
   return (
     <div className="fadein mt-3 rounded border bg-white p-3" style={{ borderColor: colour + '55', borderLeftWidth: 4, borderLeftColor: colour }}>
@@ -215,33 +232,46 @@ function PendingCard({ call, present }: { call: PendingCall; present: boolean })
       ) : (
         <>
           {note && !present && <p className="mt-2 text-[12px] leading-[16px] text-muted">{note}</p>}
-          <label className="mt-2 block text-meta text-muted">Response from the docs</label>
+          <label className="mt-2 block text-meta text-muted" htmlFor={`v-${call.id}`}>
+            {person ? 'What happened on the call' : 'Response from the docs'}
+          </label>
           <select
+            id={`v-${call.id}`}
             value={variant}
-            onChange={(e) => {
-              setVariant(e.target.value)
-              setBody(JSON.stringify((call.fixtures as any)[e.target.value], null, 2))
-            }}
+            onChange={(e) => pick(e.target.value)}
             className="w-full rounded border border-line bg-white px-2 py-1 text-meta"
           >
             {variants.map(([k]) => <option key={k} value={k}>{k}</option>)}
             {variants.length === 0 && <option value="">no fixture file</option>}
           </select>
-          <textarea
-            value={body} onChange={(e) => { setBody(e.target.value); setErr('') }}
-            rows={present ? 4 : 8}
-            className="scroll mt-1 w-full rounded border border-line p-2 font-mono text-[12px] leading-[17px]"
-          />
-          {err && <div className="text-meta text-decision">{err}</div>}
+
+          {speaks && (
+            <div className="mt-2 space-y-1.5 rounded border border-line bg-surface p-2">
+              <div className="text-meta text-muted">Play the person, in character. Their words only, never a hint to the agent.</div>
+              <input
+                value={who} onChange={(e) => setWho(e.target.value)}
+                placeholder="Who picked up, e.g. clinic receptionist…" aria-label="Who picked up"
+                className="w-full rounded border border-line bg-white px-2 py-1 text-meta"
+              />
+              <textarea
+                value={said} onChange={(e) => setSaid(e.target.value)} rows={2}
+                placeholder="What they said, word for word…" aria-label="What they said"
+                className="w-full rounded border border-line bg-white px-2 py-1 text-body"
+              />
+            </div>
+          )}
+
+          <pre className="scroll mt-1 max-h-48 overflow-auto rounded border border-line bg-artifact-bg p-2 font-mono text-[12px] leading-[17px]" aria-label="Response that will be sent">
+            {JSON.stringify(response, null, 2)}
+          </pre>
+          <div className="text-[12px] text-muted">{speaks ? 'Sent as shown. Only the words above are typed.' : 'Sent exactly as documented. Not editable.'}</div>
           <button
-            className="mt-1 w-full rounded px-3 py-2 text-body font-semibold text-white hover:brightness-110"
+            disabled={missingWords}
+            className="mt-1 w-full rounded px-3 py-2 text-body font-semibold text-white hover:brightness-110 disabled:opacity-40"
             style={{ background: colour }}
-            onClick={() => {
-              try { sendCurtain(call.id, JSON.parse(body), variant) }
-              catch { setErr('That is not valid JSON. Fix it before sending.') }
-            }}
+            onClick={() => sendCurtain(call.id, response, typed ? `${variant} · words typed by teammate` : variant)}
           >
-            Send to agent
+            {missingWords ? 'Type what they said first' : 'Send to agent'}
           </button>
         </>
       )}
