@@ -74,13 +74,18 @@ export const TOOLS = [
       card: str(
         'Optional. JSON string for an interactive card the person taps to answer. ' +
         'kind is one of: spend_above_threshold, new_doctor, new_medicine, disagreement, ' +
-        'cant_tell, low_wallet, dead_end, substitute_offered, incident_summary, payment, booking. ' +
+        'cant_tell, low_wallet, dead_end, substitute_offered, incident_summary, payment, booking, ' +
+        'test_due, slot_unavailable. ' +
         'Optional fields: title, detail, amount_inr, payee, wallet_left_inr, ' +
-        'medicine, strength, quantity, for (who it is for; name these on any spend card), why (one line in plain ' +
+        'medicine, strength, quantity, test, doctor, clinic, when, ' +
+        'for (who it is for; name these on any spend card), why (one line in plain ' +
         'language, no rule IDs, the person never sees those), options (array of {label,value} for ' +
         'side-by-side views such as a disagreement), buttons (array of labels; sensible defaults are ' +
         'used if you omit it), on_timeout (what you will do if nobody answers). ' +
-        'incident_summary takes no buttons.'
+        'incident_summary takes no buttons. ' +
+        'slot_unavailable is for a booking you could not make: give the person their real choices as ' +
+        'options and buttons -- another named doctor from the onboarding data with where they are, the ' +
+        'same doctor on a later date, or not booking at all -- and never pick for them.'
       ),
     }, ['to', 'text', 'language']),
   },

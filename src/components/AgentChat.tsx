@@ -78,6 +78,13 @@ const DEFAULT_BUTTONS: Record<string, string[]> = {
   incident_summary: [],
   payment: ['Approve', 'Hold unpaid'],
   booking: ['Yes', 'No'],
+  // A check-up the record says is due. The person decides whether it is booked.
+  test_due: ['Yes, book it', 'Not now'],
+  // The clinic has nobody free. R12 says take the next available, another known
+  // doctor, or a walk-in, and say which was chosen and why -- so the choice goes
+  // to the person as their three real options, including not booking. The agent
+  // names the doctor and the date in `options`; these are only the fallback.
+  slot_unavailable: ['Another doctor', 'Another date', "Don't book"],
 }
 
 const TITLES: Record<string, string> = {
@@ -90,6 +97,8 @@ const TITLES: Record<string, string> = {
   dead_end: 'I hit a dead end',
   substitute_offered: 'A chemist offered a substitute',
   incident_summary: 'What happened',
+  test_due: 'A check-up is due',
+  slot_unavailable: 'That doctor has nothing free',
 }
 
 type T = (key: string, vars?: Record<string, string | number>) => string
@@ -309,16 +318,18 @@ function PlayLine({ ref_, spoken }: { ref_: string; spoken: boolean }) {
 }
 
 /** Answers that say yes. Anything else (Hold, No, Decline…) is a no or a defer. */
-const YES = new Set(['approve', 'yes', 'act', 'treat as urgent', 'top up', 'ok', 'ask the doctor'])
+const YES = new Set(['approve', 'yes', 'act', 'treat as urgent', 'top up', 'ok', 'ask the doctor', 'yes, book it'])
 
 const PAST: Record<string, string> = {
   approve: 'Approved', yes: 'Confirmed', no: 'Declined', hold: 'Held', 'hold unpaid': 'Held unpaid',
   decline: 'Declined', act: 'Go ahead', "don't act": 'Do not act', later: 'Later',
+  'yes, book it': 'Booking it', 'not now': 'Not now',
 }
 
 /** The facts a person needs to say yes, in the order they would check them. */
 const FACTS: Array<[string, string]> = [
   ['medicine', 'Medicine'], ['strength', 'Strength'], ['quantity', 'Quantity'],
+  ['test', 'Check-up'], ['doctor', 'Doctor'], ['clinic', 'Clinic'], ['when', 'When'],
   ['for', 'For'], ['payee', 'Chemist'],
 ]
 

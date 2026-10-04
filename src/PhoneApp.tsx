@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  AlertTriangle, ChevronRight, FlaskConical, Hand, House, IdCard, MessageCircle, Pill, Siren, Users, Wallet as WalletIcon,
+  AlertTriangle, CalendarPlus, ChevronRight, FlaskConical, Hand, House, IdCard, MessageCircle, Pill, Siren, Users, Wallet as WalletIcon,
 } from 'lucide-react'
 import { useSession } from './lib/session'
 import { sendInput, settleReversal } from './lib/api'
@@ -40,6 +40,21 @@ export default function PhoneApp({ memberId }: { memberId: string }) {
 
   useEffect(() => { if (tab === 'wallet' && !isRP) setTab('home') }, [isRP, tab])
   useEffect(() => { if (tab !== 'family') setInThread(false) }, [tab])
+
+  /**
+   * A question the agent needs answered opens the conversation on its own.
+   *
+   * The person tapped something and then put the phone down; the agent went
+   * away and called a clinic. When it comes back with a choice only they can
+   * make, hunting for it in a tab is a way to miss it. Only a card does this --
+   * an ordinary status line is not worth taking the screen for. On a phone that
+   * is not open, the same message arrives as the notification banner instead.
+   */
+  const lastCard = s.lastMessage
+  useEffect(() => {
+    const m = lastCard
+    if (m && m.from === 'agent' && m.to === memberId && m.card) setTab('chat')
+  }, [lastCard, memberId])
 
   // A call the agent placed that involves this person. Hiding is per phase, so
   // a call hidden while on hold comes back when the clinic is handed over.
@@ -262,8 +277,13 @@ function Home({ s, me, meds, tests, isRP, waitingOnMe, who, t, onGoChat, onProfi
             const now = s.clock ? new Date(s.clock).getTime() : Date.now()
             const due = x.last_done && x.every_days ? new Date(new Date(x.last_done).getTime() + x.every_days * 86400000).toISOString() : null
             const overdue = due !== null && new Date(due).getTime() < now
-            return (
-              <div key={x.id} className={cn('mt-2 rounded-2xl bg-white p-3.5 shadow-card', overdue && 'ring-2 ring-decision/40')}>
+            // A test that is due is the one thing on this screen a person can
+            // act on. Tapping it is a real human input, not a UI decision: it
+            // says "book this", and the agent decides everything after that.
+            const actionable = overdue || due !== null
+            const owner = (s.onboarding?.family?.members || []).find((m: any) => m.id === x.member)
+            const body = (
+              <>
                 <div className="flex items-start justify-between gap-2">
                   <div className="text-body font-semibold text-ink">{x.name}</div>
                   {overdue && <AlertTriangle className="h-5 w-5 shrink-0 text-decision" aria-label="Overdue" />}
@@ -273,7 +293,43 @@ function Home({ s, me, meds, tests, isRP, waitingOnMe, who, t, onGoChat, onProfi
                   {x.last_done ? t('last_done', { d: dateIn(me.language, x.last_done) }) : t('never_done')}
                   {due && <span className={overdue ? 'font-semibold text-decision' : ''}> · {overdue ? t('overdue', { d: dateIn(me.language, due) }) : t('next_due', { d: dateIn(me.language, due) })}</span>}
                 </div>
-              </div>
+              </>
+            )
+
+            if (!actionable) {
+              return <div key={x.id} className="mt-2 rounded-2xl bg-white p-3.5 shadow-card">{body}</div>
+            }
+
+            return (
+              <button
+                key={x.id}
+                onClick={() => sendInput({
+                  kind: 'test_due',
+                  source: `${me.name}, tapped "${x.name}" on their home screen`,
+                  from: who,
+                  test_id: x.id,
+                  test_name: x.name,
+                  for_member: x.member,
+                  for_name: owner?.name || x.member,
+                  due_on: due,
+                  overdue,
+                  needed_for_prescription: x.needed_for_prescription || null,
+                  text: `Please book my ${x.name}.`,
+                  sample_id: 'test_due_tap',
+                })}
+                className={cn(
+                  'mt-2 w-full rounded-2xl bg-white p-3.5 text-left shadow-card active:bg-surface',
+                  overdue && 'ring-2 ring-decision/40',
+                )}
+              >
+                {body}
+                <div className="mt-2.5 flex items-center justify-between gap-2 rounded-xl bg-stage-bg px-3 py-2">
+                  <span className="flex items-center gap-1.5 text-meta font-bold text-stage">
+                    <CalendarPlus className="h-4 w-4" aria-hidden /> {t('book_it')}
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-stage" aria-hidden />
+                </div>
+              </button>
             )
           })}
         </section>
