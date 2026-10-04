@@ -38,7 +38,8 @@
       { "name": "wallet_ledger_append", "args": { "amount_inr": 320, "payee": "Kazipet Pharmacy", "what": "Metoprolol 25mg, 60 tablets for Lakshmi", "rail": "pinelabs_upi_reserve_pay" } },
       { "name": "set_refill_cycle", "args": { "medicine_id": "med_chronic_1", "quantity_dispensed": 60, "source": "dispensing_receipt", "receipt_ref": "TX-DEMO-0005", "from_date": "2026-10-06" } },
       { "name": "send_message", "args": { "to": "rp", "text": "Paid Kazipet Pharmacy for Amma's Metoprolol. Note: Kazipet is not a registered Delhivery pickup point. Can someone collect it, or shall I try arranging a delivery from their pincode?", "language": "en-IN" } },
-      { "name": "send_message", "args": { "to": "family_group", "text": "Amma's Metoprolol refill is sorted. Arun approved it and the chemist has been paid. Working on getting it delivered to her.", "language": "en-IN" } }
+      { "name": "send_message", "args": { "to": "patient", "text": "అమ్మా, మీ మాత్రలు ఆర్డర్ అయ్యాయి. కెమిస్ట్‌కి పేమెంట్ అయింది. మీకు డెలివరీ చేయించడానికి ప్రయత్నిస్తున్నాను.", "language": "te-IN" } },
+      { "name": "send_message", "args": { "to": "family_group", "text": "Amma's tablets are sorted. The chemist has been paid and we're arranging delivery.", "language": "en-IN" } }
     ]
   },
   {
@@ -56,7 +57,7 @@
     "toolCalls": [
       { "name": "log_decision", "args": { "received": "MedPlus Gachibowli has the Budesonide Formoterol inhaler. 480 rupees.", "source": "MedPlus Gachibowli, phone call", "decided": "480 exceeds the threshold. Ask Arun. Since it is his own medicine, this is straightforward.", "rule_id": "R15", "why": "480 > 200 threshold. Arun is both the RP and the person who needs this medicine.", "action": "Approval card to Arun for his own inhaler", "recipient": "rp", "connector": "WhatsApp" } },
       { "name": "record_provider_outcome", "args": { "kind": "chemists", "provider": "MedPlus Gachibowli", "outcome": "answered", "why": "Budesonide + Formoterol inhaler available at 480 rupees." } },
-      { "name": "send_message", "args": { "to": "rp", "text": "Your inhaler is running low too. MedPlus Gachibowli has it. OK to pay?", "language": "en-IN", "card": "{\"kind\":\"spend_above_threshold\",\"amount_inr\":480,\"payee\":\"MedPlus Gachibowli\",\"medicine\":\"Budesonide + Formoterol\",\"strength\":\"200/6 mcg inhaler\",\"quantity\":\"1 inhaler (120 doses)\",\"for\":\"Arun\",\"wallet_left_inr\":4360,\"why\":\"Above the \\u20b9200 you set for asking first.\",\"on_timeout\":\"hold the order unpaid and call you\"}" } },
+      { "name": "send_message", "args": { "to": "rp", "text": "Your inhaler is running low too. MedPlus Gachibowli has it. OK to pay?", "language": "en-IN", "card": "{\"kind\":\"spend_above_threshold\",\"amount_inr\":480,\"payee\":\"MedPlus Gachibowli\",\"medicine\":\"Budesonide + Formoterol\",\"strength\":\"200/6 mcg inhaler\",\"quantity\":\"1 inhaler (120 doses)\",\"for\":\"Arun\",\"wallet_left_inr\":4200,\"why\":\"Above the \\u20b9200 you set for asking first.\",\"on_timeout\":\"hold the order unpaid and call you\"}" } },
       { "name": "wait_for_reply", "args": { "from": "rp", "wait_seconds": 180, "what_for": "approve the inhaler refill from MedPlus" } }
     ]
   },
@@ -68,7 +69,7 @@
       { "name": "wallet_ledger_append", "args": { "amount_inr": 480, "payee": "MedPlus Gachibowli", "what": "Budesonide + Formoterol inhaler for Arun", "rail": "pinelabs_upi_reserve_pay" } },
       { "name": "set_refill_cycle", "args": { "medicine_id": "med_chronic_2", "quantity_dispensed": 120, "source": "dispensing_receipt", "receipt_ref": "TX-DEMO-0006", "from_date": "2026-10-06" } },
       { "name": "send_message", "args": { "to": "rp", "text": "Paid for your inhaler. MedPlus is arranging delivery to your Hyderabad address. You should have it by this evening.", "language": "en-IN" } },
-      { "name": "send_message", "args": { "to": "family_group", "text": "Both refills are sorted. Amma's Metoprolol and Arun's inhaler are on the way.", "language": "en-IN" } },
+      { "name": "send_message", "args": { "to": "family_group", "text": "Both refills are sorted. Everything is on its way.", "language": "en-IN" } },
       { "name": "set_stage", "args": { "stage": 7, "why": "checking in: both refills arranged, delivery in progress" } }
     ]
   },
