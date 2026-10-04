@@ -1,10 +1,45 @@
 import { useState } from 'react'
 import { useSession } from './lib/session'
 import { PhoneScreen } from './PhoneScreen'
+import ClinicScreen from './ClinicScreen'
+import { PHONE_H, PHONE_W } from './components/PhoneFrame'
 import ConsoleApp from './App'
 import { Legend, Logo } from './components/brand'
 
 type Layout = 'three' | 'console2'
+
+/** The clinic desk is not a family member, so it is its own pick. */
+const CLINIC = 'clinic'
+
+/**
+ * Nor is the chemist's counter. It differs from the clinic in where it is
+ * drawn: PhoneScreen already recognises this id and renders the counter
+ * itself, so Tile needs no branch for it -- only a name and a pick.
+ */
+const CHEMIST = 'chemist'
+
+/**
+ * One tile on the stage: a family member's handset, or the desk being rung.
+ * The clinic gets the same footprint as a phone so the row stays level.
+ */
+function Tile({ pick, scale = 1, label }: { pick: string; scale?: number; label: string }) {
+  if (pick !== CLINIC) return <PhoneScreen memberId={pick} scale={scale} label={label} />
+  return (
+    <div style={{ width: PHONE_W * scale }}>
+      <div className="mb-1.5 text-center text-meta font-semibold text-muted">{label}</div>
+      <div
+        style={{
+          width: PHONE_W, height: PHONE_H,
+          transform: `scale(${scale})`, transformOrigin: 'top left',
+          marginBottom: (scale - 1) * PHONE_H,
+        }}
+        className="overflow-hidden rounded-[28px] shadow-[0_18px_44px_rgba(30,27,75,.35)] ring-1 ring-black/10"
+      >
+        <ClinicScreen />
+      </div>
+    </div>
+  )
+}
 
 /**
  * The recording surface. Everything here reads one shared session, so the
@@ -17,7 +52,10 @@ export default function StageView() {
   const [picks, setPicks] = useState<string[]>(['patient', 'rp', 'member_3'])
 
   const set = (i: number, v: string) => setPicks((p) => p.map((x, j) => (j === i ? v : x)))
-  const nameOf = (id: string) => id === 'chemist' ? 'Chemist' : (members.find((m: any) => m.id === id)?.name || id)
+  // Two of the picks are not family: the clinic desk being rung and the
+  // chemist's counter. Both need a name the select and the tile label can use.
+  const nameOf = (id: string) =>
+    id === CLINIC ? 'Clinic desk' : id === CHEMIST ? 'Chemist' : members.find((m: any) => m.id === id)?.name || id
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-surface">
@@ -37,7 +75,8 @@ export default function StageView() {
             <select key={i} value={p} onChange={(e) => set(i, e.target.value)}
               className="rounded border border-line bg-white px-2 py-1 text-meta">
               {members.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
-              <option value="chemist">Chemist</option>
+              <option value={CLINIC}>Clinic desk</option>
+              <option value={CHEMIST}>Chemist</option>
             </select>
           ))}
           <a href="/" className="rounded border border-line px-2.5 py-1 text-meta hover:bg-artifact-bg">Console only</a>
@@ -46,7 +85,7 @@ export default function StageView() {
 
       {layout === 'three' ? (
         <div className="flex flex-1 items-start justify-center gap-6 overflow-auto p-5">
-          {picks.map((p, i) => <PhoneScreen key={i} memberId={p} label={nameOf(p)} />)}
+          {picks.map((p, i) => <Tile key={i} pick={p} label={nameOf(p)} />)}
         </div>
       ) : (
         <div className="flex min-h-0 flex-1">
@@ -54,7 +93,7 @@ export default function StageView() {
             <ConsoleApp embedded />
           </div>
           <div className="flex flex-[4] shrink-0 items-start justify-center gap-4 overflow-auto bg-surface p-4">
-            {picks.slice(0, 2).map((p, i) => <PhoneScreen key={i} memberId={p} scale={0.84} label={nameOf(p)} />)}
+            {picks.slice(0, 2).map((p, i) => <Tile key={i} pick={p} scale={0.84} label={nameOf(p)} />)}
           </div>
         </div>
       )}

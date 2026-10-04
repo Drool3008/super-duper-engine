@@ -12,5 +12,9 @@
   "chemist_in_stock_inhaler": { "outcome": "ANSWERED", "who": "chemist", "said": "Yes, I have the Budesonide Formoterol inhaler. Four hundred and eighty rupees for one." },
   "chemist_in_stock_kazipet": { "outcome": "ANSWERED", "who": "chemist", "said": "Yes, Metoprolol 25 mg is available. Three hundred and twenty rupees for sixty tablets." },
   "chemist_substitute_only": { "outcome": "ANSWERED", "who": "chemist", "said": "We don't have Metoprolol 25 mg right now. I can give you Atenolol 25 mg instead, same class. Two hundred rupees." },
-  "ambulance_dispatched": { "outcome": "ANSWERED", "who": "108 operator", "said": "Ambulance dispatched. Give me the address and a landmark. It will take about twelve minutes." }
+  "ambulance_dispatched": { "outcome": "ANSWERED", "who": "108 operator", "said": "Ambulance dispatched. Give me the address and a landmark. It will take about twelve minutes." },
+  "clinic_no_answer_ringing": { "outcome": "NO_ANSWER", "rings": 8, "said": null, "_note": "Nobody at the desk. The agent must redial before moving on (R11)." },
+  "clinic_doctor_away": { "outcome": "ANSWERED", "who": "clinic receptionist", "said": "Doctor is not in today, he has gone to a camp. He will be back on Thursday. Shall I keep a slot for Thursday morning?" },
+  "clinic_fully_booked": { "outcome": "ANSWERED", "who": "clinic receptionist", "said": "Sorry, today is completely full. Doctor has thirty patients already. Nothing free before Thursday eleven o'clock." },
+  "clinic_second_has_slot": { "outcome": "ANSWERED", "who": "front desk", "said": "Yes, we have tomorrow nine thirty in the morning. Give me the patient name and age and I will write it down." }
 }

@@ -143,6 +143,46 @@ app.get('/api/audio/:ref', (req, res) => {
   res.send(audio.buffer)
 })
 
+/**
+ * Speak a line that is already on the record, so a screen can play it aloud.
+ *
+ * The agent decides the words; this only turns words it already chose into
+ * sound. The clinic screen uses it for the line the agent says when the
+ * receptionist picks up -- `place_call.say` -- which is why there is no `text`
+ * the caller can invent: it passes the pending call's id and gets back that
+ * call's own sentence, spoken.
+ *
+ * Synthesis is cached per call so replaying a line does not bill it twice.
+ */
+const spokenLines = new Map() // curtain call id -> audio_ref
+
+app.post('/api/speak', async (req, res) => {
+  const { call_id, language_code = 'en-IN', voice } = req.body || {}
+  const call = session.pending.find((c) => c.id === call_id)
+  if (!call) return res.status(404).json({ error: 'no call waiting with that id' })
+
+  const text = call.request?.say
+  if (!text) return res.status(400).json({ error: 'that call carries nothing to say' })
+
+  const cached = spokenLines.get(call_id)
+  if (cached && audioStore.has(cached)) return res.json({ audio_ref: cached, cached: true, text })
+
+  const spoken = await gnani.tts({ text, languageCode: language_code, voice })
+  if (!spoken.ok) {
+    return res.status(502).json({
+      error: spoken.reason || `Gnani could not speak that (${spoken.status}).`,
+      response: spoken.response ?? null,
+      text,
+    })
+  }
+
+  const audio_ref = randomUUID()
+  audioStore.set(audio_ref, { buffer: spoken.audio, filename: 'call-line.wav', mimetype: 'audio/wav' })
+  spokenLines.set(call_id, audio_ref)
+  emit('spoken', { to: call.request?.to || 'the clinic', audio_ref, language: language_code, ms: spoken.ms, bytes: spoken.bytes, voice: spoken.request?.voice })
+  res.json({ audio_ref, text, voice: spoken.request?.voice, ms: spoken.ms, bytes: spoken.bytes })
+})
+
 /** Audio from the curtain. Stored for gnani_stt to pick up by audio_ref. */
 app.post('/api/input/audio', upload.single('audio'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'no audio file' })
