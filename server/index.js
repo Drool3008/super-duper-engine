@@ -8,6 +8,7 @@ import { feed, isRunning } from './agent.js'
 import { chainState, contactChain } from './contacts.js'
 import { accounts } from './accounts.js'
 import { assessments, openReversals, exerciseReversal, acceptReversal, expireReversals } from './assessment.js'
+import { providerLog, fulfilments, dispatches } from './acting.js'
 import { readFileSync } from 'node:fs'
 import { TOOLS } from './tools.js'
 import { gnaniOn } from './rails/gnani.js'
@@ -62,6 +63,9 @@ app.get('/api/session', (req, res) => {
     accounts: accounts(),
     assessments: assessments(),
     reversals: openReversals(),
+    providerLog: providerLog(),
+    fulfilments: fulfilments(),
+    dispatches: dispatches(),
     contactOrder: contactChain(),
     rails: { gnani: gnaniOn(), sheets: sheetsOn() },
     tools: TOOLS.map(({ name, mode, rail, endpoint }) => ({ name, mode, rail, endpoint: endpoint || null })),

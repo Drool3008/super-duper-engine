@@ -29,6 +29,11 @@ export const session = {
   accounts: [],    // transcripts and summaries, see accounts.js
   assessments: [], // tiers and the factors behind them, see assessment.js
   reversals: [],   // decisions the RP may still overrule, see assessment.js
+  ladders: {},     // how far down each ranked provider list we are, see acting.js
+  providerLog: [], // every provider attempt and what came of it
+  fulfilments: [], // what the chemist actually supplied
+  deadEnds: [],    // exhausted lists, reported rather than passed over
+  dispatches: [],  // emergency dispatches, all four parts present
   familyHistory,
   rpHistory,
   history: [],     // provider-agnostic conversation history

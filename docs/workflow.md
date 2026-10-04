@@ -140,6 +140,35 @@ RP-only reversal with both views kept, letting a decision stand, and expiry by
 sim clock. The card itself was verified on the simulator: one window opened, the
 card shown, a non-RP refused, the RP's reversal accepted, and the card gone.
 
+### Acting (stage 6) — done
+
+`server/acting.js`. The flowchart's promise for this stage is that every failure
+moves on, holds, or hands back to a human, and **none of them stop silently**.
+Three are enforced rather than asked for, each being a place where the cheapest
+wrong answer looks like the right one.
+
+**Silence is not an answer (R11).** `report_dead_end` is refused while any
+provider is untried, and refused again if the first was never redialled.
+`next_provider` works the ranked list and says who is owed that redial. A
+provider not in the onboarding data is refused outright.
+
+**A substitution is refused, not flagged (R1, R13).** `record_fulfilment` has no
+shape that records a different medicine as fulfilled. A substitute that was
+offered and correctly declined is still recorded and still goes to a human,
+because the RP should see that somebody tried.
+
+**An emergency is all four parts or none** (decision 4). `record_dispatch`
+requires transport, the clinic told, the family group alerted, and the agent
+still working down the contact list. Doing one and calling it done is the
+failure it guards against.
+
+R12 is enforced lightly: "no slot" without saying what was taken instead, and
+why, is refused.
+
+Covered by five checks: the redial order, the dead end gate, the missing R12
+reason, the refused substitution with its escalated offer, and the partial
+dispatch.
+
 ## Spend
 
 Every operation costs money, so the RP sets a spend limit. The running total is

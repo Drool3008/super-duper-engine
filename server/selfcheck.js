@@ -219,5 +219,76 @@ assert.match(tooLate.error, /already expired|closed/)
 assert.equal(openReversals().length, 0)
 console.log('ok  reversal window closed on the sim clock, not a real timer')
 
+// ---------------------------------------------------------------- acting
+
+const { nextProvider, recordProviderOutcome, reportDeadEnd, recordFulfilment, recordDispatch } =
+  await import('./acting.js')
+
+// R11: you cannot call it a dead end while there is anyone left to ring.
+const tooEarly = reportDeadEnd({ kind: 'clinics', why: 'nobody picked up' })
+assert.equal(tooEarly.ok, false, 'a dead end with untried clinics must be refused')
+assert.match(tooEarly.error, /Still untried/)
+
+const c1 = nextProvider({ kind: 'clinics' })
+assert.equal(c1.provider.name, 'Placeholder Clinic 1', 'ranked order, best first')
+recordProviderOutcome({ kind: 'clinics', provider: 'Placeholder Clinic 1', outcome: 'no_answer' })
+
+const owed = nextProvider({ kind: 'clinics' })
+assert.equal(owed.redial, true, 'R11: the first clinic is owed a redial before anyone else')
+assert.equal(owed.provider.name, 'Placeholder Clinic 1')
+recordProviderOutcome({ kind: 'clinics', provider: 'Placeholder Clinic 1', outcome: 'no_answer' })
+
+const c2 = nextProvider({ kind: 'clinics' })
+assert.equal(c2.provider.name, 'Placeholder Clinic 2', 'only then does the second clinic get a go')
+recordProviderOutcome({ kind: 'clinics', provider: 'Placeholder Clinic 2', outcome: 'no_answer' })
+console.log('ok  R11 redialled the first clinic before trying the second')
+
+const nowDead = reportDeadEnd({ kind: 'clinics', why: 'both clinics rang out twice' })
+assert.equal(nowDead.ok, true, 'once the list is exhausted the dead end is allowed')
+console.log('ok  R11 dead end allowed only once the list was exhausted')
+
+const inventedClinic = recordProviderOutcome({ kind: 'clinics', provider: 'Clinic Round The Corner', outcome: 'booked' })
+assert.equal(inventedClinic.ok, false, 'a provider not in the data must be refused')
+assert.match(inventedClinic.error, /Never invent a provider/)
+
+const noReason = recordProviderOutcome({ kind: 'labs', provider: 'Placeholder Lab 1', outcome: 'no_slot' })
+assert.equal(noReason.ok, false, 'R12: no slot needs to say what you took instead')
+assert.match(noReason.error, /R12/)
+console.log('ok  R12 refused "no slot" with no choice and no reason')
+
+// R1/R13: a substitution is refused, not flagged.
+const sub = recordFulfilment({
+  prescribed: 'Placeholder Chronic Medicine 1 10mg',
+  supplied: 'Generic Equivalent 10mg',
+  chemist: 'Placeholder Chemist 1',
+})
+assert.equal(sub.ok, false, 'a substitution must be refused outright')
+assert.match(sub.error, /R1/)
+assert.equal(sub.must_ask_human, true)
+
+const declined = recordFulfilment({
+  prescribed: 'Placeholder Chronic Medicine 1 10mg',
+  supplied: 'Placeholder Chronic Medicine 1 10mg',
+  chemist: 'Placeholder Chemist 1',
+  substitute_offered: 'Generic Equivalent 10mg',
+})
+assert.equal(declined.ok, true, 'the right medicine is recorded even when a substitute was offered')
+assert.equal(declined.must_ask_human, true, 'and the offer still goes to a human')
+console.log('ok  R1 refused a substitution and escalated a declined offer')
+
+// Decision 4: all four parts, or it is not a dispatch.
+const half = recordDispatch({ transport: 'auto booked for the patient', still_calling: true })
+assert.equal(half.ok, false, 'a partial dispatch must be refused')
+assert.match(half.error, /clinic_notified/)
+
+const whole = recordDispatch({
+  transport: 'Auto booked for Demo Patient to Placeholder Clinic 1',
+  clinic_notified: 'Placeholder Clinic 1 told to expect her',
+  family_alerted: 'Told the family group she is on her way, no detail',
+  still_calling: true,
+})
+assert.equal(whole.ok, true)
+console.log('ok  emergency dispatch required all four parts')
+
 console.log('\nall checks passed')
 process.exit(0)

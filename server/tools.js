@@ -94,6 +94,65 @@ export const TOOLS = [
     }, ['from', 'wait_seconds', 'what_for']),
   },
   {
+    name: 'next_provider',
+    mode: 'LIVE', rail: null,
+    description:
+      'Who to try next from a ranked list of clinics, chemists or labs, and whether the current one is still owed its redial (R11). Ask rather than picking yourself, and never use a provider that is not in the onboarding data.',
+    parameters: obj('Next provider', {
+      kind: { type: 'STRING', description: 'Which list', enum: ['clinics', 'chemists', 'labs'] },
+      why: str('One line: why you are trying someone'),
+    }, ['kind']),
+  },
+  {
+    name: 'record_provider_outcome',
+    mode: 'LIVE', rail: null,
+    description:
+      'What happened when you tried them: answered, no_answer, no_slot, out_of_stock or booked. For no_slot you must say what you are taking instead and why (R12).',
+    parameters: obj('Provider outcome', {
+      kind: { type: 'STRING', description: 'Which list', enum: ['clinics', 'chemists', 'labs'] },
+      provider: str('The name exactly as it appears in the onboarding data'),
+      outcome: { type: 'STRING', description: 'What happened', enum: ['answered', 'no_answer', 'no_slot', 'out_of_stock', 'booked'] },
+      why: str('One line. Required when there is no slot: what you took instead and why.'),
+      chose: str('What you chose, if you chose something: next available, another doctor, a walk-in'),
+    }, ['kind', 'provider', 'outcome']),
+  },
+  {
+    name: 'report_dead_end',
+    mode: 'LIVE', rail: null,
+    description:
+      'Report that a whole ranked list is exhausted, so the RP hears about it. Refused while anything is left untried or un-redialled: silence is not an answer and nothing here stops quietly (R11).',
+    parameters: obj('Dead end', {
+      kind: { type: 'STRING', description: 'Which list', enum: ['clinics', 'chemists', 'labs'] },
+      why: str('What you tried and what happened, in one line'),
+    }, ['kind', 'why']),
+  },
+  {
+    name: 'record_fulfilment',
+    mode: 'LIVE', rail: null,
+    description:
+      'What the chemist is actually supplying against the prescription. If it is not the prescribed medicine this is refused: you never substitute, and you never accept a substitute offered to you. Hand it to a human and say why (R1, R13). Record the offer here even when you correctly decline it.',
+    parameters: obj('Fulfilment', {
+      prescribed: str('The medicine on the prescription, name and strength'),
+      supplied: str('What the chemist is giving you'),
+      chemist: str('Which chemist, from the onboarding data'),
+      substitute_offered: str('If they offered something else, what it was'),
+      why: str('One line'),
+    }, ['prescribed', 'supplied']),
+  },
+  {
+    name: 'record_dispatch',
+    mode: 'LIVE', rail: null,
+    description:
+      'An emergency where nobody could be reached. All four parts are required or it is not a dispatch: transport booked, the clinic told so the arrival is expected, the family group alerted, and you still working down the contact list (R9).',
+    parameters: obj('Emergency dispatch', {
+      transport: str('What you booked and for whom'),
+      clinic_notified: str('Which clinic you told, so they expect the arrival'),
+      family_alerted: str('What you told the family group. Status only (R18).'),
+      still_calling: bool('True: you are still working down the contact list'),
+      why: str('One line'),
+    }, ['transport', 'clinic_notified', 'family_alerted', 'still_calling']),
+  },
+  {
     name: 'record_assessment',
     mode: 'LIVE', rail: null,
     description:
