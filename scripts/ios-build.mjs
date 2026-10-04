@@ -25,6 +25,10 @@ if (!base) {
 
 console.log(`API base for the handset: ${base}`)
 console.log('The phone and this machine must be on the same Wi-Fi.\n')
-execSync('vite build', { stdio: 'inherit', env: { ...process.env, VITE_API_BASE: base } })
+execSync('vite build', {
+  stdio: 'inherit',
+  // CAP_NATIVE drops the `crossorigin` attribute that blanks the webview.
+  env: { ...process.env, VITE_API_BASE: base, CAP_NATIVE: '1' },
+})
 execSync('cap sync ios', { stdio: 'inherit' })
 console.log('\nNow: npm run ios:open, pick your connected iPhone, press Run.')

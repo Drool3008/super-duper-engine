@@ -200,8 +200,10 @@ data/       session.json snapshot, so a crash does not lose a take
 - **Multimodal forwarding is unverified.** The image goes into the conversation
   (Gemini `inlineData`, Anthropic image blocks; a PDF is sent as its page-1
   image), but with no API key yet nothing has actually been sent to a model.
-- **Native iOS has never been compiled.** The Capacitor project exists and is
-  configured, but Xcode's iOS platform component is not installed on this
-  machine and there is not enough disk space to fetch it, so `xcodebuild` fails
-  at the destination step. Nothing about the native build is proven.
-- The phone **web** app, by contrast, is verified end to end over the LAN.
+- **Native iOS runs in the simulator**, verified on iOS 26.4: it compiles,
+  installs, launches, and loads the member roster from the backend over the
+  LAN, which exercises `VITE_API_BASE` and the CORS headers together.
+- **No device build has been done.** Nothing has been connected to sign
+  against, so the signing path is untested. The simulator build signs with
+  "Sign to Run Locally" and deliberately skips it.
+- The phone **web** app is verified end to end over the LAN.
