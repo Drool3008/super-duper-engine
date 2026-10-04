@@ -1,5 +1,8 @@
 node_modules/
 .env
+# Any .env variant: a timestamped backup of one still holds the keys.
+.env.*
+!.env.example
 data/session.json
 dist/
 .playwright-mcp/

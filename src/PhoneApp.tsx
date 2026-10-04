@@ -10,6 +10,7 @@ import { AgentChat } from './components/AgentChat'
 import { EditSheet, TopUpSheet, Wallet, type WalletSheet } from './components/Wallet'
 import { Profile } from './components/Profile'
 import { CallBar, CallView, callFor } from './components/CallView'
+import { VoiceCall } from './components/VoiceCall'
 import { AgentAvatar, AiTag, HumanTag, LogoMark, PersonAvatar } from './components/brand'
 import { Button } from './components/ui/button'
 import { dateIn, translator } from './lib/i18n'
@@ -46,6 +47,9 @@ export default function PhoneApp({ memberId }: { memberId: string }) {
   const [hidden, setHidden] = useState<string | null>(null)
   const [walletSheet, setWalletSheet] = useState<WalletSheet>(null)
   const [profile, setProfile] = useState(false)
+  // The call overlay. Mounted here rather than in the chat so it covers the
+  // bottom nav too -- a call is the whole screen or it is not a call.
+  const [onCall, setOnCall] = useState(false)
 
   // "Top up" on the agent's low-wallet card goes straight to topping up.
   const onAnswer = (answer: string, card: any) => {
@@ -63,7 +67,7 @@ export default function PhoneApp({ memberId }: { memberId: string }) {
       {!inThread && <Header me={me} stage={s.stage} thinking={s.thinking} t={t} onProfile={() => setProfile(true)} />}
       <div className="min-h-0 flex-1 overflow-hidden">
         {tab === 'home' && <Home s={s} me={me} meds={meds} tests={tests} isRP={isRP} waitingOnMe={waitingOnMe} who={memberId} t={t} onGoChat={() => setTab('chat')} onProfile={() => setProfile(true)} />}
-        {tab === 'chat' && <AgentChat memberId={memberId} t={t} onAnswer={onAnswer} />}
+        {tab === 'chat' && <AgentChat memberId={memberId} t={t} onAnswer={onAnswer} onStartCall={() => setOnCall(true)} />}
         {tab === 'family' && <ChatsTab memberId={memberId} t={t} onAnswer={onAnswer} onOpenChange={setInThread} />}
         {tab === 'wallet' && isRP && <Wallet wallet={s.wallet} settings={s.onboarding?.wallet} timeline={s.timeline} onSheet={setWalletSheet} />}
       </div>
@@ -71,6 +75,16 @@ export default function PhoneApp({ memberId }: { memberId: string }) {
       {isRP && walletSheet === 'topup' && <TopUpSheet me={me} left={s.wallet.limit - s.wallet.spent} onClose={() => setWalletSheet(null)} />}
       {isRP && walletSheet === 'edit' && <EditSheet me={me} wallet={s.wallet} settings={s.onboarding?.wallet} onClose={() => setWalletSheet(null)} />}
       {!inThread && <Nav tab={tab} onTab={setTab} isRP={isRP} unread={unread} nudge={waitingOnMe} t={t} />}
+
+      {onCall && (
+        <VoiceCall
+          memberId={memberId}
+          name={me.name}
+          language={me.language || 'te-IN'}
+          onClose={() => setOnCall(false)}
+          onReview={() => { setOnCall(false); setTab('chat') }}
+        />
+      )}
     </div>
   )
 }

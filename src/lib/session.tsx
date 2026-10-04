@@ -25,13 +25,15 @@ export interface SessionView {
   rpHistory: any
   /** Static sample trigger sentences offered in the UI, from config. */
   triggerSamples: any
+  /** The spoken exchange at stage 4, while one is open. */
+  listening: { open: boolean; asked: number; turns: number; summary: any } | null
 }
 
 const EMPTY: SessionView = {
   model: '', stage: 1, clock: '', wallet: { limit: 0, spent: 0, ledger: [] },
   rails: { gnani: false, sheets: false }, onboarding: null,
   decisions: [], messages: {}, chats: {}, reversals: [], pending: [], timeline: [], thinking: false,
-  awaiting: null, lastMessage: null, familyHistory: null, rpHistory: null, triggerSamples: null,
+  awaiting: null, lastMessage: null, familyHistory: null, rpHistory: null, triggerSamples: null, listening: null,
 }
 
 const Ctx = createContext<SessionView>(EMPTY)
@@ -54,6 +56,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         ...v, model: s.model, stage: s.stage, clock: s.clock,
         wallet: s.wallet, rails: s.rails, onboarding: s.onboarding,
         familyHistory: s.familyHistory, rpHistory: s.rpHistory, triggerSamples: s.triggerSamples,
+        listening: s.listening ? { open: true, asked: s.listening.asked, turns: s.listening.turns?.length ?? 0, summary: s.listening.summary } : null,
       }))
     }).catch(() => {})
 
@@ -124,6 +127,17 @@ function reduce(v: SessionView, ev: AgentEvent, nextId: () => string): SessionVi
       return { ...push({ kind: 'input', id: nextId(), at: ev.clock, input: ev.input, attachment: ev.attachment }), thinking: true }
     case 'decision':
       return { ...push({ kind: 'decision', id: nextId(), at: ev.clock, decision: ev.decision }), decisions: [...v.decisions, ev.decision] }
+    // The spoken exchange, so the call overlay knows where it is: how many
+    // questions have been asked, how many answers are in, and whether the
+    // write-up has landed, which is what ends the call.
+    case 'listening_opened':
+      return { ...v, listening: { open: true, asked: 0, turns: ev.turns ?? 1, summary: null } }
+    case 'listening_question':
+      return { ...v, listening: { ...(v.listening ?? { open: true, turns: 1, summary: null }), open: true, asked: ev.asked ?? ((v.listening?.asked ?? 0) + 1) } as any }
+    case 'listening_answer':
+      return { ...v, listening: { ...(v.listening ?? { open: true, asked: 0, summary: null }), open: true, turns: ev.turns ?? ((v.listening?.turns ?? 0) + 1) } as any }
+    case 'summarised':
+      return { ...v, listening: { ...(v.listening ?? { open: true, asked: 0, turns: 0 }), summary: { model: ev.model, problems: ev.problems, next_steps: ev.next_steps } } as any }
     case 'tool_call':
       return push({ kind: 'tool', id: ev.id, at: ev.clock, name: ev.name, args: ev.args, mode: ev.mode, rail: ev.rail, endpoint: ev.endpoint })
     case 'tool_result':

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, Check, CheckCircle2, ChevronDown, ChevronLeft, Clock3, Hand, Lightbulb, Pause, SendHorizontal, Volume2 } from 'lucide-react'
+import { ArrowDown, AudioLines, Check, CheckCircle2, ChevronDown, ChevronLeft, Clock3, Hand, Lightbulb, Pause, SendHorizontal, Volume2 } from 'lucide-react'
 import { useSession } from '../lib/session'
 import { audioUrl, rupees, sendInput, sendReply } from '../lib/api'
 import type { Message } from '../lib/types'
@@ -104,11 +104,13 @@ const english: T = (k) => ({ message: 'Message…', send: 'Send', no_messages: '
  * the person's own lines sit on the right in the familiar green. Nobody
  * watching has to guess which is which.
  */
-export function AgentChat({ memberId, onBack, t = english, onAnswer }: {
+export function AgentChat({ memberId, onBack, t = english, onAnswer, onStartCall }: {
   memberId: string
   onBack?: () => void
   t?: T
   onAnswer?: (answer: string, card: any) => void
+  /** Opens the call overlay. Absent on surfaces that cannot host it. */
+  onStartCall?: () => void
 }) {
   const s = useSession()
   const box = useRef<HTMLDivElement>(null)
@@ -237,18 +239,30 @@ export function AgentChat({ memberId, onBack, t = english, onAnswer }: {
         />
       )}
       {/*
-        Stage 4. The same recorder does both halves: speaking unprompted starts a
-        run, and answering a question it asked out loud settles the wait it is
-        parked on. Shown while awaiting too, because at this stage the answer it
-        is waiting for is a spoken one.
+        Stage 4. A call is the good way to do this and the overlay is where it
+        happens; the thread is what you read afterwards. The inline recorder
+        stays for the case where it is waiting on an answer and you are already
+        here, so nobody has to open a call to say one word.
       */}
-      <VoiceAccount
-        memberId={memberId}
-        name={me?.name || memberId}
-        language={me?.language || 'te-IN'}
-        answering={Boolean(awaiting)}
-        asked={lastSpokenQuestion}
-      />
+      {awaiting ? (
+        <VoiceAccount
+          memberId={memberId}
+          name={me?.name || memberId}
+          language={me?.language || 'te-IN'}
+          answering
+          asked={lastSpokenQuestion}
+        />
+      ) : onStartCall ? (
+        <div className="shrink-0 border-t border-line bg-white px-3 py-2.5">
+          <button
+            onClick={onStartCall}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-brand py-3 text-card font-semibold text-white shadow-card"
+          >
+            <AudioLines className="h-5 w-5" aria-hidden />
+            Talk to the agent
+          </button>
+        </div>
+      ) : null}
       <div className="flex shrink-0 items-center gap-2 border-t border-line bg-white px-3 py-2.5">
         <input
           value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()}

@@ -65,6 +65,7 @@ export class WavRecorder {
   private sink: GainNode | null = null
   private chunks: Float32Array[] = []
   private rate = 16000
+  private rms = 0
 
   async start(): Promise<void> {
     this.stream = await navigator.mediaDevices.getUserMedia({
@@ -82,7 +83,17 @@ export class WavRecorder {
     this.chunks = []
     this.node.onaudioprocess = (e) => {
       // Copied, not referenced: the buffer is reused between callbacks.
-      this.chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)))
+      const block = new Float32Array(e.inputBuffer.getChannelData(0))
+      this.chunks.push(block)
+
+      // Loudness of this block, kept so the UI can draw something that moves
+      // with the voice. A meter that is really the microphone is the difference
+      // between "it is listening" and "there is an animation playing".
+      let sum = 0
+      for (let i = 0; i < block.length; i++) sum += block[i] * block[i]
+      const next = Math.sqrt(sum / block.length)
+      // Eased, so the bars settle rather than strobe between frames.
+      this.rms = this.rms * 0.6 + next * 0.4
     }
 
     // A ScriptProcessor only runs while connected to the graph, but routing the
@@ -93,6 +104,14 @@ export class WavRecorder {
     source.connect(this.node)
     this.node.connect(this.sink)
     this.sink.connect(this.ctx!.destination)
+  }
+
+  /**
+   * How loud it is right now, 0 to 1, already scaled for drawing. Speech sits
+   * around an RMS of 0.02-0.15, so the raw figure would barely move a bar.
+   */
+  get level(): number {
+    return Math.max(0, Math.min(1, this.rms * 6))
   }
 
   /** Seconds captured so far, for a live counter. */
@@ -113,7 +132,7 @@ export class WavRecorder {
     for (const c of this.chunks) { samples.set(c, at); at += c.length }
 
     const rate = this.rate
-    this.ctx = null; this.stream = null; this.node = null; this.sink = null; this.chunks = []
+    this.ctx = null; this.stream = null; this.node = null; this.sink = null; this.chunks = []; this.rms = 0
     return { blob: encodeWav(samples, rate), seconds: total / rate }
   }
 
