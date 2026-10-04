@@ -147,28 +147,45 @@ goes back into the agent loop.
   family group, and a 1:1 per member. Seeded with months of past records.
   Long-press or the `⋯` menu opens **Forward to Family Health agent**, which
   sends the file and your note to the agent as a labelled external input. The
-  agent sees only what someone forwards; it never reads the chats itself (R2).
-- **The RP's agent chat is the decision room.** Every escalation arrives as a
-  tap-to-answer card with a one-line plain-language reason. Rule IDs stay in the
-  console and never appear on a phone. If nobody answers in time, the agent
-  applies its own rule and the card says what it did.
-- **Home** — medicines with days left (pills ÷ daily dose), tests, the latest
-  word from the agent, and an *I need help now* button that raises a real SOS.
-- **Chat** — two-way. Typing routes itself: if the agent is waiting on that
-  person it is sent as a **reply** and unblocks `wait_for_reply`; otherwise it is
-  a **new trigger** with its own source label.
-- **Cards** — Approve / Hold / Yes / No are genuine human checkpoints. Pressing
-  Approve here advances the agent and lands in the decision log, exactly as it
-  does from the console's phone frames.
-- **Wallet** (RP only) — limit, spent, left, last five ledger rows, and the
-  threshold above which the agent must ask first.
+  agent sees only what someone sends it; it never reads the chats itself (R2).
+- **The family group includes the agent.** Its status posts appear in the
+  group thread on every phone. Tapping **@agent** before sending addresses a
+  message to it: that one message reaches the agent as a labelled input (or
+  settles a wait on that person), and nothing else in the group does.
+- **The agent conversation is one thread** — the Chat tab and Family > agent
+  show the same thing. For the RP it is the decision room: every escalation
+  arrives as a tap-to-answer card naming the medicine, strength, quantity, who
+  it is for and the chemist, with a one-line plain-language reason. Rule IDs
+  stay in the console. An answered card turns green (or grey for a hold). If
+  nobody answers in time, the agent applies its own rule and the card says so.
+  Typing routes itself: a **reply** if the agent is waiting on that person,
+  otherwise a **new trigger** with its own source label.
+- **Calls** — when the agent rings a member (`place_call`) their phone shows an
+  incoming call, then the live transcript: the raw Gnani transcript, with the
+  agent's own English note labelled separately. While the agent calls a clinic
+  for them (`gnani_call_session`) it shows "on hold", then "clinic connected"
+  once the line is transferred.
+- **Home** — medicines with days left (pills ÷ daily dose), whose they are,
+  tests with last done and next due, and the latest word from the agent.
+  The SOS button is off for Round 3 (plan 2.2); `VITE_SOS=on` brings it back,
+  behind a second tap.
+- **What your agent knows** — tap your name in the header: conditions,
+  medicines and run-out dates, the family doctor and clinics, the call chain
+  in order and (RP only) the wallet limits. Read only.
+- **Wallet** (RP only) — what is left, the amount above which the agent must
+  ask first, the low mark, every ledger row with its date, and any itemised
+  dispensing receipt. **Top up** and **Edit limits** go through a review step;
+  each change reaches the agent as a labelled input and updates the onboarding
+  data it reads. "Top up" on a low-wallet card opens the top-up sheet.
+- **Language** — the app's own words follow each member's onboarding
+  language (English and Telugu so far, in `src/lib/i18n.ts`).
 
 The persona switcher is a simulation affordance. In a real build you are logged
 in as yourself.
 
 ## How a take runs
 
-1. A teammate feeds a **real** input from the curtain: a voice note, an SOS, a
+1. A teammate feeds a **real** input from the curtain: a voice note, an SOS (if enabled), a
    message, or the clock reaching one of the agent's own dates. Every input
    carries a visible source label.
 2. The model decides. Tool calls route by run mode:
@@ -176,8 +193,8 @@ in as yourself.
      `send_message`, `wallet_ledger_append`, Sheets)
    - **CURTAIN · RUN** — the app really calls Gnani, shows the raw response
      read-only, a teammate clicks Send. No editor on this path.
-   - **CURTAIN · DOCS** — paused; a teammate picks a documented fixture variant
-   - **CURTAIN · PERSON** — paused; a teammate answers in character
+   - **CURTAIN · DOCS** — paused; a teammate picks a documented fixture variant, sent exactly as written (no editor)
+   - **CURTAIN · PERSON** — paused; a teammate picks the call outcome and types only who answered and what they said, in character
    - **IMAGINED** — same as DOCS, drawn with a dashed border. Exactly three.
 3. Approve / Hold / Yes / No in a phone frame are real replies into the loop,
    logged as human checkpoints.
