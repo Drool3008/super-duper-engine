@@ -22,7 +22,7 @@ const triggerSamples = loadOptional('config/trigger-samples.json', { samples: []
 function modelLabel() {
   const which = (process.env.MODEL_PROVIDER || 'gemini').toLowerCase()
   if (which === 'stub') return 'stub (scripted, not a real model)'
-  if (which === 'opencode' || which === 'zen') return `opencode / ${process.env.ZEN_MODEL || 'claude-haiku-4-5'}`
+  if (which === 'opencode' || which === 'go' || which === 'zen') return `opencode-go / ${process.env.ZEN_MODEL || 'minimax-m3'}`
   if (which === 'anthropic') return `anthropic / ${process.env.MODEL_NAME || 'claude-sonnet-5'}`
   return `gemini / ${process.env.MODEL_NAME || 'gemini-3.1-pro-preview'}`
 }

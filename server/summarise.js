@@ -16,6 +16,9 @@
  * diagnosis, no medicine named, no dose, ever. The model writes up an account
  * and says what the agent will do. It does not practise medicine.
  */
+
+import * as opencode from './providers/opencode.js'
+
 const BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
 
 const SCHEMA = {
@@ -44,7 +47,6 @@ Hard constraints, and they are not negotiable:
 
 export function summariseOn() { return Boolean(process.env.GEMINI_API_KEY || process.env.OPENCODE_API_KEY) }
 
-const ZEN = 'https://opencode.ai/zen/v1/messages'
 
 /** Gemini's uppercase OpenAPI-style schema, in the lowercase JSON Schema Claude wants. */
 function lower(node) {
@@ -58,16 +60,24 @@ function lower(node) {
 }
 
 /**
- * The same write-up through OpenCode Zen, whose /messages endpoint is
+ * The same write-up through OpenCode Go, whose /messages endpoint is
  * Anthropic-shaped. Structured output comes from forcing a single tool call
  * whose input schema is the shape we want, which is the reliable way to get
- * JSON out of Claude -- asking for "JSON only" in prose is not.
+ * JSON out of a model -- asking for "JSON only" in prose is not.
+ *
+ * The URL and the two required headers come from providers/opencode.js; see
+ * there for why this is /zen/go/v1 and not /zen/v1.
  */
 async function viaZen({ prompt, model }) {
   const started = Date.now()
-  const res = await fetch(ZEN, {
+  const res = await fetch(opencode.baseUrl(), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.OPENCODE_API_KEY, 'anthropic-version': '2023-06-01' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.OPENCODE_API_KEY,
+      'anthropic-version': '2023-06-01',
+      ...opencode.headers(),
+    },
     body: JSON.stringify({
       model,
       max_tokens: 2048,
@@ -80,10 +90,10 @@ async function viaZen({ prompt, model }) {
   })
   const json = await res.json()
   if (!res.ok) {
-    return { ok: false, status: res.status, ms: Date.now() - started, reason: json?.error?.message || `OpenCode Zen returned ${res.status}` }
+    return { ok: false, status: res.status, ms: Date.now() - started, reason: json?.error?.message || `OpenCode Go returned ${res.status}` }
   }
   const call = (json.content || []).find((c) => c.type === 'tool_use')
-  if (!call?.input) return { ok: false, ms: Date.now() - started, reason: 'OpenCode Zen returned no write-up.' }
+  if (!call?.input) return { ok: false, ms: Date.now() - started, reason: 'OpenCode Go returned no write-up.' }
   return { ok: true, ms: Date.now() - started, model, out: call.input }
 }
 
@@ -137,12 +147,28 @@ async function viaGemini({ prompt, model }) {
 }
 
 /**
+ * problems and next_steps are a list, and the consumers treat them as one --
+ * the RP card joins problems with " · " and next_steps with " Then ".
+ * Gemini honours the ARRAY schema item by item. minimax-m3 returns the right
+ * shape with the wrong contents: one element holding every line with newlines
+ * inside it, which joins into a blob with no separators. Split it back out, so
+ * a provider's habits do not reach the card. Also tolerates a bare string.
+ */
+function lines(value) {
+  const raw = Array.isArray(value) ? value : value ? [value] : []
+  return raw
+    .flatMap((item) => String(item).split('\n'))
+    .map((line) => line.replace(/^\s*(?:[-*\u2022]|\d+[.)])\s*/, '').trim())
+    .filter(Boolean)
+}
+
+/**
  * Write up the exchange.
  *
  * Two providers, because one of them will be unavailable at the worst moment:
- * the Gemini free tier is twenty requests a day per model, and OpenCode Zen's
- * free models are refused outside their own CLI. SUMMARY_PROVIDER pins one when
- * a take wants certainty; left alone, whichever is configured is tried and the
+ * the Gemini free tier is twenty requests a day per model, and an OpenCode Go
+ * subscription has its own monthly ceiling. SUMMARY_PROVIDER pins one when a
+ * take wants certainty; left alone, whichever is configured is tried and the
  * other catches the fall. The result says which one wrote it.
  *
  * @param turns the account in order. The first has no question -- it is what she
@@ -174,7 +200,7 @@ export async function summarise({ about, language, turns }) {
 
     const got = via === 'gemini'
       ? await viaGemini({ prompt, model: process.env.SUMMARY_MODEL || 'gemini-3.8-flash' })
-      : await viaZen({ prompt, model: process.env.SUMMARY_MODEL_ZEN || 'claude-haiku-4-5' })
+      : await viaZen({ prompt, model: process.env.SUMMARY_MODEL_ZEN || 'minimax-m3' })
 
     if (!got.ok) { tried.push(`${via}: ${got.reason}`); continue }
 
@@ -187,8 +213,8 @@ export async function summarise({ about, language, turns }) {
       model: got.model,
       ms: got.ms,
       turns: turns.length,
-      problems: out.problems || [],
-      next_steps: out.next_steps || [],
+      problems: lines(out.problems),
+      next_steps: lines(out.next_steps),
       for_patient: out.for_patient,
       for_rp: out.for_rp,
     }

@@ -16,9 +16,9 @@ import * as gnani from './rails/gnani.js'
 import * as geminiProvider from './providers/gemini.js'
 import * as anthropicProvider from './providers/anthropic.js'
 import * as stubProvider from './providers/stub.js'
+import * as opencode from './providers/opencode.js'
 
 const MAX_STEPS = 30
-export const ZEN_MESSAGES = 'https://opencode.ai/zen/v1/messages'
 
 function provider() {
   const which = (process.env.MODEL_PROVIDER || 'gemini').toLowerCase()
@@ -28,18 +28,26 @@ function provider() {
   if (which === 'anthropic') {
     return { run: anthropicProvider.run, model: process.env.MODEL_NAME || 'claude-sonnet-5', apiKey: process.env.ANTHROPIC_API_KEY }
   }
-  // OpenCode Zen: a gateway whose /messages endpoint is Anthropic-shaped, so it
-  // reuses that provider with a different URL and key. Worth having because the
-  // Gemini free tier is twenty requests a day per model, which is roughly one
-  // partial run, and a take needs a great many more than that.
-  if (which === 'opencode' || which === 'zen') {
+  // OpenCode Go: a subscription gateway whose /messages endpoint is
+  // Anthropic-shaped, so it reuses that provider with a different URL, key and
+  // two headers. Worth having because the Gemini free tier is twenty requests a
+  // day per model, which is roughly one partial run, and a take needs a great
+  // many more than that.
+  if (which === 'opencode' || which === 'go' || which === 'zen') {
     // ZEN_MODEL, not MODEL_NAME. MODEL_NAME is set for the Gemini path, and
-    // pointing a Gemini model at this Anthropic-shaped endpoint is a 400:
-    // "ModelProtocolUnsupported -- Model does not support this protocol."
-    // Zen serves both families; only its Claude models speak /messages.
+    // pointing a Gemini model at this endpoint is a 400: "Model does not
+    // support this protocol." Go serves forty-odd models and only some speak
+    // /messages -- glm-5.3-flash is one of the refusals, so the default here is
+    // a model confirmed to answer and to return tool_use blocks. There are no
+    // Claude models on Go.
     return {
-      run: (opts) => anthropicProvider.run({ ...opts, baseUrl: ZEN_MESSAGES }),
-      model: process.env.ZEN_MODEL || 'claude-haiku-4-5',
+      run: (opts) => anthropicProvider.run({
+        ...opts,
+        baseUrl: opencode.baseUrl(),
+        headers: opencode.headers(),
+        label: 'OpenCode Go',
+      }),
+      model: process.env.ZEN_MODEL || 'minimax-m3',
       apiKey: process.env.OPENCODE_API_KEY,
     }
   }

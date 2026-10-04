@@ -45,9 +45,10 @@ npm run check            # self-check: R19 gate, curtain pause, fixture passthro
 | `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` | the brain |
 | `GNANI_API_KEY` | real STT. Without it `gnani_stt` refuses and says so on screen |
 | `SHEETS_WEBHOOK_URL` | Apps Script web app. Empty shows "Sheets: off" |
-| `OPENCODE_API_KEY` | OpenCode Zen, an AI gateway. Lets `MODEL_PROVIDER=opencode` run the agent, and gives the write-up a second provider when Gemini's free tier is spent. |
-| `ZEN_MODEL` | Which model Zen runs the agent on. Default `claude-haiku-4-5`. Must be a Claude one: Zen serves Gemini and GPT too, but only Claude speaks the `/messages` protocol this uses. |
+| `OPENCODE_API_KEY` | OpenCode **Go**, the subscription gateway. Lets `MODEL_PROVIDER=opencode` run the agent, and gives the write-up a second provider when Gemini's free tier is spent. Requests go to `/zen/go/v1/messages`, not `/zen/v1/messages` -- the latter is pay-per-token and refuses a Go key with 402 "Insufficient account funds". |
+| `ZEN_MODEL` | Which Go model runs the agent. Default `minimax-m3`. Must be one that speaks `/messages`: Go serves forty-odd models and some refuse with "Model does not support this protocol" (`glm-5.3-flash` is one). `minimax-m3`, `kimi-k3` and `qwen3.8-flash` are confirmed to answer and to return tool calls. There are no Claude models on Go. |
 | `SUMMARY_PROVIDER` | Pin the write-up to `gemini` or `opencode`. Left unset, whichever keys exist are tried in that order and the result says which one wrote it. |
+| `OPENCODE_BASE_URL` | Override the Go endpoint, for pinning a different gateway. Rarely wanted. |
 | `STUB_THINK_MS` | How long each scripted step pauses so the work is visible. Default 2400 (jittered). `0` turns it off, which is what `npm run check` does. Ignored unless `MODEL_PROVIDER=stub` — a real model takes its own time. |
 
 **`MODEL_PROVIDER=stub`** replays `config/stub-script.json` instead of calling a

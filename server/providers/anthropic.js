@@ -1,9 +1,12 @@
 /**
  * Claude via raw REST /v1/messages. Same reasons as gemini.js.
  *
- * `baseUrl` is injectable because OpenCode Zen speaks this same shape at
- * https://opencode.ai/zen/v1/messages -- same body, same tool_use blocks, same
- * x-api-key header. One provider serves both; only the URL and the key differ.
+ * `baseUrl`, `headers` and `label` are injectable because OpenCode Go speaks
+ * this same shape at https://opencode.ai/zen/go/v1/messages -- same body, same
+ * tool_use blocks, same x-api-key header. One provider serves both; only the
+ * URL, the key and two required headers differ. `label` only names the right
+ * service in the error, which otherwise reads "Anthropic 400" for a gateway
+ * fault and sends you looking in the wrong place.
  */
 const URL = 'https://api.anthropic.com/v1/messages'
 
@@ -47,10 +50,15 @@ function toMessages(history) {
   return messages
 }
 
-export async function run({ systemPrompt, history, tools, model, apiKey, baseUrl }) {
+export async function run({ systemPrompt, history, tools, model, apiKey, baseUrl, headers, label }) {
   const res = await fetch(baseUrl || URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      ...(headers || {}),
+    },
     body: JSON.stringify({
       model,
       max_tokens: 4096,
@@ -61,7 +69,7 @@ export async function run({ systemPrompt, history, tools, model, apiKey, baseUrl
     }),
   })
   const json = await res.json()
-  if (!res.ok) throw new Error(`${baseUrl ? 'OpenCode Zen' : 'Anthropic'} ${res.status}: ${JSON.stringify(json).slice(0, 600)}`)
+  if (!res.ok) throw new Error(`${label || 'Anthropic'} ${res.status}: ${JSON.stringify(json).slice(0, 600)}`)
 
   const content = json.content || []
   const text = content.filter((c) => c.type === 'text').map((c) => c.text).join('')
