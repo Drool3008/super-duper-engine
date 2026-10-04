@@ -68,6 +68,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
 export const useSession = () => useContext(Ctx)
 
+/**
+ * Arrival order. The sim clock often stands still for a whole take, so many
+ * messages share one timestamp; this keeps them in the order they happened.
+ */
+let arrival = 0
+
 function reduce(v: SessionView, ev: AgentEvent, nextId: () => string): SessionView {
   const push = (item: TimelineItem) => ({ ...v, timeline: [...v.timeline, item] })
 
@@ -104,7 +110,7 @@ function reduce(v: SessionView, ev: AgentEvent, nextId: () => string): SessionVi
     case 'chat_message': {
       const seen = v.chats[ev.key] || []
       if (seen.some((m: any) => m.id === ev.message.id)) return v
-      return { ...v, chats: { ...v.chats, [ev.key]: [...seen, ev.message] } }
+      return { ...v, chats: { ...v.chats, [ev.key]: [...seen, { ...ev.message, seq: ++arrival }] } }
     }
     case 'thinking':
       return { ...v, thinking: true }
@@ -125,7 +131,7 @@ function reduce(v: SessionView, ev: AgentEvent, nextId: () => string): SessionVi
     case 'curtain_resolved':
       return { ...v, pending: v.pending.filter((p) => p.id !== ev.id), thinking: true }
     case 'message': {
-      const m: Message = ev.message
+      const m: Message = { ...ev.message, seq: ++arrival }
       const box = m.from === 'agent' ? m.to : m.from
       return { ...v, lastMessage: m, messages: { ...v.messages, [box]: [...(v.messages[box] || []), m] } }
     }

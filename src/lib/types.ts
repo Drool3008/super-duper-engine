@@ -42,6 +42,8 @@ export interface Message {
   answered_at?: string
   timed_out?: string | boolean
   at: string
+  /** Client-side arrival order, for messages that share a sim timestamp. */
+  seq?: number
 }
 
 export type TimelineItem =

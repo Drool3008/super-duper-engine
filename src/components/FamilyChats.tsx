@@ -41,7 +41,7 @@ export const chatKeyFor = (memberId: string, chat: any) =>
 
 /** Seeded history first, then anything typed during the session. */
 const mergeChat = (chat: any, live: any[]) =>
-  [...(chat.messages || []), ...live].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
+  [...(chat.messages || []), ...live].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime() || (a.seq ?? 0) - (b.seq ?? 0))
 
 /**
  * The agent is a member of the family group, so what it posts there belongs in
@@ -72,6 +72,13 @@ function listStamp(iso: string, now: Date) {
   if (days === 1) return 'Yesterday'
   if (days < 7) return d.toLocaleDateString('en-IN', { weekday: 'short' })
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+}
+
+/** First names, unless two people share one; then full names. */
+function groupMembers(members: any[], me: string) {
+  const firsts = members.map((m) => m.name.split(' ')[0])
+  const clash = new Set(firsts.filter((f, i) => firsts.indexOf(f) !== i))
+  return members.map((m, i) => (m.id === me ? 'You' : clash.has(firsts[i]) ? m.name : firsts[i])).join(', ')
 }
 
 // ---------------------------------------------------------------- the tab
@@ -175,7 +182,7 @@ function ChatScreen({ chat, memberId, nameOf, onBack }: any) {
           <div className="truncate text-body font-semibold">{chat.name}</div>
           {isGroup && (
             <div className="truncate text-[11px] text-muted">
-              {(s.onboarding?.family?.members || []).map((m: any) => (m.id === memberId ? 'You' : m.name.split(' ')[0])).join(', ')}, Family Health agent
+              {groupMembers(s.onboarding?.family?.members || [], memberId)}, Family Health agent
             </div>
           )}
         </div>
