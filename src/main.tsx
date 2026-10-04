@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import StageView from './StageView'
+import ClinicScreen from './ClinicScreen'
 import PhoneApp from './PhoneApp'
 import { PhoneScreen } from './PhoneScreen'
 import { SessionProvider, useSession } from './lib/session'
@@ -109,6 +110,7 @@ function Routes() {
   if (path === '/phone' || path === '/phone/') return <PhonePicker />
   if (path.startsWith('/phone/')) return <PhoneRoute key_={decodeURIComponent(path.slice('/phone/'.length))} />
   if (path.startsWith('/stage')) return <StageView />
+  if (path.startsWith('/clinic')) return <div className="h-screen"><ClinicScreen /></div>
   return <App />
 }
 

@@ -1,6 +1,6 @@
 {
   "_note": "Scripted paths for the sample triggers in config/trigger-samples.json, used only when MODEL_PROVIDER=stub. One script per severity band, plus per-sample overrides for sentences that exercise something their band does not. `bands` is matched on the sample's expected tier; `samples` wins when a key matches the sample id. config/stub-script.json is untouched and is still the default take (the clock-driven medication refill).",
-  "_limits": "A static script cannot quote words it has not seen, so these do not call record_account: the transcript has to be verbatim (R5) and only a real model has the sentence in front of it. They also avoid naming a provider, because provider names live in onboarding data that is all placeholder today. What these scripts do demonstrate is the routing the severity decides: critical acts and settles up afterwards, urgent and routine stop and ask the RP first.",
+  "_limits": "A static script cannot quote words it has not seen, so these do not call record_account: the transcript has to be verbatim (R5) and only a real model has the sentence in front of it. They also avoid naming a provider, because provider names live in onboarding data that is all placeholder today. What these scripts do demonstrate is the routing the severity decides: critical acts and settles up afterwards, urgent and routine stop and ask the RP first. A static script also cannot branch on an answer: test_due_tap always closes on the second clinic, whichever of the three buttons is pressed. A real model reads the answer and does what was actually chosen -- including the decline path, where it tells the family and escalates to the RP.",
   "_r19": "Every turn that calls a tool opens with log_decision. There is no exemption, not even for set_stage.",
   "bands": {
     "critical": [
@@ -840,6 +840,195 @@
             "name": "summarise_account",
             "args": {
               "why": "she has added what she wanted and answered on top of it"
+            }
+          }
+        ]
+      }
+    ],
+    "test_due_tap": [
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "An overdue BP check was raised from the app",
+              "source": "Tap on the check-up card in the app, by the person holding the phone",
+              "decided": "Book it, starting with her own treating doctor",
+              "rule_id": "R2",
+              "why": "a real person asked for this; the record says it is overdue and her prescription depends on it",
+              "action": "called her treating doctor for the earliest slot",
+              "recipient": "Dr. S. Rao's clinic, Hanamkonda",
+              "connector": "Phone"
+            }
+          },
+          {
+            "name": "set_stage",
+            "args": {
+              "stage": 6,
+              "why": "booking the overdue check-up she asked for"
+            }
+          },
+          {
+            "name": "next_provider",
+            "args": {
+              "kind": "clinics",
+              "why": "her own treating doctor knows the case, so he is tried first"
+            }
+          },
+          {
+            "name": "place_call",
+            "args": {
+              "to": "Dr. S. Rao's clinic, Hanamkonda",
+              "phone": "+91-80000-10001",
+              "purpose": "book the earliest BP check slot for Lakshmi",
+              "say": "I am calling for Lakshmi, a patient of Dr. Rao. Her BP check is overdue and her prescription needs it. What is the earliest slot you have?"
+            }
+          }
+        ]
+      },
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "No answer at Dr. S. Rao's clinic",
+              "source": "Phone, no answer after eight rings",
+              "decided": "Redial the same clinic once before trying anyone else",
+              "rule_id": "R11",
+              "why": "silence is not an answer, and her own doctor is worth a second try before a new one",
+              "action": "redialled the clinic",
+              "recipient": "Dr. S. Rao's clinic, Hanamkonda",
+              "connector": "Phone"
+            }
+          },
+          {
+            "name": "record_provider_outcome",
+            "args": {
+              "kind": "clinics",
+              "provider": "Dr. S. Rao's clinic, Hanamkonda",
+              "outcome": "no_answer"
+            }
+          },
+          {
+            "name": "next_provider",
+            "args": {
+              "kind": "clinics",
+              "why": "checking who is owed a redial before moving down the list"
+            }
+          },
+          {
+            "name": "place_call",
+            "args": {
+              "to": "Dr. S. Rao's clinic, Hanamkonda",
+              "phone": "+91-80000-10001",
+              "purpose": "second attempt: earliest BP check slot for Lakshmi",
+              "say": "Calling again about Lakshmi's overdue BP check. Do you have any slot today, or the earliest after that?"
+            }
+          }
+        ]
+      },
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "The clinic answered on the redial: no slots today",
+              "source": "Dr. S. Rao's clinic, Hanamkonda, on the phone",
+              "decided": "Put her three real choices to her rather than picking one",
+              "rule_id": "R12",
+              "why": "a new doctor is one of the things I must ask a person about, and the choice to skip it is hers",
+              "action": "offered another named clinic, a later date with her own doctor, or not booking",
+              "recipient": "Lakshmi",
+              "connector": "WhatsApp"
+            }
+          },
+          {
+            "name": "record_provider_outcome",
+            "args": {
+              "kind": "clinics",
+              "provider": "Dr. S. Rao's clinic, Hanamkonda",
+              "outcome": "no_slot",
+              "why": "nothing today after a redial; offering the second known clinic tomorrow, Dr. Rao on Thursday, or not booking",
+              "chose": "put all three to the patient rather than choosing for her"
+            }
+          },
+          {
+            "name": "send_message",
+            "args": {
+              "to": "patient",
+              "language": "te-IN",
+              "text": "డాక్టర్ రావు గారి క్లినిక్‌కి రెండుసార్లు ఫోన్ చేశాను. ఈరోజు స్లాట్ లేదు అన్నారు. మీరు ఏం చేద్దాం అనుకుంటున్నారు?",
+              "card": "{\"kind\": \"slot_unavailable\", \"test\": \"BP check\", \"for\": \"Lakshmi\", \"detail\": \"I called Dr. Rao's clinic twice. Nobody picked up the first time, and on the second call they said there is nothing free today.\", \"why\": \"This reading is overdue and your tablets cannot be renewed without it, so I did not want to leave it or choose for you.\", \"options\": [{\"label\": \"Another doctor, sooner\", \"value\": \"Warangal Family Health Centre — tomorrow 9:30am · Hanamkonda, 4.8 km · +91-80000-10002\"}, {\"label\": \"Your own doctor, later\", \"value\": \"Dr. S. Rao — Thursday 11:00am · Hanamkonda, 2.1 km\"}, {\"label\": \"Not at all\", \"value\": \"I will tell Arun and the family, and ask you again next week\"}], \"buttons\": [\"Warangal Family Health Centre\", \"Wait for Dr. Rao\", \"Don't book\"], \"on_timeout\": \"I will hold Thursday with Dr. Rao and tell Arun\"}"
+            }
+          },
+          {
+            "name": "wait_for_reply",
+            "args": {
+              "from": "patient",
+              "wait_seconds": 900,
+              "what_for": "another doctor tomorrow, her own doctor on Thursday, or not booking at all"
+            }
+          }
+        ]
+      },
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "log_decision",
+            "args": {
+              "received": "Lakshmi chose the earlier slot at the second clinic",
+              "source": "Lakshmi, answer on the card in the app",
+              "decided": "Book Warangal Family Health Centre for tomorrow morning and tell the family the check-up moved",
+              "rule_id": "R12",
+              "why": "she picked the sooner appointment and the reading is already overdue",
+              "action": "booked the slot, told her, and posted a status line to the family group",
+              "recipient": "Lakshmi, the family group and Arun",
+              "connector": "WhatsApp"
+            }
+          },
+          {
+            "name": "record_provider_outcome",
+            "args": {
+              "kind": "clinics",
+              "provider": "Warangal Family Health Centre",
+              "outcome": "booked",
+              "why": "patient chose the earlier slot over waiting for her own doctor",
+              "chose": "tomorrow 9:30am"
+            }
+          },
+          {
+            "name": "send_message",
+            "args": {
+              "to": "patient",
+              "language": "te-IN",
+              "text": "వరంగల్ ఫ్యామిలీ హెల్త్ సెంటర్‌లో రేపు ఉదయం 9:30కి బుక్ చేశాను. ఉదయం గుర్తు చేస్తాను."
+            }
+          },
+          {
+            "name": "send_message",
+            "args": {
+              "to": "family_group",
+              "language": "en-IN",
+              "text": "Update: Lakshmi's BP check could not be booked with Dr. Rao today, so it is now tomorrow 9:30am at Warangal Family Health Centre. Nothing needed from anyone."
+            }
+          },
+          {
+            "name": "send_message",
+            "args": {
+              "to": "rp",
+              "language": "en-IN",
+              "text": "Dr. Rao's clinic did not answer, and on the redial had nothing free. I put three options to Lakshmi and she chose Warangal Family Health Centre, tomorrow 9:30am. Told the group it has moved."
+            }
+          },
+          {
+            "name": "set_stage",
+            "args": {
+              "stage": 9,
+              "why": "slot confirmed by name and the family told"
             }
           }
         ]
