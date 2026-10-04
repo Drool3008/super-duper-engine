@@ -7,6 +7,7 @@ import { deliverReply, noAnswer, expireByClock, openWaits } from './humans.js'
 import { feed, isRunning } from './agent.js'
 import { chainState, contactChain } from './contacts.js'
 import { accounts } from './accounts.js'
+import { assessments, openReversals, exerciseReversal, expireReversals } from './assessment.js'
 import { readFileSync } from 'node:fs'
 import { TOOLS } from './tools.js'
 import { gnaniOn } from './rails/gnani.js'
@@ -59,6 +60,8 @@ app.get('/api/session', (req, res) => {
     running: isRunning(),
     chain: chainState(),
     accounts: accounts(),
+    assessments: assessments(),
+    reversals: openReversals(),
     contactOrder: contactChain(),
     rails: { gnani: gnaniOn(), sheets: sheetsOn() },
     tools: TOOLS.map(({ name, mode, rail, endpoint }) => ({ name, mode, rail, endpoint: endpoint || null })),
@@ -184,6 +187,15 @@ app.post('/api/reply', (req, res) => {
   res.json({ ok: deliverReply({ from, text, action }) })
 })
 
+/**
+ * The responsible person overrules a decision the agent already acted on.
+ * Only they can, and only while the window is open (R10).
+ */
+app.post('/api/reversal/:id', (req, res) => {
+  const out = exerciseReversal({ id: req.params.id, by: req.body?.by, why: req.body?.why })
+  res.status(out.ok ? 200 : 400).json(out)
+})
+
 /** The Director: this person did not pick up. */
 app.post('/api/no-answer', (req, res) => {
   emit('no_answer', { from: req.body?.from, source: 'Director' })
@@ -196,6 +208,7 @@ app.post('/api/clock', async (req, res) => {
   if (!to || !source) return res.status(400).json({ error: 'to and source are required; say which of the agent\'s own dates this is' })
   advanceClock(to, source)
   expireByClock()
+  expireReversals()
   res.json({ ok: true, clock: session.clock.toISOString() })
   if (req.body.feed !== false) {
     feed({ kind: 'clock', source, reached: to }).catch((err) => emit('error', { error: err.message }))

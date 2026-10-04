@@ -27,6 +27,8 @@ export const session = {
   chats: {},       // live family-chat messages, keyed by chatKey() below
   chain: null,     // the current walk down the call chain, see contacts.js
   accounts: [],    // transcripts and summaries, see accounts.js
+  assessments: [], // tiers and the factors behind them, see assessment.js
+  reversals: [],   // decisions the RP may still overrule, see assessment.js
   familyHistory,
   rpHistory,
   history: [],     // provider-agnostic conversation history

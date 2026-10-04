@@ -145,5 +145,68 @@ assert.equal(lying.ok, false, 'via direct cannot have somebody else speaking')
 assert.match(lying.error, /relayed/)
 console.log('ok  refused a route that disagreed with who spoke')
 
+// ---------------------------------------------------------------- assessing
+
+const { recordAssessment, openReversal, exerciseReversal, expireReversals, openReversals } =
+  await import('./assessment.js')
+
+const plain = recordAssessment({ about: 'patient', tier: 'routine', factors: 'no red flags, stable baseline' })
+assert.equal(plain.ok, true)
+assert.equal(plain.tier, 'routine', 'a confident routine assessment stays routine')
+
+const cantTell = recordAssessment({ about: 'patient', tier: 'routine', factors: 'no history on file', can_tell: false })
+assert.equal(cantTell.tier, 'urgent', 'R8: cannot tell is never routine')
+assert.equal(cantTell.must_ask_human, true, 'R8: cannot tell must ask a human')
+assert.equal(cantTell.raised_from, 'routine')
+console.log('ok  R8 raised "cannot tell" to urgent and demanded a human')
+
+const unsure = recordAssessment({ about: 'patient', tier: 'routine', factors: 'factors disagree', unsure: true })
+assert.equal(unsure.tier, 'urgent', 'R7: unsure goes up one tier')
+
+const both = recordAssessment({ about: 'patient', tier: 'routine', factors: 'nothing on file and factors disagree', can_tell: false, unsure: true })
+assert.equal(both.tier, 'critical', 'R8 raises to urgent, then R7 raises one more')
+console.log('ok  R7 and R8 stack, and never lower a tier')
+
+const noFactors = recordAssessment({ about: 'patient', tier: 'urgent', factors: '   ' })
+assert.equal(noFactors.ok, false, 'R7: an assessment without its reasons is refused')
+assert.match(noFactors.error, /R7/)
+console.log('ok  R7 refused an assessment with no factors')
+
+// ---------------------------------------------------------------- the veto
+
+const win = openReversal({
+  about: 'patient', decided_by: 'patient', decision: 'do not escalate',
+  action_taken: 'held the clinic booking', window_seconds: 600,
+})
+assert.equal(win.ok, true)
+assert.equal(win.may_reverse, 'rp', 'only the responsible person may reverse')
+assert.equal(openReversals().length, 1)
+
+const notRp = exerciseReversal({ id: win.reversal_id, by: 'member_3', why: 'I disagree' })
+assert.equal(notRp.ok, false, 'somebody who is not the RP cannot reverse')
+assert.match(notRp.error, /only the responsible person/)
+
+const byRp = exerciseReversal({ id: win.reversal_id, by: 'rp', why: 'she plays it down, book it' })
+assert.equal(byRp.ok, true)
+assert.equal(byRp.original.by, 'patient', 'R10: both views kept side by side')
+assert.equal(byRp.overruled_by.by, 'rp')
+console.log('ok  R10 only the RP reversed, and both views were kept')
+
+const twice = exerciseReversal({ id: win.reversal_id, by: 'rp', why: 'again' })
+assert.equal(twice.ok, false, 'a decision cannot be reversed twice')
+
+// The window closes on the simulated clock, never a wall-clock timer.
+const late = openReversal({
+  about: 'patient', decided_by: 'patient', decision: 'escalate',
+  action_taken: 'booked the clinic', window_seconds: 60,
+})
+session.clock = new Date(session.clock.getTime() + 120 * 1000)
+expireReversals()
+const tooLate = exerciseReversal({ id: late.reversal_id, by: 'rp', why: 'changed my mind' })
+assert.equal(tooLate.ok, false, 'the window closed when the sim clock passed it')
+assert.match(tooLate.error, /already expired|closed/)
+assert.equal(openReversals().length, 0)
+console.log('ok  reversal window closed on the sim clock, not a real timer')
+
 console.log('\nall checks passed')
 process.exit(0)

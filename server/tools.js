@@ -94,6 +94,32 @@ export const TOOLS = [
     }, ['from', 'wait_seconds', 'what_for']),
   },
   {
+    name: 'record_assessment',
+    mode: 'LIVE', rail: null,
+    description:
+      'Record how urgent this is and the factors you weighed (R7). Say honestly whether you can tell and whether you are unsure: if you cannot tell, the tier is raised to urgent and a human is asked (R8), and being unsure raises it one more. The tier you get back is the one that counts, not the one you proposed. Never guess downward.',
+    parameters: obj('An assessment', {
+      about: str('Who this is about, by id'),
+      tier: { type: 'STRING', description: 'How urgent you think it is', enum: ['routine', 'urgent', 'critical'] },
+      factors: str('One line naming what you weighed: red flags, change from baseline, medicine link, context'),
+      can_tell: bool('False if the information you have is not enough to judge'),
+      unsure: bool('True if the factors disagree or you are not confident'),
+    }, ['about', 'tier', 'factors']),
+  },
+  {
+    name: 'open_reversal_window',
+    mode: 'LIVE', rail: null,
+    description:
+      'You acted on somebody\'s answer. Record what was decided and what you already did, and open the window in which the responsible person may overrule it (R10). Do this instead of waiting for the RP: the flow carries on, and only the RP can reverse. Tell them what reversing would undo.',
+    parameters: obj('A reversible decision', {
+      about: str('Who the decision is about, by id'),
+      decided_by: str('Whose answer you acted on, by id'),
+      decision: str('What was chosen, in plain words'),
+      action_taken: str('What you have already done, so the RP knows what reversing would undo'),
+      window_seconds: num('How long the RP has. Use the tier wait time from onboarding.'),
+    }, ['about', 'decided_by', 'decision', 'action_taken']),
+  },
+  {
     name: 'record_account',
     mode: 'LIVE', rail: null,
     description:

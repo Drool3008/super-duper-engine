@@ -108,6 +108,30 @@ the speaker, so a record cannot claim the patient spoke when the RP did.
 Covered by four checks: the secondhand decision, the echoed summary, an invented
 speaker with a missing transcript, and a route that disagreed with who spoke.
 
+### Assessing (stage 5) — done
+
+`server/assessment.js`. The tier was passed into `next_contact` and stored
+nowhere, so no assessment survived the step that made it.
+
+**The tier is raised in code, never by the model.** Saying "I cannot tell" makes
+it urgent and demands a human (R8); saying "I am unsure" raises it one more
+(R7). The two stack, so cannot-tell *and* unsure lands on critical. The tier
+returned is the one that counts, and nothing can lower it. An assessment with no
+factors is refused outright — an assessment without its reasons is not one.
+
+**The veto is after the fact** (decision 3). `open_reversal_window` records what
+was decided, whose answer it was, and what has already been done, then opens the
+window. The flow carries on. Only the responsible person can reverse, it cannot
+be reversed twice, and the result hands back both views side by side, which is
+what R10 asks for.
+
+**The window closes on the simulated clock**, never a wall-clock timer, matching
+`wait_for_reply`. A real timer would be the backend deciding the window had
+passed on its own. `POST /api/reversal/:id` is how the RP's phone exercises it.
+
+Covered by five checks: the R8 raise, the R7/R8 stack, the missing factors, the
+RP-only reversal with both views kept, and expiry by sim clock.
+
 ## Spend
 
 Every operation costs money, so the RP sets a spend limit. The running total is

@@ -6,6 +6,7 @@ import { enqueue } from './curtain.js'
 import { awaitReply } from './humans.js'
 import { nextContact, startChain } from './contacts.js'
 import { recordAccount } from './accounts.js'
+import { recordAssessment, openReversal } from './assessment.js'
 import { loadFixtures } from './fixtures.js'
 import * as sheets from './rails/sheets.js'
 import * as gnani from './rails/gnani.js'
@@ -66,6 +67,10 @@ async function runLive(name, args) {
       return nextContact({ affected: args.affected, tier: args.tier })
     case 'record_account':
       return recordAccount(args)
+    case 'record_assessment':
+      return recordAssessment(args)
+    case 'open_reversal_window':
+      return openReversal(args)
     case 'record_update': {
       let changes
       try { changes = JSON.parse(args.changes) } catch { return { ok: false, error: 'changes must be a JSON object encoded as a string' } }
