@@ -24,7 +24,7 @@ export default {
         surface:'#FAFBFC',
       },
       fontSize: {
-        badge: ['11px', { lineHeight: '14px', letterSpacing: '0.06em', fontWeight: '700' }],
+        badge: ['12px', { lineHeight: '16px', letterSpacing: '0.06em', fontWeight: '700' }],
         meta:  ['13px', { lineHeight: '18px', fontWeight: '500' }],
         body:  ['15px', { lineHeight: '22px' }],
         card:  ['17px', { lineHeight: '23px', fontWeight: '600' }],

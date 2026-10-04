@@ -128,16 +128,16 @@ function ChatList({ chats, memberId, nameOf, onOpen }: any) {
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline justify-between gap-2">
                 <span className="truncate text-body font-semibold">
-                  {c.name}{c.pinned && <span className="ml-1.5 text-[11px] font-normal text-muted">pinned</span>}
+                  {c.name}{c.pinned && <span className="ml-1.5 text-meta font-normal text-muted">pinned</span>}
                 </span>
-                {last && <span className="shrink-0 text-[11px] text-muted">{listStamp(last.at, now)}</span>}
+                {last && <span className="shrink-0 text-meta text-muted">{listStamp(last.at, now)}</span>}
               </div>
               <div className="flex items-center gap-2">
                 <span className="truncate text-meta text-muted">
                   {!isAgent && c.kind === 'group' && last ? `${last.from === 'agent' ? 'Agent' : nameOf(last.from)}: ` : ''}{preview}
                 </span>
                 {isAgent && waiting > 0 && (
-                  <span className="ml-auto shrink-0 rounded-full bg-human px-1.5 text-[11px] font-bold text-white">{waiting}</span>
+                  <span className="ml-auto shrink-0 rounded-full bg-human px-1.5 text-meta font-bold text-white">{waiting}</span>
                 )}
               </div>
             </div>
@@ -181,7 +181,7 @@ function ChatScreen({ chat, memberId, nameOf, onBack }: any) {
         <div className="min-w-0">
           <div className="truncate text-body font-semibold">{chat.name}</div>
           {isGroup && (
-            <div className="truncate text-[11px] text-muted">
+            <div className="truncate text-meta text-muted">
               {groupMembers(s.onboarding?.family?.members || [], memberId)}, Family Health agent
             </div>
           )}
@@ -198,23 +198,23 @@ function ChatScreen({ chat, memberId, nameOf, onBack }: any) {
             <div key={m.id}>
               {sep && (
                 <div className="my-3 flex justify-center">
-                  <span className="rounded-full bg-white px-2.5 py-0.5 text-[11px] text-muted shadow-sm">{sep}</span>
+                  <span className="rounded-full bg-white px-2.5 py-0.5 text-meta text-muted shadow-sm">{sep}</span>
                 </div>
               )}
               <div className={`mt-1.5 flex ${mine ? 'justify-end' : 'justify-start'}`}>
                 <div className={`group relative max-w-[86%] rounded-2xl px-2 py-1.5 shadow-sm ${mine ? 'rounded-tr-sm bg-record-bg' : fromAgent ? 'rounded-tl-sm border-l-[3px] border-stage bg-stage-bg' : 'rounded-tl-sm bg-white'}`}>
                   {!mine && isGroup && (
                     fromAgent
-                      ? <div className="flex items-center gap-1 px-1 text-[11px] font-semibold text-stage"><Avatar name="agent" agent size={16} />Family Health agent</div>
-                      : <div className="px-1 text-[11px] font-semibold" style={{ color: toneFor(nameOf(m.from)) }}>{nameOf(m.from)}</div>
+                      ? <div className="flex items-center gap-1 px-1 text-meta font-semibold text-stage"><Avatar name="agent" agent size={16} />Family Health agent</div>
+                      : <div className="px-1 text-meta font-semibold" style={{ color: toneFor(nameOf(m.from)) }}>{nameOf(m.from)}</div>
                   )}
-                  {m.to_agent && <div className="px-1 text-[11px] font-semibold text-stage">to the agent</div>}
+                  {m.to_agent && <div className="px-1 text-meta font-semibold text-stage">to the agent</div>}
                   {m.media && <MediaBlock media={m.media} onOpen={() => setViewer(m.media)} />}
                   {(m.caption || m.text) && <div className="px-1 pt-1 text-body">{m.caption || m.text}</div>}
                   {forwarded[m.id] && (
-                    <div className="mx-1 mt-1 inline-block rounded bg-record-bg px-1.5 text-[11px] font-semibold text-record">Forwarded to agent ✓</div>
+                    <div className="mx-1 mt-1 inline-block rounded bg-record-bg px-1.5 text-meta font-semibold text-record">Forwarded to agent ✓</div>
                   )}
-                  <div className="flex items-center justify-end gap-1 px-1 pt-0.5 text-[11px] text-muted">
+                  <div className="flex items-center justify-end gap-1 px-1 pt-0.5 text-meta text-muted">
                     {hhmm(m.at)}{mine && <span className="text-record">✓✓</span>}
                     {!fromAgent && <button onClick={() => setSheet(m)} aria-label="More" className="ml-1 px-1 font-bold text-muted">⋯</button>}
                   </div>
@@ -271,10 +271,10 @@ function MediaBlock({ media, onOpen }: { media: any; onOpen: () => void }) {
   }
   return (
     <button onClick={onOpen} className="flex w-full items-center gap-2.5 rounded-xl bg-artifact-bg px-2.5 py-2 text-left">
-      <div className="flex h-10 w-9 shrink-0 items-center justify-center rounded bg-decision text-[10px] font-bold text-white">PDF</div>
+      <div className="flex h-10 w-9 shrink-0 items-center justify-center rounded bg-decision text-[12px] font-bold text-white">PDF</div>
       <div className="min-w-0">
         <div className="truncate text-meta font-semibold">{media.name}</div>
-        <div className="text-[11px] text-muted">{media.pages} page · {media.size_kb} kB</div>
+        <div className="text-meta text-muted">{media.pages} page · {media.size_kb} kB</div>
       </div>
     </button>
   )
@@ -290,7 +290,7 @@ function Viewer({ media, onClose }: { media: any; onClose: () => void }) {
       <div className="scroll flex-1 overflow-auto p-3">
         <img src={media.type === 'pdf' ? media.thumb : media.src} alt="" className="mx-auto w-full rounded-lg bg-white" />
       </div>
-      {media.type === 'pdf' && <div className="px-3 pb-3 text-center text-[11px] text-white/70">Page 1 of {media.pages}</div>}
+      {media.type === 'pdf' && <div className="px-3 pb-3 text-center text-meta text-white/70">Page 1 of {media.pages}</div>}
     </div>
   )
 }

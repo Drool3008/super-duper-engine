@@ -105,7 +105,7 @@ function NotificationBanner({ title, body }: { title: string; body: string }) {
       className="absolute left-2 right-2 top-[46px] z-40 rounded-2xl bg-[#1B2A33]/92 px-3 py-2 text-white shadow-lg backdrop-blur"
       style={{ animation: out ? 'notifyOut .3s ease-in forwards' : 'notifyIn .32s cubic-bezier(.2,.8,.3,1)' }}
     >
-      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/70">
+      <div className="flex items-center gap-1.5 text-meta font-semibold uppercase tracking-wide text-white/70">
         <span className="inline-block h-3 w-3 rounded-[4px] bg-record" />
         Family Health
       </div>

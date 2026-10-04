@@ -65,7 +65,7 @@ export function AgentChat({ memberId, onBack }: { memberId: string; onBack: () =
         <Avatar name="agent" agent size={34} />
         <div className="min-w-0">
           <div className="truncate text-body font-semibold">Family Health agent</div>
-          <div className="text-[11px] text-muted">{s.thinking ? 'working…' : 'always on'}</div>
+          <div className="text-meta text-muted">{s.thinking ? 'working…' : 'always on'}</div>
         </div>
       </div>
 
@@ -89,7 +89,7 @@ export function AgentChat({ memberId, onBack }: { memberId: string; onBack: () =
                 {m.text && <div className="px-1 pt-0.5 text-body">{m.text}</div>}
                 {m.action && <div className="px-1 text-body italic text-muted">you chose {m.action}</div>}
                 {m.card && <DecisionCard message={m} who={memberId} />}
-                <div className="flex items-center justify-end gap-1 px-1 pt-0.5 text-[11px] text-muted">
+                <div className="flex items-center justify-end gap-1 px-1 pt-0.5 text-meta text-muted">
                   {hhmm(m.at)}{mine && <span className="text-record">✓✓</span>}
                 </div>
               </div>

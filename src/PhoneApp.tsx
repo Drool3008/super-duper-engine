@@ -234,7 +234,7 @@ export function Bubble({ m, who }: { m: Message; who: string }) {
         {m.text && <div className="whitespace-pre-wrap">{m.text}</div>}
         {m.action && <div className="italic text-muted">you pressed {m.action}</div>}
         {m.card && <ActionCard card={m.card} who={who} message={m} />}
-        <div className="mt-0.5 text-right text-[11px] text-muted">
+        <div className="mt-0.5 text-right text-meta text-muted">
           {new Date(m.at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}
           {!fromAgent && <span className="ml-1 text-record">✓✓</span>}
         </div>
@@ -248,7 +248,7 @@ export function ActionCard({ card, who, message }: { card: any; who: string; mes
   const buttons: string[] = card.buttons || (card.kind === 'payment' ? ['Approve', 'Hold'] : ['Yes', 'No'])
   return (
     <div className="mt-2 rounded-xl border border-human/50 bg-human-bg p-2.5">
-      <div className="text-[11px] font-bold uppercase tracking-wide text-human">{card.kind}</div>
+      <div className="text-meta font-bold uppercase tracking-wide text-human">{card.kind}</div>
       {card.amount_inr !== undefined && <div className="text-card text-ink">{rupees(card.amount_inr)}</div>}
       {card.title && <div className="text-body font-semibold text-ink">{card.title}</div>}
       {card.payee && <div className="text-meta text-muted">{card.payee}</div>}

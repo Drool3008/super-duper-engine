@@ -67,7 +67,7 @@ function Bubble({ m }: { m: Message }) {
           fromAgent ? 'border-l-[3px] border-record bg-record-bg text-stage rounded-tr-none' : 'bg-artifact-bg text-ink rounded-tl-none'
         }`}
       >
-        <div className="text-[11px] text-muted">
+        <div className="text-meta text-muted">
           {fromAgent ? 'Agent' : m.from} · {new Date(m.at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}
           {m.language && <span className="ml-1 opacity-70">{m.language}</span>}
         </div>
@@ -87,7 +87,7 @@ function Card({ card, to }: { card: any; to: string }) {
 
   return (
     <div className="mt-1.5 rounded border border-human/40 bg-human-bg p-2">
-      <div className="text-[11px] font-bold uppercase tracking-wide text-human">{card.kind || 'card'}</div>
+      <div className="text-meta font-bold uppercase tracking-wide text-human">{card.kind || 'card'}</div>
       {card.amount_inr !== undefined && <div className="text-card">{rupees(card.amount_inr)}</div>}
       {card.title && <div className="text-body font-semibold">{card.title}</div>}
       {card.payee && <div className="text-meta text-muted">{card.payee}</div>}
