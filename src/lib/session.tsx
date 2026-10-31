@@ -65,7 +65,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const ev: AgentEvent = JSON.parse(e.data)
       setView((v) => reduce(v, ev, () => `i${seq.current++}`))
     }
-    return () => es.close()
+    // Keeps a free-tier host awake while a page is open (the stream alone is outbound only).
+    const wake = setInterval(() => { fetch(api('/api/ping')).catch(() => {}) }, 5 * 60_000)
+    return () => { es.close(); clearInterval(wake) }
   }, [])
 
   return <Ctx.Provider value={view}>{children}</Ctx.Provider>

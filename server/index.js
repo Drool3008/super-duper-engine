@@ -1,6 +1,6 @@
 import express from 'express'
 import multer from 'multer'
-import { randomUUID } from 'node:crypto'
+import { randomUUID, timingSafeEqual } from 'node:crypto'
 import { session, emit, addClient, advanceClock, audioStore, snapshot, chatKey, resetSession } from './state.js'
 import { respond, pendingList, resetPending } from './curtain.js'
 import { deliverReply, noAnswer, expireByClock, openWaits, resetWaits } from './humans.js'
@@ -10,7 +10,7 @@ import { accounts } from './accounts.js'
 import { openListening, recordAnswer, listeningState, resetListening } from './listening.js'
 import { assessments, openReversals, exerciseReversal, acceptReversal, expireReversals } from './assessment.js'
 import { providerLog, fulfilments, dispatches, refillCycles } from './acting.js'
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { TOOLS } from './tools.js'
 import { gnaniOn } from './rails/gnani.js'
 import * as gnani from './rails/gnani.js'
@@ -30,6 +30,22 @@ app.use((req, res, next) => {
   next()
 })
 
+// Shared-password gate for a public deploy. Off when APP_PASSWORD is unset, so
+// localhost and the LAN demo behave as before. Basic auth because the browser
+// then sends the credentials on fetch and EventSource with no frontend code.
+const APP_PASSWORD = process.env.APP_PASSWORD
+if (APP_PASSWORD) {
+  const want = Buffer.from(APP_PASSWORD)
+  app.use((req, res, next) => {
+    if (req.path === '/api/ping') return next() // health check and wake ping; returns nothing
+    const [scheme, encoded] = (req.headers.authorization || '').split(' ')
+    const given = Buffer.from(scheme === 'Basic' && encoded ? Buffer.from(encoded, 'base64').toString().split(':').slice(1).join(':') : '')
+    if (given.length === want.length && timingSafeEqual(given, want)) return next()
+    res.setHeader('WWW-Authenticate', 'Basic realm="Vantari", charset="UTF-8"')
+    res.status(401).send('Password required')
+  })
+}
+
 app.use(express.json({ limit: '5mb' }))
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } })
 
@@ -42,10 +58,17 @@ app.get('/events', (req, res) => {
     'Access-Control-Allow-Origin': '*',
   })
   res.write('\n')
+  // Comment line every 25s: proxies (Render, tunnels) close streams that go quiet.
+  const beat = setInterval(() => res.write(': ping\n\n'), 25_000)
+  req.on('close', () => clearInterval(beat))
   // Hand this client the live truth after the replay, so a run that ended
   // earlier does not leave it showing "working on it" forever.
   addClient(res, () => ({ running: isRunning(), waits: openWaits() }))
 })
+
+// Inbound request the open page sends every few minutes; Render's free tier
+// sleeps after 15 minutes without one, and an SSE stream only flows outbound.
+app.get('/api/ping', (req, res) => res.sendStatus(204))
 
 app.get('/api/session', (req, res) => {
   res.json({
@@ -479,7 +502,16 @@ app.post('/api/clock', async (req, res) => {
   }
 })
 
+// Serve the built UI from the same origin when `npm run build` has produced it
+// (the deploy). Locally, vite on :5173 serves the UI and dist/ usually does not exist.
+if (existsSync('dist/index.html')) {
+  app.use(express.static('dist'))
+  // Client-side routes (/stage, /phone/rp, ...) all load the one page.
+  app.get(/^\/(?!api\/|events$).*/, (req, res) => res.sendFile('index.html', { root: 'dist' }))
+}
+
 process.on('SIGINT', () => { snapshot(); process.exit(0) })
+process.on('SIGTERM', () => { snapshot(); process.exit(0) })
 
 const port = process.env.PORT || 8787
 // Loopback by default: the API has no auth, so the LAN reaches it only when asked (HOST=0.0.0.0 for the native iOS build).

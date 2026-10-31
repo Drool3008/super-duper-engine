@@ -54,12 +54,31 @@ npm run check            # self-check: R19 gate, curtain pause, fixture passthro
 | `OPENCODE_BASE_URL` | Override the Go endpoint, for pinning a different gateway. Rarely wanted. |
 | `CURTAIN_AUTO` | Answers the rail calls from `fixtures/<rail>/<tool>.json` instead of parking them on the curtain for a teammate. `1` lets a tap on "refill" or on a due test run end to end with nobody on the console. Leave it unset for a take: the curtain has no timeout and no default on purpose, because a call stalling on camera is better than the agent treating an invented reply as real. |
 | `HOST` | Interface the backend binds to. Default `127.0.0.1`, so nothing else on the network can reach the unauthenticated API. `npm run dev:lan` still works from a phone browser because Vite proxies to loopback. Set `0.0.0.0` only for the native iOS build, which calls the laptop's LAN IP directly. |
+| `APP_PASSWORD` | Shared password gate (HTTP Basic, any username). Unset locally; required on any public deploy. `/api/ping` stays open for health checks. |
 | `STUB_THINK_MS` | How long each scripted step pauses so the work is visible. Default 2400 (jittered). `0` turns it off, which is what `npm run check` does. Ignored unless `MODEL_PROVIDER=stub` — a real model takes its own time. |
 
 **`MODEL_PROVIDER=stub`** replays `config/stub-script.json` instead of calling a
 model. It costs nothing and needs no key, which makes it right for UI work and
 dry runs — and wrong for a real take, since the brief requires a real model
 making every decision.
+
+## Deploying (Render, free)
+
+`render.yaml` defines one free web service that serves the API, the SSE
+stream and the built UI from one URL. In the Render dashboard: **New >
+Blueprint**, pick this repo, then fill in the secrets it asks for
+(`GEMINI_API_KEY`, `MODEL_NAME`, `GNANI_API_KEY`, `OPENCODE_API_KEY`,
+`APP_PASSWORD`).
+
+- **`APP_PASSWORD` is required for a public URL.** The browser asks for it once
+  (any username). Without it, anyone with the link spends your model credit.
+- **Free tier sleeps** after 15 minutes with no inbound request, and waking
+  takes about a minute. An open page pings `/api/ping` every 5 minutes, so it
+  stays up while someone is watching.
+- **Every sleep, restart or deploy starts a fresh session**: the free tier has
+  no persistent disk. Treat each wake as a new take.
+- The stream sends a `: ping` comment every 25s so Render's proxy does not
+  close it while the agent is quiet.
 
 ## Viewing it on a real phone
 

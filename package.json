@@ -8,6 +8,7 @@
   "scripts": {
     "server": "node --env-file-if-exists=.env server/index.js",
     "dev": "vite",
+    "build": "vite build",
     "start": "npm run server & npm run dev",
     "check": "node --env-file-if-exists=.env server/selfcheck.js",
     "gen:media": "node --experimental-strip-types scripts/generate-family-media.ts",
