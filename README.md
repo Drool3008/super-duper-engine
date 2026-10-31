@@ -9,6 +9,9 @@ Runs on localhost and gets screen-recorded. No auth, no database, no deploy.
 
 ## Run it
 
+Needs Node 24.22.1 or newer (pinned in `.nvmrc`), the line patched by the
+2026-10-21 Node security release. Node 25 is end of life and unpatched.
+
 ```bash
 npm install
 cp .env.example .env     # then fill in the keys
