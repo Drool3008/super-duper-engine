@@ -79,7 +79,7 @@ export default function StageView() {
               <option value={CHEMIST}>Chemist</option>
             </select>
           ))}
-          <a href="/" className="rounded border border-line px-2.5 py-1 text-meta hover:bg-artifact-bg">Console only</a>
+          <a href="/console" className="rounded border border-line px-2.5 py-1 text-meta hover:bg-artifact-bg">Console only</a>
         </div>
       </div>
 

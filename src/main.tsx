@@ -111,6 +111,12 @@ function Routes() {
   if (path.startsWith('/phone/')) return <PhoneRoute key_={decodeURIComponent(path.slice('/phone/'.length))} />
   if (path.startsWith('/stage')) return <StageView />
   if (path.startsWith('/clinic')) return <div className="h-screen"><ClinicScreen /></div>
+  if (path.startsWith('/console')) return <App />
+  // The stage is the home page; the bare console lives at /console.
+  if (path === '/' || path === '/index.html') {
+    history.replaceState({}, '', '/stage')
+    return <StageView />
+  }
   return <App />
 }
 

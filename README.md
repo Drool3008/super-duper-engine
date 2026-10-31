@@ -23,8 +23,8 @@ Two screens, one session, kept in step over SSE:
 
 | URL | What it is |
 |---|---|
-| <http://localhost:5173> | **Operator console.** Curtain, agent timeline, phone frames, decision log. |
-| <http://localhost:5173/stage> | **Stage.** The recording surface: console plus phone simulators, or three phones. |
+| <http://localhost:5173/stage> | **Stage**, the home page (`/` redirects here). The recording surface: console plus phone simulators, or three phones. |
+| <http://localhost:5173/console> | **Operator console** on its own. Curtain, agent timeline, phone frames, decision log. |
 | <http://localhost:5173/phone/rp> | **One member's phone**, at a 390x844 device frame. Accepts the onboarding id (`rp`) or a slug of the name (`demo-rp`). |
 
 Everything reads one shared SSE session, so the console and every phone move in
