@@ -53,6 +53,7 @@ npm run check            # self-check: R19 gate, curtain pause, fixture passthro
 | `SUMMARY_PROVIDER` | Pin the write-up to `gemini` or `opencode`. Left unset, whichever keys exist are tried in that order and the result says which one wrote it. |
 | `OPENCODE_BASE_URL` | Override the Go endpoint, for pinning a different gateway. Rarely wanted. |
 | `CURTAIN_AUTO` | Answers the rail calls from `fixtures/<rail>/<tool>.json` instead of parking them on the curtain for a teammate. `1` lets a tap on "refill" or on a due test run end to end with nobody on the console. Leave it unset for a take: the curtain has no timeout and no default on purpose, because a call stalling on camera is better than the agent treating an invented reply as real. |
+| `HOST` | Interface the backend binds to. Default `127.0.0.1`, so nothing else on the network can reach the unauthenticated API. `npm run dev:lan` still works from a phone browser because Vite proxies to loopback. Set `0.0.0.0` only for the native iOS build, which calls the laptop's LAN IP directly. |
 | `STUB_THINK_MS` | How long each scripted step pauses so the work is visible. Default 2400 (jittered). `0` turns it off, which is what `npm run check` does. Ignored unless `MODEL_PROVIDER=stub` — a real model takes its own time. |
 
 **`MODEL_PROVIDER=stub`** replays `config/stub-script.json` instead of calling a
@@ -85,6 +86,7 @@ not needed. `ios/App/App/Info.plist` already allows cleartext HTTP to a LAN
 address, declares local-network use, and locks the app to portrait.
 
 ```bash
+HOST=0.0.0.0 npm run server   # the native app calls :8787 over the LAN
 npm run ios:build          # detects the LAN IP, bakes it in, runs cap sync
 npm run ios:build -- http://192.168.1.23:8787    # or pass one
 npm run ios:open           # Xcode: pick the connected iPhone, press Run

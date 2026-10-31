@@ -482,8 +482,10 @@ app.post('/api/clock', async (req, res) => {
 process.on('SIGINT', () => { snapshot(); process.exit(0) })
 
 const port = process.env.PORT || 8787
-app.listen(port, () => {
-  console.log(`curtain console server on :${port}`)
+// Loopback by default: the API has no auth, so the LAN reaches it only when asked (HOST=0.0.0.0 for the native iOS build).
+const host = process.env.HOST || '127.0.0.1'
+app.listen(port, host, () => {
+  console.log(`curtain console server on ${host}:${port}`)
   console.log(`  model   ${session.model}`)
   console.log(`  gnani   ${gnaniOn() ? 'live' : 'OFF (gnani_stt will refuse and say so)'}`)
   console.log(`  sheets  ${sheetsOn() ? 'live' : 'off'}`)
